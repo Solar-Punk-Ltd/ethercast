@@ -21,8 +21,6 @@ function Home() {
   };
 
   const play = async () => {
-    const video = document.getElementById('video') as HTMLMediaElement;
-
     if (Hls.isSupported()) {
       const video = document.getElementById('video') as HTMLMediaElement;
       const hls = new Hls({ debug: true });
@@ -35,12 +33,14 @@ function Home() {
         console.log('manifest loaded, found');
       });
 
-      // const playlistSrc = getPlaylistUrl();
+      const playlistSrc = getPlaylistUrl();
 
-      hls.loadSource(
+      /*    hls.loadSource(
         'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
-      );
+      ); */
+      hls.loadSource(playlistSrc);
       hls.attachMedia(video);
+      console.log(playlistSrc);
       // video.play();
     }
   };

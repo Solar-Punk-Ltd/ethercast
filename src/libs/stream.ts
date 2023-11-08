@@ -1,23 +1,36 @@
-import { BatchId, FeedManifestResult, FeedWriter, Reference } from '@ethersphere/bee-js';
+import { BatchId, FeedManifestResult, FeedWriter, Reference as BeeReference } from '@ethersphere/bee-js';
 import { Wallet } from 'ethers';
 import { types, stringify } from 'hls-parser';
-import { fileOpen, directoryOpen, fileSave, supported } from 'browser-fs-access';
+import { MantarayNode, Reference as MantarayReference, StorageSaver } from 'mantaray-js';
 
 import { getBee } from './bee';
-import { stringToHex } from '../utils/formatters';
+import { bytesToHexString, hexStringToBytes, stringToBytes, stringToHex } from '../utils/formatters';
+import { MasterPlaylist } from 'hls-parser/types';
 
 // random key for testing
 const privateKey = 'cb35ff5ec82b182ef2c5fcbcaeb92120b453a013b107e98a9b4d93c39ce3f1d7';
 const wallet = new Wallet(privateKey);
+const mantaray = new MantarayNode();
 const bee = getBee();
 
-const { MediaPlaylist, Segment } = types;
+const { MediaPlaylist, Segment, Variant } = types;
+
 const playlist = new MediaPlaylist({
   targetDuration: 1,
-  playlistType: 'EVENT',
-  version: 3,
+  version: 4,
   segments: [],
 });
+
+const masterPlaylist = new MasterPlaylist({
+  variants: [
+    new Variant({
+      bandwidth: 800000,
+      uri: 'http://localhost:1633/bzz/3853d9987ea81b63f1873b1d50c0a7f2f2c374064e1a3c9ba08d0fe0fdab7982/playlist.m3u8',
+    }),
+  ],
+});
+
+console.log(stringify(masterPlaylist));
 
 let feedManifest: FeedManifestResult;
 
@@ -42,6 +55,10 @@ export async function stream(stamp: string | BatchId): Promise<void> {
 
     const feedWriter = await getFeedWriter(stamp);
 
+    const playlistBlob = new Blob([stringify(masterPlaylist)], { type: 'application/x-mpegURL' });
+    const playlistResult = await bee.uploadData(stamp, new Uint8Array(await playlistBlob.arrayBuffer()));
+    mantaray.addFork(stringToBytes(`master.m3u8`), hexStringToBytes(playlistResult.reference) as MantarayReference);
+
     mediaRecorder.ondataavailable = async (event) => {
       if (event.data.size > 0) {
         await uploadChunk(stamp, feedWriter, new Uint8Array(await event.data.arrayBuffer()));
@@ -54,23 +71,34 @@ export async function stream(stamp: string | BatchId): Promise<void> {
   }
 }
 
+let index = 0;
 async function uploadChunk(stamp: string | BatchId, feedWriter: FeedWriter, chunk: Uint8Array) {
-  const chunkResult = await bee.uploadFile(stamp, chunk, 'chunk.webm', { contentType: 'video/webm' });
+  const chunkResult = await bee.uploadData(stamp, chunk);
+  mantaray.addFork(stringToBytes(`chunk${index}.webm`), hexStringToBytes(chunkResult.reference) as MantarayReference);
 
   const segment = new Segment({
-    uri: `http://localhost:1633/bzz/${chunkResult.reference}`,
+    uri: `chunk${index}.webm`,
     duration: 1,
   });
   playlist.segments.push(segment);
+  index++;
+
+  const playlistBlob = new Blob([stringify(playlist)], { type: 'application/x-mpegURL' });
+  const playlistResult = await bee.uploadData(stamp, new Uint8Array(await playlistBlob.arrayBuffer()));
+  mantaray.addFork(stringToBytes(`playlist.m3u8`), hexStringToBytes(playlistResult.reference) as MantarayReference);
+
+  const savedMantaray = await mantaray.save(createSaver(stamp));
+
+  await feedWriter.upload(stamp, bytesToHexString(savedMantaray) as BeeReference);
 
   console.log(stringify(playlist));
 
-  const playlistResult = await bee.uploadFile(stamp, stringify(playlist), 'playlist.m3u8', {
+  /*   const playlistResult = await bee.uploadFile(stamp, stringify(playlist), 'playlist.m3u8', {
     contentType: 'application/x-mpegURL',
     deferred: true,
-  });
+  }); */
 
-  await feedWriter.upload(stamp, playlistResult.reference);
+  // await feedWriter.upload(stamp, playlistResult.reference);
 }
 
 async function getFeedWriter(stamp: string | BatchId) {
@@ -84,5 +112,12 @@ async function getFeedWriter(stamp: string | BatchId) {
 }
 
 export function getPlaylistUrl() {
-  return `http://localhost:1633/bzz/${feedManifest.reference}`;
+  return `http://localhost:1633/bzz/${feedManifest.reference}/master.m3u8`;
+}
+
+function createSaver(stamp: string | BatchId): StorageSaver {
+  return async (data: Uint8Array) => {
+    const { reference } = await bee.uploadData(stamp, data);
+    return hexStringToBytes(reference) as MantarayReference;
+  };
 }
