@@ -1,20 +1,55 @@
 {
-    "name": "webstream",
-    "version": "1.0.0",
-    "description": "",
-    "main": "index.js",
-    "scripts": {
-        "start": "vite"
-    },
-    "keywords": [],
-    "author": "",
-    "license": "ISC",
-    "devDependencies": {
-        "vite": "^4.4.9"
-    },
-    "dependencies": {
-        "@ethersphere/bee-js": "^6.4.0",
-        "@ffmpeg/ffmpeg": "^0.12.6",
-        "@ffmpeg/util": "^0.12.1"
-    }
+  "name": "webstream",
+  "version": "1.0.0",
+  "description": "",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "dependencies": {
+    "@ethersphere/bee-js": "^6.4.0",
+    "@types/react": "^18.2.33",
+    "@types/react-dom": "^18.2.14",
+    "browser-fs-access": "^0.35.0",
+    "ethers": "^6.8.1",
+    "hls-parser": "^0.10.8",
+    "hls.js": "^1.4.12",
+    "immer": "^10.0.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "sass": "^1.69.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.9",
+    "@types/react-dom": "^18.0.5",
+    "@typescript-eslint/eslint-plugin": "^5.26.0",
+    "@typescript-eslint/parser": "^5.26.0",
+    "eslint": "^8.16.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-jsx-a11y": "^6.5.1",
+    "eslint-plugin-prettier": "^4.0.0",
+    "eslint-plugin-react": "^7.30.0",
+    "eslint-plugin-react-hooks": "^4.5.0",
+    "prettier": "^2.6.2",
+    "typescript": "^4.6.3"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
 }
