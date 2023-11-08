@@ -21,6 +21,8 @@ function Home() {
   };
 
   const play = async () => {
+    const video = document.getElementById('video') as HTMLMediaElement;
+
     if (Hls.isSupported()) {
       const video = document.getElementById('video') as HTMLMediaElement;
       const hls = new Hls({ debug: true });
@@ -34,10 +36,12 @@ function Home() {
       });
 
       // const playlistSrc = getPlaylistUrl();
-      const src = 'https://moctobpltc-i.akamaihd.net/hls/live/571329/eight/playlist.m3u8';
 
-      hls.loadSource(src);
+      hls.loadSource(
+        'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
+      );
       hls.attachMedia(video);
+      // video.play();
     }
   };
 
@@ -53,7 +57,7 @@ function Home() {
         </button>
       </div>
 
-      <video id="video" controls preload="auto" />
+      <video id="video" controls />
     </div>
   );
 }
