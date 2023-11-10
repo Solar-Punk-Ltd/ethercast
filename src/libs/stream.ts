@@ -1,11 +1,13 @@
 import { BatchId, FeedManifestResult, FeedWriter, Reference as BeeReference, Bee } from '@ethersphere/bee-js';
 import { Wallet } from 'ethers';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { stringify } from 'hls-parser';
 import { MasterPlaylist, MediaPlaylist, Segment, Variant } from 'hls-parser/types';
 import { MantarayNode, Reference as MantarayReference, StorageSaver } from 'mantaray-js';
 
 import { getBee } from './bee';
 import { bytesToHexString, hexStringToBytes, stringToBytes } from '../utils/formatters';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
 export class Stream {
   // random key for testing
@@ -21,11 +23,13 @@ export class Stream {
   private _mediaStream: MediaStream;
   private _masterPlaylist: MasterPlaylist;
   private _mediaPlaylist: MediaPlaylist;
+  private _ffmpeg: FFmpeg;
 
   constructor() {
     this._wallet = new Wallet(this._privateKey);
     this._mantaray = new MantarayNode();
     this._bee = getBee();
+    this._ffmpeg = new FFmpeg();
   }
 
   async start(stamp: BatchId): Promise<void> {
@@ -47,6 +51,7 @@ export class Stream {
         mimeType: 'video/webm; codecs=H264',
       });
 
+      await this.loadFFmpeg();
       await this.initFeedWriter(stamp);
       this.createMasterPlaylist();
       this.createMediaPlaylist();
@@ -64,6 +69,7 @@ export class Stream {
       this._mediaRecorder.ondataavailable = async (event) => {
         if (event.data.size > 0) {
           await this.uploadChunk(stamp, this._feedWriter, new Uint8Array(await event.data.arrayBuffer()));
+          this.stop();
         }
       };
 
@@ -84,8 +90,21 @@ export class Stream {
 
   private async uploadChunk(stamp: BatchId, feedWriter: FeedWriter, chunk: Uint8Array) {
     let index = 0;
+    const chunkResult = await this._bee.uploadFile(stamp, chunk, `chunk${index}.webm`, {
+      contentType: 'video/webm',
+    });
 
-    const chunkResult = await this._bee.uploadData(stamp, chunk);
+    this._ffmpeg.writeFile(
+      `chunk${index}.webm`,
+      await fetchFile(`http://localhost:1633/bzz/${chunkResult.reference}/chunk${index}.webm`),
+    );
+    await this._ffmpeg.exec(['-i', `chunk${index}.webm`, `chunk${index}.mp4`]);
+    /*    const fileData = await this._ffmpeg.readFile(`chunk${index}.webm`);
+    const data = new Uint8Array(fileData as ArrayBuffer); */
+    index++;
+    console.log('TESSEK!');
+    return;
+
     this._mantaray.addFork(
       stringToBytes(`chunk${index}.webm`),
       hexStringToBytes(chunkResult.reference) as MantarayReference,
@@ -122,12 +141,27 @@ export class Stream {
     this._feedWriter = this._bee.makeFeedWriter('sequence', this._topic, this._privateKey);
   }
 
+  private async loadFFmpeg() {
+    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd';
+    this._ffmpeg.on('log', ({ message }) => {
+      console.log(message);
+    });
+    // toBlobURL is used to bypass CORS issue, urls with the same
+    // domain can be used directly.
+    await this._ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+    });
+  }
+
   private createMasterPlaylist() {
     this._masterPlaylist = new MasterPlaylist({
       variants: [
         new Variant({
           bandwidth: 800000,
           uri: 'playlist.m3u8',
+          codecs: 'H264',
+          resolution: '320*240',
         }),
       ],
     });

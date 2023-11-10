@@ -22,6 +22,12 @@ function Home() {
       hls.on(Hls.Events.MANIFEST_PARSED, function (event, data) {
         console.log('manifest loaded, found');
       });
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        console.error(event);
+        console.error(data);
+        console.error('ERROR!!!!!');
+      });
       /*    hls.loadSource(
         'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
       ); */
