@@ -1,26 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { BatchId } from '@ethersphere/bee-js';
+import React, { useCallback, useMemo } from 'react';
 import Hls from 'hls.js';
 
 import './Home.scss';
-import { getStamp } from '../libs/stamp';
-import { getPlaylistUrl, stream } from '../libs/stream';
+import { useStamp } from '../hooks/useStamp';
+import { Stream } from '../libs/stream';
 
 function Home() {
-  const [stamp, setStamp] = useState<string | BatchId>('');
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const { stamp } = useStamp();
 
-  useEffect(() => {
-    getStamp()
-      .then((stmp) => setStamp(stmp))
-      .catch((error) => console.error('Stamp error:', error));
-  }, []);
+  const stream = useMemo(() => new Stream(), []);
 
-  const startStream = async () => {
-    await stream(stamp);
-  };
-
-  const play = async () => {
+  const play = useCallback(async () => {
     if (Hls.isSupported()) {
       const video = document.getElementById('video') as HTMLMediaElement;
       const hls = new Hls({ debug: true });
@@ -32,25 +22,25 @@ function Home() {
       hls.on(Hls.Events.MANIFEST_PARSED, function (event, data) {
         console.log('manifest loaded, found');
       });
-
-      const playlistSrc = getPlaylistUrl();
-
       /*    hls.loadSource(
         'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
       ); */
-      hls.loadSource(playlistSrc);
+      hls.loadSource(stream.playlistUrl);
       hls.attachMedia(video);
-      console.log(playlistSrc);
+      console.log(stream.playlistUrl);
       // video.play();
     }
-  };
+  }, []);
 
   return (
     <div className="home">
       <h1>Swarm streaming</h1>
       <div className="actions">
-        <button type="button" onClick={startStream}>
+        <button type="button" onClick={() => stream.start(stamp())}>
           Stream
+        </button>
+        <button type="button" onClick={stream.stop}>
+          Stop stream
         </button>
         <button type="button" onClick={play}>
           Play
