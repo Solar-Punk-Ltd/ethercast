@@ -13,8 +13,7 @@
   },
   "dependencies": {
     "@ethersphere/bee-js": "^6.4.0",
-    "@ffmpeg/ffmpeg": "^0.12.7",
-    "@ffmpeg/util": "^0.12.1",
+    "dashjs": "^4.7.2",
     "ethers": "^6.8.1",
     "hls-parser": "^0.10.8",
     "hls.js": "^1.4.12",
@@ -22,8 +21,11 @@
     "mantaray-js": "^1.0.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-dropzone": "^14.2.3",
     "react-scripts": "5.0.1",
-    "sass": "^1.69.5"
+    "sass": "^1.69.5",
+    "styled-components": "^6.1.1",
+    "xmlbuilder": "^15.1.1"
   },
   "devDependencies": {
     "@types/react": "^18.0.9",
