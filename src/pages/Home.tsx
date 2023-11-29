@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 
 import './Home.scss';
 import { useStamp } from '../hooks/useStamp';

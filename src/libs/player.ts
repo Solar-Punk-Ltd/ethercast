@@ -14,6 +14,7 @@ export class Player {
       });
     }, 1000);
     this._mediaElement.src = URL.createObjectURL(this._mediaSource);
+    this._mediaElement.play();
   }
 
   async attach(src: string, mediaElement: HTMLMediaElement) {
