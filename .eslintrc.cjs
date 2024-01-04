@@ -5,20 +5,15 @@ module.exports = {
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
     'plugin:react-hooks/recommended',
+    'plugin:import/errors',
+    'plugin:import/warnings',
+    'plugin:import/typescript',
     'plugin:prettier/recommended',
     'prettier',
   ],
   ignorePatterns: ['dist', '.eslintrc.cjs'],
   parser: '@typescript-eslint/parser',
-  plugins: [
-    'react',
-    'react-refresh',
-    '@typescript-eslint',
-    'prettier',
-    'react-hooks',
-    'simple-import-sort',
-    'jsx-a11y',
-  ],
+  plugins: ['@typescript-eslint', 'react', 'react-refresh', 'react-hooks', 'simple-import-sort'],
   rules: {
     '@typescript-eslint/no-explicit-any': 'off',
     '@typescript-eslint/no-non-null-assertion': 'off',
@@ -30,23 +25,25 @@ module.exports = {
         caughtErrorsIgnorePattern: '^_',
       },
     ],
-    'jsx-a11y/media-has-caption': [
-      0,
-      {
-        audio: ['Audio'],
-        video: ['Video'],
-        track: ['Track'],
-      },
-    ],
-
     'react-hooks/rules-of-hooks': 'error',
     'react-hooks/exhaustive-deps': 'warn',
-
-    'prettier/prettier': [
-      'warn',
+    'simple-import-sort/imports': [
+      'error',
       {
-        endOfLine: 'auto',
-        singleQuote: true,
+        groups: [
+          // Packages `react` related packages come first.
+          ['^react', '^@?\\w'],
+          // Internal packages.
+          ['^(@|components)(/.*|$)'],
+          // Side effect imports.
+          ['^\\u0000'],
+          // Parent imports. Put `..` last.
+          ['^\\.\\.(?!/?$)', '^\\.\\./?$'],
+          // Other relative imports. Put same-folder imports and `.` last.
+          ['^\\./(?=.*/)(?!/?$)', '^\\.(?!/?$)', '^\\./?$'],
+          // Style imports.
+          ['^.+\\.?(css)$'],
+        ],
       },
     ],
   },

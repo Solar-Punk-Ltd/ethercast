@@ -1,9 +1,10 @@
-import { BatchId, FeedManifestResult, FeedWriter, Reference as BeeReference, Bee } from '@ethersphere/bee-js';
+import { BatchId, Bee, FeedManifestResult, FeedWriter, Reference as BeeReference } from '@ethersphere/bee-js';
 import { Wallet } from 'ethers';
 import { MantarayNode, Reference as MantarayReference, StorageSaver } from 'mantaray-js';
 
-import { getBee } from './bee';
 import { bytesToHexString, hexStringToBytes, stringToBytes } from '../utils/formatters';
+
+import { getBee } from './bee';
 import { PlayList } from './playlist';
 
 export class Stream {

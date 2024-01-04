@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
+
+import { useStamp } from '../hooks/useStamp';
+import { Player } from '../libs/player';
+import { Stream } from '../libs/stream';
 
 import './Home.scss';
-import { useStamp } from '../hooks/useStamp';
-import { Stream } from '../libs/stream';
-import { Player } from '../libs/player';
 
 function Home() {
   const { stamp } = useStamp();
