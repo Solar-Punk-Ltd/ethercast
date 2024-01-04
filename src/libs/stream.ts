@@ -50,6 +50,7 @@ export class Stream {
 
       this._mediaRecorder.ondataavailable = async (event) => {
         if (event.data.size > 0) {
+          console.log(event);
           await this.uploadChunk(stamp, this._feedWriter, new Uint8Array(await event.data.arrayBuffer()));
         }
       };
