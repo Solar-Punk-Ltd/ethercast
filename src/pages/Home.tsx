@@ -20,7 +20,7 @@ function Home() {
 
   return (
     <div className="home">
-      <h1>Swarm streaming</h1>
+      {/* <h1>Swarm streaming</h1>
       <div className="actions">
         <button type="button" onClick={() => stream.start(stamp())}>
           Stream
@@ -39,7 +39,7 @@ function Home() {
         style={{
           marginTop: 21,
         }}
-      />
+      /> */}
     </div>
   );
 }

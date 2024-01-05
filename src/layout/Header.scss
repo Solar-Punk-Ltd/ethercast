@@ -1,0 +1,39 @@
+header {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 2020;
+  transform: translateY(0);
+  transition: transform .3s ease;
+  background-color: $sp-bg-primary-100;
+  height: $sp-header-height;
+  display: flex;  
+  align-items: center;
+  justify-content: space-between;
+  opacity: 0.9;
+
+  .menu-action-container {
+    cursor: pointer;
+    border-radius: 80%;
+    width: 28px;
+    height: 28px;
+    padding: 4px;
+    margin-left: 18px;
+    &:hover {
+      background-color: rgba(255,255,255,0.2);
+    }
+
+    button {
+      cursor: pointer;
+      background-color: transparent;
+      border: none;
+      outline: none;
+      padding: 0;
+      margin: 0;
+      img {
+        width: 28px;
+        height: 28px;
+      }
+    }
+  }
+}
