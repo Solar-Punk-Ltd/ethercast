@@ -9,12 +9,14 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "npm run lint -- --fix",
     "preview": "vite preview"
   },
   "dependencies": {
     "@ethersphere/bee-js": "^6.7.0",
+    "@usedapp/core": "^1.2.13",
     "clsx": "^2.1.0",
-    "ethers": "^6.9.2",
+    "ethers": "^5.7.2",
     "immer": "^10.0.3",
     "mantaray-js": "^1.0.3",
     "react": "^18.2.0",

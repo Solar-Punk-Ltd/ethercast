@@ -1,4 +1,5 @@
 import MenuIcon from '../assets/icons/list.svg';
+import { Connect } from '../components/Connect';
 
 import './Header.scss';
 
@@ -14,7 +15,9 @@ export function Header({ openSidebar }: HeaderProps) {
           <img src={MenuIcon}></img>
         </button>
       </div>
-      <div>asd2</div>
+      <div>
+        <Connect />
+      </div>
     </header>
   );
 }
