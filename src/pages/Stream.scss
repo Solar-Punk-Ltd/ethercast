@@ -5,9 +5,14 @@
   height: 100vh;
 
   .stream-form {
+    display: flex;
+    flex-direction: column;
     margin-top: 50px;
     min-width: 400px;
 
+    .indicator {
+      margin: auto;
+    }
     p {
       margin: 0;
       margin-bottom: 8px;

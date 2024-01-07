@@ -4,29 +4,8 @@
   align-items: center;
   height: 100vh;
 
-  h1 {
-    padding: 0;
-    margin-top: 12p;
-    color: #ff7900;
-  }
-
-  .actions {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-
-    button {
-      cursor: pointer;
-      color: white;
-      background-color: transparent;
-      border: 1px solid #606770;
-      border-radius: 12px;
-      padding: 12px;
-      min-width: 100px;
-
-      &:hover{
-        border-color: #ff7900;
-      }
-    }
+  
+  .video-container {
+    margin-top: 40px;
   }
 }
