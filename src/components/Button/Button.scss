@@ -1,0 +1,15 @@
+.button {
+  cursor: pointer;
+  background-color: transparent;
+  border: 2px solid #606770;
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 100px;
+
+  &:hover{
+    box-sizing: border-box;
+    border-width: 2px;
+    border-color: $sp-bg-primary-100;
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+}

@@ -11,14 +11,21 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen((prop) => !prop);
+  };
 
   return (
-    <div className="layout">
-      <Header openSidebar={() => setIsSidebarOpen((prop) => !prop)} />
-      <Sidebar open={isSidebarOpen} />
-      <main>{children}</main>
-      <Footer />
-    </div>
+    <>
+      <div className="layout">
+        {isSidebarOpen && <div className="overlay" onClick={toggleSidebar} />}
+        <Header openSidebar={toggleSidebar} />
+        <Sidebar open={isSidebarOpen} />
+        <main>{children}</main>
+        <Footer />
+      </div>
+    </>
   );
 }

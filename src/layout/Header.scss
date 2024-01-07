@@ -2,7 +2,7 @@ header {
   position: fixed;
   top: 0;
   width: 100%;
-  z-index: 2020;
+  z-index: 2200;
   transform: translateY(0);
   transition: transform .3s ease;
   background-color: $sp-bg-primary-100;
@@ -10,7 +10,6 @@ header {
   display: flex;  
   align-items: center;
   justify-content: space-between;
-  opacity: 0.9;
 
   .menu-action-container {
     cursor: pointer;

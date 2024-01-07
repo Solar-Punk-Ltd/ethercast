@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 import './MenuItem.scss';
 
 interface MenuItemProps {
@@ -9,10 +11,10 @@ interface MenuItemProps {
 export function MenuItem({ iconSrc, title, href }: MenuItemProps) {
   return (
     <div className="menu-item">
-      <a href={href}>
+      <Link to={href}>
         <img className="icon" src={iconSrc} />
         <span>{title}</span>
-      </a>
+      </Link>
     </div>
   );
 }

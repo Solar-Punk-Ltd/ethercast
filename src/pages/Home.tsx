@@ -6,7 +6,7 @@ import { Stream } from '../libs/stream';
 
 import './Home.scss';
 
-function Home() {
+export function Home() {
   const { stamp } = useStamp();
 
   const stream = useMemo(() => new Stream(), []);
@@ -20,7 +20,7 @@ function Home() {
 
   return (
     <div className="home">
-      {/* <h1>Swarm streaming</h1>
+      <h1>Swarm streaming</h1>
       <div className="actions">
         <button type="button" onClick={() => stream.start(stamp())}>
           Stream
@@ -39,9 +39,7 @@ function Home() {
         style={{
           marginTop: 21,
         }}
-      /> */}
+      />
     </div>
   );
 }
-
-export default Home;
