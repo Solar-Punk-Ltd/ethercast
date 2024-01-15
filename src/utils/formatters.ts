@@ -18,6 +18,20 @@ export function bytesToHexString(bytes: Uint8Array): string {
   return hexArray.join('');
 }
 
+export function hexToBinary(hexString: string): string {
+  let binaryString = '';
+
+  for (let i = 0; i < hexString.length; i++) {
+    const hexDigit = hexString[i];
+    let binaryDigit = parseInt(hexDigit, 16).toString(2);
+    // Pad with zeros to ensure 4 bits
+    binaryDigit = binaryDigit.padStart(4, '0');
+    binaryString += binaryDigit;
+  }
+
+  return binaryString;
+}
+
 export function stringToHex(str: string): string {
   let hex = '';
 

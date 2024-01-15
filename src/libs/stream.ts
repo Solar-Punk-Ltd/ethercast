@@ -1,6 +1,9 @@
 import { BatchId, FeedManifestResult, FeedWriter } from '@ethersphere/bee-js';
 import { Wallet } from 'ethers';
 
+import { CLUSTER_ID } from '../utils/constants';
+import { findHexInUint8Array } from '../utils/webm';
+
 import { getBee } from './bee';
 
 const PRIVATE_KEY = 'cb35ff5ec82b182ef2c5fcbcaeb92120b453a013b107e98a9b4d93c39ce3f1d7';
@@ -33,13 +36,20 @@ export async function startStream(stamp: BatchId): Promise<void> {
 
     await initFeed(stamp);
 
+    let firstChunk = true;
     mediaRecorder.ondataavailable = async (event) => {
       if (event.data.size > 0) {
-        await uploadChunk(stamp, feedWriter, new Uint8Array(await event.data.arrayBuffer()));
+        const byteChunk = new Uint8Array(await event.data.arrayBuffer());
+
+        if (firstChunk) {
+          await uploadChunk(stamp, feedWriter, createInitData(byteChunk));
+          firstChunk = false;
+        }
+        await uploadChunk(stamp, feedWriter, byteChunk);
       }
     };
 
-    mediaRecorder.start(2000);
+    mediaRecorder.start(1000);
   } catch (error) {
     console.error('Error:', error);
   }
@@ -63,11 +73,16 @@ export function getFeedReference() {
 
 async function uploadChunk(stamp: BatchId, feedWriter: FeedWriter, chunk: Uint8Array) {
   const chunkResult = await bee.uploadData(stamp, chunk);
-
   await feedWriter.upload(stamp, chunkResult.reference);
 }
 
 async function initFeed(stamp: string | BatchId) {
   feedManifest = await bee.createFeedManifest(stamp, 'sequence', TOPIC, wallet.address);
   feedWriter = bee.makeFeedWriter('sequence', TOPIC, wallet.privateKey);
+}
+
+function createInitData(segment: Uint8Array) {
+  const clusterStartIndex = findHexInUint8Array(segment, CLUSTER_ID);
+  const meta = segment.slice(0, clusterStartIndex);
+  return meta;
 }

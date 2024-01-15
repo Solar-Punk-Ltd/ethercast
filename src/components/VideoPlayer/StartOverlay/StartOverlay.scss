@@ -11,6 +11,10 @@
   height: 100%;
   z-index: 10;
 
+  button {
+    display: flex;
+    justify-content: center;
+  }
   img {
     width: 20px;
     height: 20px;
