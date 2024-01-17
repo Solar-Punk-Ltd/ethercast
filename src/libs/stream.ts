@@ -10,6 +10,7 @@ const PRIVATE_KEY = 'cb35ff5ec82b182ef2c5fcbcaeb92120b453a013b107e98a9b4d93c39ce
 const TOPIC = '000000000000000000000000000000000000000000000000000000000000000A';
 const wallet = new Wallet(PRIVATE_KEY);
 const bee = getBee();
+const TIMESLICE = 1000;
 let feedManifest: FeedManifestResult;
 let feedWriter: FeedWriter;
 let mediaRecorder: MediaRecorder;
@@ -27,11 +28,11 @@ export async function startStream(stamp: BatchId): Promise<void> {
         },
         frameRate: { ideal: 30 },
       },
-      audio: false,
+      audio: true,
     });
 
     mediaRecorder = new MediaRecorder(mediaStream, {
-      mimeType: 'video/webm; codecs=vp9',
+      mimeType: 'video/webm; codecs=vp9,opus',
     });
 
     await initFeed(stamp);
@@ -49,7 +50,7 @@ export async function startStream(stamp: BatchId): Promise<void> {
       }
     };
 
-    mediaRecorder.start(1000);
+    mediaRecorder.start(TIMESLICE);
   } catch (error) {
     console.error('Error:', error);
   }

@@ -8,8 +8,10 @@ import { getBee } from './bee';
 let mediaElement: HTMLVideoElement;
 let mediaSource: MediaSource;
 const bee = getBee();
+const TIMESLICE = 1000;
 const owner = '99957411ceccd48dd57ced0524e9ad7e98bd0f01';
 const topic = '000000000000000000000000000000000000000000000000000000000000000A';
+const reader = bee.makeFeedReader('sequence', topic, owner);
 
 export function play() {
   mediaElement.src = URL.createObjectURL(mediaSource);
@@ -24,19 +26,52 @@ export async function attach(video: HTMLVideoElement) {
   video.addEventListener('error', (_e) => {
     console.error('Video error:', mediaElement?.error?.code, mediaElement?.error?.message);
   });
-  mediaSource.addEventListener('sourceopen', () => {
-    setInterval(appenBuffer(), 1000);
+
+  mediaSource.addEventListener('sourceopen', async () => {
+    const { appendToSourceBuffer } = initSourceBuffer();
+
+    const firstCluster = (await findFirstCluster())!;
+    const initSegment = await createInitSegment(firstCluster.clusterIdIndex, firstCluster.segment);
+    setMediaCurrentTime(initSegment);
+
+    appendToSourceBuffer(initSegment);
+    setInterval(await appendBuffer(firstCluster.feedIndex, appendToSourceBuffer), TIMESLICE);
   });
 }
 
-function appenBuffer() {
-  let isStreamStart = true;
-  const bufferQueue: Uint8Array[] = [];
-  const mimeType = 'video/webm; codecs="vp9"';
-  const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
-  const reader = bee.makeFeedReader('sequence', topic, owner);
+async function appendBuffer(clusterFeedIndex: string, appendToSourceBuffer: (data: Uint8Array) => void) {
+  // I can't import this type from @ethersphere/bee-js
+  let feedUpdateRes: {
+    feedIndex: string;
+    feedIndexNext: string;
+    reference: string;
+  };
+  let currIndex = clusterFeedIndex;
+  let prevIndex = '';
 
-  sourceBuffer.mode = 'segments';
+  return async () => {
+    try {
+      feedUpdateRes = await reader.download({ index: currIndex });
+      currIndex = incrementHexString(currIndex);
+    } catch (error) {
+      currIndex = prevIndex;
+      return;
+    }
+
+    if (prevIndex === currIndex) {
+      return;
+    }
+
+    const segment = await bee.downloadData(feedUpdateRes.reference);
+    appendToSourceBuffer(segment);
+    prevIndex = currIndex;
+  };
+}
+
+function initSourceBuffer() {
+  const mimeType = 'video/webm; codecs="vp9,opus"';
+  const bufferQueue: Uint8Array[] = [];
+  const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
 
   const appendToSourceBuffer = (data: Uint8Array) => {
     if (sourceBuffer.updating || bufferQueue.length > 0) {
@@ -46,6 +81,8 @@ function appenBuffer() {
     }
   };
 
+  sourceBuffer.mode = 'segments';
+
   sourceBuffer.addEventListener('updateend', () => {
     if (bufferQueue.length > 0) {
       const nextData = bufferQueue.shift()!;
@@ -53,36 +90,32 @@ function appenBuffer() {
     }
   });
 
-  let prevIndex = '';
-  return async () => {
+  return { appendToSourceBuffer };
+}
+
+function setMediaCurrentTime(clusterSegment: Uint8Array) {
+  const timestamp = getClusterTimestampInSeconds(clusterSegment);
+  mediaElement.currentTime = timestamp;
+}
+
+async function createInitSegment(clusterStartIndex: number, segment: Data) {
+  const metaFeedUpdateRes = await reader.download({ index: '0000000000000000' });
+  const meta = await bee.downloadData(metaFeedUpdateRes.reference);
+  const initSegment = addMetaToClusterStartSegment(clusterStartIndex, meta, segment);
+  return initSegment;
+}
+
+async function findFirstCluster() {
+  const isClusterFound = false;
+  do {
     const feedUpdateRes = await reader.download();
-    if (feedUpdateRes.feedIndex === prevIndex) {
-      console.log('mi van?');
-      return;
-    }
-    prevIndex = feedUpdateRes.feedIndex;
-
     const segment = await bee.downloadData(feedUpdateRes.reference);
-    const clusterStartIndex = findHexInUint8Array(segment, CLUSTER_ID);
-
-    if (isStreamStart) {
-      if (clusterStartIndex !== -1) {
-        const metaFeedUpdateRes = await reader.download({ index: '0000000000000000' });
-        const meta = await bee.downloadData(metaFeedUpdateRes.reference);
-
-        const clusterStartSegment = addMetaToClusterStartSegment(clusterStartIndex, meta, segment);
-
-        const timestamp = getClusterTimestampInSeconds(clusterStartSegment);
-        mediaElement.currentTime = timestamp;
-
-        appendToSourceBuffer(clusterStartSegment);
-        isStreamStart = false;
-      }
-      return;
+    const clusterIdIndex = findHexInUint8Array(segment, CLUSTER_ID);
+    if (clusterIdIndex !== -1) {
+      return { feedIndex: feedUpdateRes.feedIndexNext, clusterIdIndex, segment };
     }
-
-    appendToSourceBuffer(segment);
-  };
+    await sleep(TIMESLICE);
+  } while (!isClusterFound);
 }
 
 function addMetaToClusterStartSegment(clusterStartIndex: number, meta: Data, segment: Data): Uint8Array {
@@ -99,4 +132,11 @@ function getClusterTimestampInSeconds(segment: Uint8Array) {
   return vint.value / 1000;
 }
 
-// const indexArray = Array.from({ length: 1000 }, (_, i) => i.toString(16).padStart(16, '0'));
+function incrementHexString(hexString: string) {
+  const num = BigInt('0x' + hexString);
+  return (num + 1n).toString(16).padStart(16, '0');
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
