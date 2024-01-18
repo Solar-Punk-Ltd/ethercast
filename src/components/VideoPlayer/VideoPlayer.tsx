@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import clsx from 'clsx';
 
-import { attach, play } from '../../libs/player';
+import { attach, detach, pause, play } from '../../libs/player';
 
+import { Controls } from './Controls';
 import { StartOverlay } from './StartOverlay';
 
 import './VideoPlayer.scss';
@@ -12,41 +14,49 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({ options }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [initClick, setInitClick] = useState(false);
+  const [initClick, setInitClick] = useState(true);
+  const [showControls, setShowControls] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     if (videoRef.current) {
       attach(videoRef.current);
-      /*       setInterval(() => {
-        if (videoRef.current) {
-          videoRef.current.currentTime = 2;
-        }
-        console.log(videoRef.current?.currentTime);
-      }, 1000); */
     }
+
+    return () => {
+      detach();
+    };
   }, []);
 
   const playStream = () => {
-    if (videoRef.current) {
-      play();
-      setInitClick(true);
-    }
+    play();
+    setInitClick(true);
+    setIsPlaying(true);
   };
 
-  const fileChange = (e: any) => {
-    const file = e.target.files[0];
-    const fileURL = URL.createObjectURL(file);
-    const video = document.querySelector('video');
-    if (video) {
-      console.log('asd');
-      video.src = fileURL;
-    }
+  const pauseStream = () => {
+    pause();
+    setIsPlaying(false);
+  };
+
+  const onMouseEnterVideo = () => {
+    setShowControls(true);
+  };
+
+  const onMouseLeaveVideo = () => {
+    setShowControls(false);
   };
 
   return (
-    <div className="video-container">
-      {!initClick && <StartOverlay onStart={playStream} />}
-      <video className="video" ref={videoRef} controls></video>
+    <div className="video-container" onMouseEnter={onMouseEnterVideo} onMouseLeave={onMouseLeaveVideo}>
+      {/* {!initClick && <StartOverlay onStart={playStream} />}s */}
+      <video ref={videoRef} controlsList="nodownload"></video>
+      <Controls
+        onPlay={playStream}
+        onPause={pauseStream}
+        isStreamPlaying={isPlaying}
+        className={clsx(showControls ? 'controls-visible' : 'controls-hidden')}
+      />
     </div>
   );
 }

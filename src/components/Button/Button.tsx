@@ -3,15 +3,22 @@ import clsx from 'clsx';
 
 import './Button.scss';
 
-interface ButtonProps {
-  children?: React.ReactNode;
-  className?: string;
-  onClick?: () => void;
+export enum ButtonVariant {
+  primary = 'primary',
+  secondary = 'secondary',
+  icon = 'icon',
 }
 
-export const Button = ({ children, className, onClick }: ButtonProps) => {
+interface ButtonProps {
+  onClick?: () => void;
+  children?: React.ReactNode;
+  className?: string;
+  variant?: ButtonVariant;
+}
+
+export const Button = ({ children, className, onClick, variant = ButtonVariant.primary }: ButtonProps) => {
   return (
-    <button className={clsx('button', className)} type="button" onClick={onClick}>
+    <button className={clsx('button', variant, className)} type="button" onClick={onClick}>
       {children}
     </button>
   );

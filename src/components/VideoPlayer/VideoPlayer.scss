@@ -8,7 +8,7 @@
   border-radius: 12px;
 }
 
-.video {
+video {
   position: absolute;
   top: 0;
   left: 0;
@@ -16,4 +16,20 @@
   bottom: 0;
   width: 100%;
   height: 100%;
+}
+
+video::-webkit-media-controls {
+  display:none !important;
+}
+
+video::-webkit-media-controls-enclosure {
+  display:none !important;
+}
+
+.controls-visible {
+  opacity: 100%;
+}
+
+.controls-hidden {
+  opacity: 0%;
 }

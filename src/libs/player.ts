@@ -7,46 +7,88 @@ import { getBee } from './bee';
 
 let mediaElement: HTMLVideoElement;
 let mediaSource: MediaSource;
+let streamTimer: NodeJS.Timeout | null;
+let currIndex = '';
+let sourceBuffer: SourceBuffer;
 const bee = getBee();
 const TIMESLICE = 1000;
 const owner = '99957411ceccd48dd57ced0524e9ad7e98bd0f01';
 const topic = '000000000000000000000000000000000000000000000000000000000000000A';
 const reader = bee.makeFeedReader('sequence', topic, owner);
 
-export function play() {
-  mediaElement.src = URL.createObjectURL(mediaSource);
+export function getMediaElement() {
+  return mediaElement;
+}
 
+export async function play() {
+  if (!sourceBuffer) {
+    mediaElement.src = URL.createObjectURL(mediaSource);
+  }
+  while (mediaSource.readyState !== 'open') {
+    await sleep(100);
+  }
+  startAppending();
   mediaElement.play();
+}
+
+export function pause() {
+  mediaElement.pause();
+  stopAppending();
+}
+
+export function setVolumeControl(volumeControl: HTMLInputElement) {
+  volumeControl.addEventListener('input', () => {
+    mediaElement.volume = +volumeControl.value / 100;
+  });
 }
 
 export async function attach(video: HTMLVideoElement) {
   mediaSource = new MediaSource();
   mediaElement = video;
-
   video.addEventListener('error', (_e) => {
     console.error('Video error:', mediaElement?.error?.code, mediaElement?.error?.message);
   });
-
-  mediaSource.addEventListener('sourceopen', async () => {
-    const { appendToSourceBuffer } = initSourceBuffer();
-
-    const firstCluster = (await findFirstCluster())!;
-    const initSegment = await createInitSegment(firstCluster.clusterIdIndex, firstCluster.segment);
-    setMediaCurrentTime(initSegment);
-
-    appendToSourceBuffer(initSegment);
-    setInterval(await appendBuffer(firstCluster.feedIndex, appendToSourceBuffer), TIMESLICE);
-  });
 }
 
-async function appendBuffer(clusterFeedIndex: string, appendToSourceBuffer: (data: Uint8Array) => void) {
-  // I can't import this type from @ethersphere/bee-js
+export function detach() {
+  stopAppending();
+  mediaSource = null!;
+  sourceBuffer = null!;
+  currIndex = '';
+}
+
+async function startAppending() {
+  const { appendToSourceBuffer } = initSourceBuffer();
+
+  if (!currIndex) {
+    await initStream(appendToSourceBuffer);
+  }
+
+  streamTimer = setInterval(await appendBuffer(appendToSourceBuffer), TIMESLICE);
+}
+
+function stopAppending() {
+  if (streamTimer) {
+    clearInterval(streamTimer);
+    streamTimer = null;
+  }
+}
+
+async function initStream(appendToSourceBuffer: (data: Uint8Array) => void) {
+  const firstCluster = (await findFirstCluster())!;
+  currIndex = firstCluster.feedIndex;
+  const initSegment = await createInitSegment(firstCluster.clusterIdIndex, firstCluster.segment);
+  setMediaCurrentTime(initSegment);
+  appendToSourceBuffer(initSegment);
+}
+
+async function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
+  // TODO import this type from @ethersphere/bee-js
   let feedUpdateRes: {
     feedIndex: string;
     feedIndexNext: string;
     reference: string;
   };
-  let currIndex = clusterFeedIndex;
   let prevIndex = '';
 
   return async () => {
@@ -71,7 +113,18 @@ async function appendBuffer(clusterFeedIndex: string, appendToSourceBuffer: (dat
 function initSourceBuffer() {
   const mimeType = 'video/webm; codecs="vp9,opus"';
   const bufferQueue: Uint8Array[] = [];
-  const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+
+  if (!sourceBuffer) {
+    sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+    sourceBuffer.mode = 'segments';
+  }
+
+  sourceBuffer.addEventListener('updateend', () => {
+    if (bufferQueue.length > 0) {
+      const nextData = bufferQueue.shift()!;
+      sourceBuffer.appendBuffer(nextData);
+    }
+  });
 
   const appendToSourceBuffer = (data: Uint8Array) => {
     if (sourceBuffer.updating || bufferQueue.length > 0) {
@@ -80,15 +133,6 @@ function initSourceBuffer() {
       sourceBuffer.appendBuffer(data);
     }
   };
-
-  sourceBuffer.mode = 'segments';
-
-  sourceBuffer.addEventListener('updateend', () => {
-    if (bufferQueue.length > 0) {
-      const nextData = bufferQueue.shift()!;
-      sourceBuffer.appendBuffer(nextData);
-    }
-  });
 
   return { appendToSourceBuffer };
 }
