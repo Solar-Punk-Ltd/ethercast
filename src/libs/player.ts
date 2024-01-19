@@ -1,6 +1,8 @@
 import { Data } from '@ethersphere/bee-js';
 
 import { CLUSTER_ID, CLUSTER_TIMESTAMP } from '../utils/constants';
+import { bytesToHexString } from '../utils/formatters';
+import { decrementHexString, incrementHexString } from '../utils/operations';
 import { findHexInUint8Array, parseVint } from '../utils/webm';
 
 import { getBee } from './bee';
@@ -16,24 +18,34 @@ const owner = '99957411ceccd48dd57ced0524e9ad7e98bd0f01';
 const topic = '000000000000000000000000000000000000000000000000000000000000000A';
 const reader = bee.makeFeedReader('sequence', topic, owner);
 
+export async function getApproxDuration() {
+  const metaFeedUpdateRes = await reader.download();
+  const decimalIndex = parseInt(metaFeedUpdateRes.feedIndex, 16);
+  return { duration: decimalIndex * TIMESLICE, index: decimalIndex };
+}
+
 export function getMediaElement() {
   return mediaElement;
 }
 
-export async function play() {
+export async function play(index?: string) {
   if (!sourceBuffer) {
     mediaElement.src = URL.createObjectURL(mediaSource);
   }
   while (mediaSource.readyState !== 'open') {
     await sleep(100);
   }
-  startAppending();
-  mediaElement.play();
+  startAppending(index || undefined);
 }
 
 export function pause() {
-  mediaElement.pause();
   stopAppending();
+}
+
+export function seek(index: number) {
+  detach();
+  attach(mediaElement);
+  play(index.toString(16).padStart(16, '0'));
 }
 
 export function setVolumeControl(volumeControl: HTMLInputElement) {
@@ -57,25 +69,27 @@ export function detach() {
   currIndex = '';
 }
 
-async function startAppending() {
+async function startAppending(index?: string) {
   const { appendToSourceBuffer } = initSourceBuffer();
 
   if (!currIndex) {
-    await initStream(appendToSourceBuffer);
+    await initStream(appendToSourceBuffer, index);
   }
 
+  mediaElement.play();
   streamTimer = setInterval(await appendBuffer(appendToSourceBuffer), TIMESLICE);
 }
 
 function stopAppending() {
+  mediaElement.pause();
   if (streamTimer) {
     clearInterval(streamTimer);
     streamTimer = null;
   }
 }
 
-async function initStream(appendToSourceBuffer: (data: Uint8Array) => void) {
-  const firstCluster = (await findFirstCluster())!;
+async function initStream(appendToSourceBuffer: (data: Uint8Array) => void, index?: string) {
+  const firstCluster = (await findFirstCluster(index))!;
   currIndex = firstCluster.feedIndex;
   const initSegment = await createInitSegment(firstCluster.clusterIdIndex, firstCluster.segment);
   setMediaCurrentTime(initSegment);
@@ -140,6 +154,7 @@ function initSourceBuffer() {
 function setMediaCurrentTime(clusterSegment: Uint8Array) {
   const timestamp = getClusterTimestampInSeconds(clusterSegment);
   mediaElement.currentTime = timestamp;
+  console.log(timestamp);
 }
 
 async function createInitSegment(clusterStartIndex: number, segment: Data) {
@@ -149,14 +164,21 @@ async function createInitSegment(clusterStartIndex: number, segment: Data) {
   return initSegment;
 }
 
-async function findFirstCluster() {
+async function findFirstCluster(index?: string) {
   const isClusterFound = false;
   do {
-    const feedUpdateRes = await reader.download();
+    const feedUpdateRes = await reader.download(index ? { index } : {});
     const segment = await bee.downloadData(feedUpdateRes.reference);
     const clusterIdIndex = findHexInUint8Array(segment, CLUSTER_ID);
     if (clusterIdIndex !== -1) {
-      return { feedIndex: feedUpdateRes.feedIndexNext, clusterIdIndex, segment };
+      return {
+        feedIndex: feedUpdateRes.feedIndexNext || incrementHexString(feedUpdateRes.feedIndex),
+        clusterIdIndex,
+        segment,
+      };
+    }
+    if (index) {
+      index = decrementHexString(index);
     }
     await sleep(TIMESLICE);
   } while (!isClusterFound);
@@ -176,9 +198,12 @@ function getClusterTimestampInSeconds(segment: Uint8Array) {
   return vint.value / 1000;
 }
 
-function incrementHexString(hexString: string) {
-  const num = BigInt('0x' + hexString);
-  return (num + 1n).toString(16).padStart(16, '0');
+function clearSourceBuffer() {
+  if (sourceBuffer.buffered.length > 0) {
+    const start = sourceBuffer.buffered.start(0);
+    const end = sourceBuffer.buffered.end(sourceBuffer.buffered.length - 1);
+    sourceBuffer.remove(start, end);
+  }
 }
 
 function sleep(ms: number) {

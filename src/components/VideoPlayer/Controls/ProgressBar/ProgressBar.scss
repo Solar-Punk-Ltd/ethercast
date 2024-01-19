@@ -6,6 +6,23 @@
   background-color: #e0e0de;
   border-radius: 50px;
 
+  .marker {
+    opacity: 0%;
+    position: absolute;
+    height: 10px;
+    width: 1px;
+    background-color: #ff7900;
+    bottom: 2px;
+    transition: opacity 0.3s ease-in-out;
+    p {
+      font-size: 12px;
+      position: relative;
+      bottom: 30px;
+      right: 28px;
+      color: white;
+    }
+  }
+
   .filler {
     position: absolute;
     left: 0;
@@ -25,5 +42,11 @@
     background-color: #ff7900;
     border-radius: 50%;
     transform: translateX(-50%);
+  }
+
+  &:hover {
+    .marker {
+      opacity: 100%;
+    }
   }
 }

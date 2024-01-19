@@ -21,7 +21,7 @@ export function LiveIndicator({ className }: LiveIndicatorProps) {
   return (
     <div className={clsx('live-indicator', className)}>
       <span className={clsx('dot', isVisible ? 'visible' : '')}></span>
-      LIVE
+      Live
     </div>
   );
 }

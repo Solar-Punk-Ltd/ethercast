@@ -44,3 +44,19 @@ export function stringToHex(str: string): string {
   }
   return hex;
 }
+
+export function convertMillisecondsToTime(milliseconds: number) {
+  const HOUR = 3600000;
+  const MINUTE = 60000;
+  const SECOND = 1000;
+
+  const hours = Math.floor(milliseconds / HOUR);
+  const minutes = Math.floor((milliseconds - hours * HOUR) / MINUTE);
+  const seconds = Math.floor((milliseconds - hours * HOUR - minutes * MINUTE) / SECOND);
+
+  return `${padTo2Digits(hours)}:${padTo2Digits(minutes)}:${padTo2Digits(seconds)}`;
+}
+
+function padTo2Digits(num: number) {
+  return num.toString().padStart(2, '0');
+}

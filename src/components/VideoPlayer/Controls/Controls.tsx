@@ -20,25 +20,27 @@ interface ControlsProps {
 export function Controls({ onPlay, onPause, isStreamPlaying, className }: ControlsProps) {
   return (
     <div className={clsx('controls', className)}>
-      <div className="progress-container">
-        <ProgressBar onSeek={() => ({})} />
-      </div>
-
-      <div className="actions-container">
-        <div className="left-actions">
-          {isStreamPlaying ? (
-            <Button onClick={onPause} variant={ButtonVariant.icon}>
-              <img alt="pause" src={pauseIcon}></img>
-            </Button>
-          ) : (
-            <Button onClick={onPlay} variant={ButtonVariant.icon}>
-              <img alt="play" src={playIcon}></img>
-            </Button>
-          )}
-          <VolumeControl />
+      <div className="gradient-highlighter" />
+      <div className="controls-container">
+        <div className="progress-container">
+          <ProgressBar />
         </div>
-        <div className="right-actions">
-          <FullscreenControl />
+        <div className="actions-container">
+          <div className="left-actions">
+            {isStreamPlaying ? (
+              <Button onClick={onPause} variant={ButtonVariant.icon}>
+                <img alt="pause" src={pauseIcon}></img>
+              </Button>
+            ) : (
+              <Button onClick={onPlay} variant={ButtonVariant.icon}>
+                <img alt="play" src={playIcon}></img>
+              </Button>
+            )}
+            <VolumeControl />
+          </div>
+          <div className="right-actions">
+            <FullscreenControl />
+          </div>
         </div>
       </div>
     </div>
