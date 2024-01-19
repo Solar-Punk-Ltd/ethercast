@@ -5,6 +5,7 @@ import playIcon from '../../../assets/icons/play-fill.svg';
 import { Button, ButtonVariant } from '../../Button';
 
 import { FullscreenControl } from './FullscreenControl';
+import { ProgressBar } from './ProgressBar';
 import { VolumeControl } from './VolumeControl';
 
 import './Controls.scss';
@@ -19,6 +20,10 @@ interface ControlsProps {
 export function Controls({ onPlay, onPause, isStreamPlaying, className }: ControlsProps) {
   return (
     <div className={clsx('controls', className)}>
+      <div className="progress-container">
+        <ProgressBar onSeek={() => ({})} />
+      </div>
+
       <div className="actions-container">
         <div className="left-actions">
           {isStreamPlaying ? (
