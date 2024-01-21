@@ -15,18 +15,22 @@ export function ProgressBar() {
   const [duration, setDuration] = useState<number>(0); // [ms]
   const [index, setIndex] = useState<number | null>(null);
 
-  const calculateProgress = (clientX: number) => {
-    const rect = progressBarRef.current?.getBoundingClientRect();
-    if (!rect) return 0;
-    const newProgress = ((clientX - rect.left) / rect.width) * 100;
-    return Math.max(0, Math.min(newProgress, 100));
-  };
-
   useEffect(() => {
+    const calculateProgress = (clientX: number) => {
+      const rect = progressBarRef.current?.getBoundingClientRect();
+      if (!rect) return 0;
+      const newProgress = ((clientX - rect.left) / rect.width) * 100;
+      return Math.max(0, Math.min(newProgress, 100));
+    };
+
+    // const mouseUpOnProgressBarHandler = (e: MouseEvent) => {
+    //   const progress = calculateProgress(e.clientX);
+    //   seek(Math.ceil(index! * (progress / 100)));
+    // };
+
     const mouseDownOnProgressBarHandler = (e: MouseEvent) => {
       const progress = calculateProgress(e.clientX);
       setProgress(progress);
-      console.log(index! * (progress / 100));
       seek(Math.ceil(index! * (progress / 100)));
     };
 
@@ -52,6 +56,7 @@ export function ProgressBar() {
     };
 
     if (progressBarRef.current) {
+      // progressBarRef.current.addEventListener('mouseup', mouseUpOnProgressBarHandler);
       progressBarRef.current.addEventListener('mousedown', mouseDownOnProgressBarHandler);
       progressBarRef.current.addEventListener('mousemove', mouseMoveOnProgressBarHandler);
     }
@@ -64,6 +69,7 @@ export function ProgressBar() {
       document.removeEventListener('mousemove', mouseMoveHandler);
       document.removeEventListener('mouseup', mouseUpHandler);
       if (progressBarRef.current) {
+        // progressBarRef.current.addEventListener('mouseup', mouseUpOnProgressBarHandler);
         progressBarRef.current.removeEventListener('mousedown', mouseDownOnProgressBarHandler);
         progressBarRef.current.removeEventListener('mousemove', mouseMoveOnProgressBarHandler);
       }

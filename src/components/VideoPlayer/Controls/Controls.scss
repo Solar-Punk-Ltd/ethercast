@@ -43,6 +43,12 @@
     }
     .left-actions {
       margin-left: 12px;
+
+      .indicator {
+        cursor: pointer;
+        color: white;
+        padding-bottom: 10px;
+      }
     }
     .right-actions {
       margin-right: 12px;

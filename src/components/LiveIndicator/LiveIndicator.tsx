@@ -5,9 +5,11 @@ import './LiveIndicator.scss';
 
 interface LiveIndicatorProps {
   className?: string;
+  onClick?: () => void;
+  live?: boolean;
 }
 
-export function LiveIndicator({ className }: LiveIndicatorProps) {
+export function LiveIndicator({ className, onClick, live = true }: LiveIndicatorProps) {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
@@ -19,7 +21,7 @@ export function LiveIndicator({ className }: LiveIndicatorProps) {
   }, []);
 
   return (
-    <div className={clsx('live-indicator', className)}>
+    <div className={clsx('live-indicator', className, live ? 'live' : '')} onClick={onClick}>
       <span className={clsx('dot', isVisible ? 'visible' : '')}></span>
       Live
     </div>

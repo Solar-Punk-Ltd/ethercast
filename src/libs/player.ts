@@ -42,6 +42,12 @@ export function pause() {
   stopAppending();
 }
 
+export function restart() {
+  detach();
+  attach(mediaElement);
+  play();
+}
+
 export function seek(index: number) {
   detach();
   attach(mediaElement);

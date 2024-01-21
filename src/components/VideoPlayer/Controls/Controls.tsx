@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import pauseIcon from '../../../assets/icons/pause-fill.svg';
 import playIcon from '../../../assets/icons/play-fill.svg';
 import { Button, ButtonVariant } from '../../Button';
+import { LiveIndicator } from '../../LiveIndicator';
 
 import { FullscreenControl } from './FullscreenControl';
 import { ProgressBar } from './ProgressBar';
@@ -15,9 +16,10 @@ interface ControlsProps {
   isStreamPlaying: boolean;
   onPlay?: () => void;
   onPause?: () => void;
+  onRestart?: () => void;
 }
 
-export function Controls({ onPlay, onPause, isStreamPlaying, className }: ControlsProps) {
+export function Controls({ onPlay, onPause, onRestart, isStreamPlaying, className }: ControlsProps) {
   return (
     <div className={clsx('controls', className)}>
       <div className="gradient-highlighter" />
@@ -37,6 +39,7 @@ export function Controls({ onPlay, onPause, isStreamPlaying, className }: Contro
               </Button>
             )}
             <VolumeControl />
+            <LiveIndicator className="indicator" onClick={onRestart} />
           </div>
           <div className="right-actions">
             <FullscreenControl />
