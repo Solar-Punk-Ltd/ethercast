@@ -1,7 +1,6 @@
 import { Data } from '@ethersphere/bee-js';
 
 import { CLUSTER_ID, CLUSTER_TIMESTAMP } from '../utils/constants';
-import { bytesToHexString } from '../utils/formatters';
 import { decrementHexString, incrementHexString } from '../utils/operations';
 import { findHexInUint8Array, parseVint } from '../utils/webm';
 
