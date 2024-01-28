@@ -1,14 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import { getApproxDuration, seek } from '../../../../libs/player';
+import { VideoDuration } from '../../../../libs/player';
+import { convertMillisecondsToTime } from '../../../../utils/date';
 import { debounce } from '../../../../utils/debounce';
-import { convertMillisecondsToTime } from '../../../../utils/formatters';
 
 import './ProgressBar.scss';
 
-export function ProgressBar() {
+interface ProgressBarProps {
+  onSeek: (index: number) => void;
+  getDuration: () => Promise<VideoDuration>;
+}
+
+export function ProgressBar({ onSeek, getDuration }: ProgressBarProps) {
   const progressBarRef = useRef<HTMLDivElement>(null);
   const markerRef = useRef<HTMLDivElement>(null);
+
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(100);
   const [cursorPercent, setCursorPercent] = useState<number>(0);
@@ -31,7 +37,7 @@ export function ProgressBar() {
     const mouseDownOnProgressBarHandler = (e: MouseEvent) => {
       const progress = calculateProgress(e.clientX);
       setProgress(progress);
-      seek(Math.ceil(index! * (progress / 100)));
+      onSeek(Math.ceil(index! * (progress / 100)));
     };
 
     const mouseMoveOnProgressBarHandler = (e: MouseEvent) => {
@@ -83,7 +89,7 @@ export function ProgressBar() {
 
   const onMouseEnterToProgressBar = useCallback(
     debounce(async () => {
-      const { duration, index } = await getApproxDuration();
+      const { duration, index } = await getDuration();
       setDuration(duration);
       setIndex(index);
     }, 500),

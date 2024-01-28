@@ -2,6 +2,7 @@ import clsx from 'clsx';
 
 import pauseIcon from '../../../assets/icons/pause-fill.svg';
 import playIcon from '../../../assets/icons/play-fill.svg';
+import { VideoDuration } from '../../../libs/player';
 import { Button, ButtonVariant } from '../../Button';
 import { LiveIndicator } from '../../LiveIndicator';
 
@@ -14,18 +15,32 @@ import './Controls.scss';
 interface ControlsProps {
   className?: string;
   isStreamPlaying: boolean;
-  onPlay?: () => void;
-  onPause?: () => void;
-  onRestart?: () => void;
+  mediaElement: HTMLVideoElement | null;
+  onPlay: () => void;
+  onPause: () => void;
+  onRestart: () => void;
+  onSeek: (index: number) => void;
+  getDuration: () => Promise<VideoDuration>;
+  setVolumeControl: (element: HTMLInputElement) => void;
 }
 
-export function Controls({ onPlay, onPause, onRestart, isStreamPlaying, className }: ControlsProps) {
+export function Controls({
+  className,
+  isStreamPlaying,
+  onPlay,
+  onPause,
+  onRestart,
+  onSeek,
+  getDuration,
+  setVolumeControl,
+  mediaElement,
+}: ControlsProps) {
   return (
     <div className={clsx('controls', className)}>
       <div className="gradient-highlighter" />
       <div className="controls-container">
         <div className="progress-container">
-          <ProgressBar />
+          <ProgressBar onSeek={onSeek} getDuration={getDuration} />
         </div>
         <div className="actions-container">
           <div className="left-actions">
@@ -38,11 +53,11 @@ export function Controls({ onPlay, onPause, onRestart, isStreamPlaying, classNam
                 <img alt="play" src={playIcon}></img>
               </Button>
             )}
-            <VolumeControl />
+            <VolumeControl initControl={setVolumeControl} />
             <LiveIndicator className="indicator" onClick={onRestart} />
           </div>
           <div className="right-actions">
-            <FullscreenControl />
+            <FullscreenControl mediaElement={mediaElement} />
           </div>
         </div>
       </div>

@@ -1,15 +1,29 @@
 import { Data } from '@ethersphere/bee-js';
 
-import { CLUSTER_ID, CLUSTER_TIMESTAMP } from '../utils/constants';
+import { sleep } from '../utils/common';
+import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX } from '../utils/constants';
 import { decrementHexString, incrementHexString } from '../utils/operations';
 import { findHexInUint8Array, parseVint } from '../utils/webm';
 
 import { getBee } from './bee';
 
+// TODO import this type from @ethersphere/bee-js
+interface FeedUpdateResonse {
+  feedIndex: string;
+  feedIndexNext: string;
+  reference: string;
+}
+
+export interface VideoDuration {
+  duration: number;
+  index: number;
+}
+
 let mediaElement: HTMLVideoElement;
 let mediaSource: MediaSource;
 let streamTimer: NodeJS.Timeout | null;
 let currIndex = '';
+let seekIndex = '';
 let sourceBuffer: SourceBuffer;
 const bee = getBee();
 const TIMESLICE = 1000;
@@ -17,7 +31,7 @@ const owner = '99957411ceccd48dd57ced0524e9ad7e98bd0f01';
 const topic = '000000000000000000000000000000000000000000000000000000000000000A';
 const reader = bee.makeFeedReader('sequence', topic, owner);
 
-export async function getApproxDuration() {
+export async function getApproxDuration(): Promise<VideoDuration> {
   const metaFeedUpdateRes = await reader.download();
   const decimalIndex = parseInt(metaFeedUpdateRes.feedIndex, 16);
   return { duration: decimalIndex * TIMESLICE, index: decimalIndex };
@@ -27,14 +41,14 @@ export function getMediaElement() {
   return mediaElement;
 }
 
-export async function play(index?: string) {
+export async function play() {
   if (!sourceBuffer) {
     mediaElement.src = URL.createObjectURL(mediaSource);
   }
   while (mediaSource.readyState !== 'open') {
     await sleep(100);
   }
-  startAppending(index || undefined);
+  startAppending();
 }
 
 export function pause() {
@@ -50,7 +64,8 @@ export function restart() {
 export function seek(index: number) {
   detach();
   attach(mediaElement);
-  play(index.toString(16).padStart(16, '0'));
+  setSeekIndex(index);
+  play();
 }
 
 export function setVolumeControl(volumeControl: HTMLInputElement) {
@@ -74,11 +89,11 @@ export function detach() {
   currIndex = '';
 }
 
-async function startAppending(index?: string) {
+async function startAppending() {
   const { appendToSourceBuffer } = initSourceBuffer();
 
   if (!currIndex) {
-    await initStream(appendToSourceBuffer, index);
+    await initStream(appendToSourceBuffer);
   }
 
   mediaElement.play();
@@ -93,8 +108,8 @@ function stopAppending() {
   }
 }
 
-async function initStream(appendToSourceBuffer: (data: Uint8Array) => void, index?: string) {
-  const firstCluster = (await findFirstCluster(index))!;
+async function initStream(appendToSourceBuffer: (data: Uint8Array) => void) {
+  const firstCluster = (await findFirstCluster())!;
   currIndex = firstCluster.feedIndex;
   const initSegment = await createInitSegment(firstCluster.clusterIdIndex, firstCluster.segment);
   setMediaCurrentTime(initSegment);
@@ -102,12 +117,7 @@ async function initStream(appendToSourceBuffer: (data: Uint8Array) => void, inde
 }
 
 async function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
-  // TODO import this type from @ethersphere/bee-js
-  let feedUpdateRes: {
-    feedIndex: string;
-    feedIndexNext: string;
-    reference: string;
-  };
+  let feedUpdateRes: FeedUpdateResonse;
   let prevIndex = '';
 
   return async () => {
@@ -159,31 +169,34 @@ function initSourceBuffer() {
 function setMediaCurrentTime(clusterSegment: Uint8Array) {
   const timestamp = getClusterTimestampInSeconds(clusterSegment);
   mediaElement.currentTime = timestamp;
-  console.log(timestamp);
 }
 
 async function createInitSegment(clusterStartIndex: number, segment: Data) {
-  const metaFeedUpdateRes = await reader.download({ index: '0000000000000000' });
+  const metaFeedUpdateRes = await reader.download({ index: FIRST_SEGMENT_INDEX });
   const meta = await bee.downloadData(metaFeedUpdateRes.reference);
   const initSegment = addMetaToClusterStartSegment(clusterStartIndex, meta, segment);
   return initSegment;
 }
 
-async function findFirstCluster(index?: string) {
-  const isClusterFound = false;
+async function findFirstCluster() {
+  let isClusterFound = false;
   do {
-    const feedUpdateRes = await reader.download(index ? { index } : {});
+    const feedUpdateRes = await reader.download(seekIndex ? { index: seekIndex } : {});
     const segment = await bee.downloadData(feedUpdateRes.reference);
     const clusterIdIndex = findHexInUint8Array(segment, CLUSTER_ID);
+
     if (clusterIdIndex !== -1) {
+      isClusterFound = true;
+      seekIndex = '';
       return {
         feedIndex: feedUpdateRes.feedIndexNext || incrementHexString(feedUpdateRes.feedIndex),
         clusterIdIndex,
         segment,
       };
     }
-    if (index) {
-      index = decrementHexString(index);
+
+    if (seekIndex) {
+      seekIndex = decrementHexString(seekIndex);
     }
     await sleep(TIMESLICE);
   } while (!isClusterFound);
@@ -211,6 +224,6 @@ function clearSourceBuffer() {
   }
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function setSeekIndex(index: number) {
+  seekIndex = index.toString(16).padStart(16, '0');
 }

@@ -1,21 +1,23 @@
 import fullscreenIcon from '../../../../assets/icons/fullscreen.svg';
-import { getMediaElement } from '../../../../libs/player';
 import { Button, ButtonVariant } from '../../../Button';
 
 import './FullscreenControl.scss';
 
-export function FullscreenControl() {
+interface FullscreenControlProps {
+  mediaElement: HTMLVideoElement | null;
+}
+
+export function FullscreenControl({ mediaElement }: FullscreenControlProps) {
   const isFullscreen = () => document.fullscreenElement !== null;
 
   const toggleFullscreen = async () => {
-    const mediaElement = getMediaElement();
-
     if (isFullscreen()) {
       await document.exitFullscreen();
       return;
     }
-
-    mediaElement.requestFullscreen();
+    if (mediaElement) {
+      mediaElement.requestFullscreen();
+    }
   };
 
   return (

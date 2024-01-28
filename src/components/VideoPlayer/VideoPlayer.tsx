@@ -1,18 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 
-import { attach, detach, pause, play, restart } from '../../libs/player';
+import { attach, detach, getApproxDuration, pause, play, restart, seek, setVolumeControl } from '../../libs/player';
 
 import { Controls } from './Controls';
 import { StartOverlay } from './StartOverlay';
 
 import './VideoPlayer.scss';
 
-interface VideoPlayerProps {
-  options?: any;
-}
-
-export function VideoPlayer({ options }: VideoPlayerProps) {
+export function VideoPlayer() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [initClick, setInitClick] = useState(false);
   const [showControls, setShowControls] = useState(false);
@@ -55,6 +51,10 @@ export function VideoPlayer({ options }: VideoPlayerProps) {
         onPlay={playStream}
         onPause={pauseStream}
         onRestart={restart}
+        onSeek={seek}
+        getDuration={getApproxDuration}
+        setVolumeControl={setVolumeControl}
+        mediaElement={videoRef.current}
         isStreamPlaying={isPlaying}
         className={clsx(showControls && initClick ? 'controls-visible' : 'controls-hidden')}
       />

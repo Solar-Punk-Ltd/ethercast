@@ -3,18 +3,21 @@ import React, { useEffect, useRef, useState } from 'react';
 import volumeDownIcon from '../../../../assets/icons/volume-down-fill.svg';
 import volumeMuteIcon from '../../../../assets/icons/volume-mute-fill.svg';
 import volumeUpIcon from '../../../../assets/icons/volume-up-fill.svg';
-import { setVolumeControl } from '../../../../libs/player';
 import { Button, ButtonVariant } from '../../../Button';
 
 import './VolumeControl.scss';
 
-export function VolumeControl() {
+interface VolumeControlProps {
+  initControl: (element: HTMLInputElement) => void;
+}
+
+export function VolumeControl({ initControl }: VolumeControlProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [volume, setVolume] = useState(50);
 
   useEffect(() => {
     if (inputRef.current) {
-      setVolumeControl(inputRef.current);
+      initControl(inputRef.current);
     }
   }, []);
 
