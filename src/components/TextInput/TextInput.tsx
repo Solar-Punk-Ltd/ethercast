@@ -6,7 +6,8 @@ interface TextInputProps {
   label?: string;
   type?: string;
   placeholder?: string;
-  value?: string;
+  value: string;
+  name: string;
   onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 

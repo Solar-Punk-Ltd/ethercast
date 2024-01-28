@@ -1,4 +1,4 @@
-import { Data } from '@ethersphere/bee-js';
+import { Data, FeedReader } from '@ethersphere/bee-js';
 
 import { sleep } from '../utils/common';
 import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX } from '../utils/constants';
@@ -21,15 +21,13 @@ export interface VideoDuration {
 
 let mediaElement: HTMLVideoElement;
 let mediaSource: MediaSource;
+let sourceBuffer: SourceBuffer;
 let streamTimer: NodeJS.Timeout | null;
+let reader: FeedReader;
 let currIndex = '';
 let seekIndex = '';
-let sourceBuffer: SourceBuffer;
 const bee = getBee();
 const TIMESLICE = 1000;
-const owner = '99957411ceccd48dd57ced0524e9ad7e98bd0f01';
-const topic = '000000000000000000000000000000000000000000000000000000000000000A';
-const reader = bee.makeFeedReader('sequence', topic, owner);
 
 export async function getApproxDuration(): Promise<VideoDuration> {
   const metaFeedUpdateRes = await reader.download();
@@ -39,6 +37,19 @@ export async function getApproxDuration(): Promise<VideoDuration> {
 
 export function getMediaElement() {
   return mediaElement;
+}
+
+export function setFeedReader(rawTopic: string, owner: string) {
+  const topic = bee.makeFeedTopic(rawTopic);
+  console.log(topic);
+  reader = bee.makeFeedReader('sequence', topic, owner);
+  return reader;
+}
+
+export function setVolumeControl(volumeControl: HTMLInputElement) {
+  volumeControl.addEventListener('input', () => {
+    mediaElement.volume = +volumeControl.value / 100;
+  });
 }
 
 export async function play() {
@@ -66,12 +77,6 @@ export function seek(index: number) {
   attach(mediaElement);
   setSeekIndex(index);
   play();
-}
-
-export function setVolumeControl(volumeControl: HTMLInputElement) {
-  volumeControl.addEventListener('input', () => {
-    mediaElement.volume = +volumeControl.value / 100;
-  });
 }
 
 export async function attach(video: HTMLVideoElement) {

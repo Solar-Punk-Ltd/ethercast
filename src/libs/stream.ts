@@ -1,22 +1,22 @@
-import { BatchId, FeedManifestResult, FeedWriter } from '@ethersphere/bee-js';
-import { Wallet } from 'ethers';
+import { BatchId, FeedManifestResult, FeedWriter, Signer } from '@ethersphere/bee-js';
+import { ethers } from 'ethers';
 
 import { CLUSTER_ID } from '../utils/constants';
 import { findHexInUint8Array } from '../utils/webm';
 
 import { getBee } from './bee';
 
-const PRIVATE_KEY = 'cb35ff5ec82b182ef2c5fcbcaeb92120b453a013b107e98a9b4d93c39ce3f1d7';
-const TOPIC = '000000000000000000000000000000000000000000000000000000000000000A';
-const wallet = new Wallet(PRIVATE_KEY);
+// const PRIVATE_KEY = 'cb35ff5ec82b182ef2c5fcbcaeb92120b453a013b107e98a9b4d93c39ce3f1d7';
+// const TOPIC = '000000000000000000000000000000000000000000000000000000000000000A';
+// const wallet = new Wallet(PRIVATE_KEY);
 const bee = getBee();
 const TIMESLICE = 1000;
-let feedManifest: FeedManifestResult;
+// let feedManifest: FeedManifestResult;
 let feedWriter: FeedWriter;
 let mediaRecorder: MediaRecorder;
 let mediaStream: MediaStream;
 
-export async function startStream(stamp: BatchId): Promise<void> {
+export async function startStream(signer: string, topic: string, stamp: BatchId): Promise<void> {
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({
       video: {
@@ -35,7 +35,7 @@ export async function startStream(stamp: BatchId): Promise<void> {
       mimeType: 'video/webm; codecs=vp9,opus',
     });
 
-    await initFeed(stamp);
+    await initFeed(signer, topic, stamp);
 
     let firstChunk = true;
     mediaRecorder.ondataavailable = async (event) => {
@@ -65,21 +65,15 @@ export function isStreamOngoing() {
   return mediaStream?.getTracks().some((track) => track.readyState === 'live');
 }
 
-export function getFeedReference() {
-  if (feedManifest) {
-    return feedManifest.reference;
-  }
-  return null;
-}
-
 async function uploadChunk(stamp: BatchId, feedWriter: FeedWriter, chunk: Uint8Array) {
   const chunkResult = await bee.uploadData(stamp, chunk);
   await feedWriter.upload(stamp, chunkResult.reference);
 }
 
-async function initFeed(stamp: string | BatchId) {
-  feedManifest = await bee.createFeedManifest(stamp, 'sequence', TOPIC, wallet.address);
-  feedWriter = bee.makeFeedWriter('sequence', TOPIC, wallet.privateKey);
+async function initFeed(signer: string, rawTopic: string, stamp: string | BatchId) {
+  // feedManifest = await bee.createFeedManifest(stamp, 'sequence', topic, signer.address);
+  const topic = bee.makeFeedTopic(rawTopic);
+  feedWriter = bee.makeFeedWriter('sequence', topic, signer);
 }
 
 function createInitData(segment: Uint8Array) {
