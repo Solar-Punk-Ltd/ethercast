@@ -35,7 +35,7 @@ export function Home() {
       {showPlayer ? (
         <VideoPlayer />
       ) : (
-        <Container className="stream-form">
+        <Container className="browser-form">
           <p>Link your wallet to auto populate this field</p>
           <TextInput
             placeholder="Wallet address"

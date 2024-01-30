@@ -7,7 +7,7 @@ import { findHexInUint8Array } from '../utils/webm';
 import { getBee } from './bee';
 
 // const PRIVATE_KEY = 'cb35ff5ec82b182ef2c5fcbcaeb92120b453a013b107e98a9b4d93c39ce3f1d7';
-// const TOPIC = '000000000000000000000000000000000000000000000000000000000000000A';
+// const TOPIC = '  000000000000000000000000000000000000000000000000000000000000000A';
 // const wallet = new Wallet(PRIVATE_KEY);
 const bee = getBee();
 const TIMESLICE = 1000;
