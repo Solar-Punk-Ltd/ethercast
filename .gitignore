@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+yalc.lock
+.yalc
 
 # Editor directories and files
 .vscode/*

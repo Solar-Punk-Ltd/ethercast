@@ -5,6 +5,7 @@ import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX } from '../utils/con
 import { decrementHexString, incrementHexString } from '../utils/operations';
 import { findHexInUint8Array, parseVint } from '../utils/webm';
 
+import { AsyncQueue } from './asyncQueue';
 import { getBee } from './bee';
 
 // TODO import this type from @ethersphere/bee-js
@@ -27,7 +28,8 @@ let reader: FeedReader;
 let currIndex = '';
 let seekIndex = '';
 const bee = getBee();
-const TIMESLICE = 1000;
+const TIMESLICE = 2000;
+let BUFFER = 5;
 
 export async function getApproxDuration(): Promise<VideoDuration> {
   const metaFeedUpdateRes = await reader.download();
@@ -41,7 +43,6 @@ export function getMediaElement() {
 
 export function setFeedReader(rawTopic: string, owner: string) {
   const topic = bee.makeFeedTopic(rawTopic);
-  console.log(topic);
   reader = bee.makeFeedReader('sequence', topic, owner);
   return reader;
 }
@@ -101,8 +102,13 @@ async function startAppending() {
     await initStream(appendToSourceBuffer);
   }
 
+  const append = await appendBuffer(appendToSourceBuffer);
+  const queue = new AsyncQueue({ indexed: false });
+  streamTimer = setInterval(() => queue.enqueue(append), TIMESLICE);
+
+  await sleep(BUFFER * 1000);
+  BUFFER = 0;
   mediaElement.play();
-  streamTimer = setInterval(await appendBuffer(appendToSourceBuffer), TIMESLICE);
 }
 
 function stopAppending() {
@@ -126,6 +132,9 @@ async function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
   let prevIndex = '';
 
   return async () => {
+    handleBuffer();
+    BUFFER -= 1;
+
     try {
       feedUpdateRes = await reader.download({ index: currIndex });
       currIndex = incrementHexString(currIndex);
@@ -185,8 +194,9 @@ async function createInitSegment(clusterStartIndex: number, segment: Data) {
 
 async function findFirstCluster() {
   let isClusterFound = false;
+  let tempIndex = '0000000000000000';
   do {
-    const feedUpdateRes = await reader.download(seekIndex ? { index: seekIndex } : {});
+    const feedUpdateRes = await reader.download({ index: seekIndex || tempIndex });
     const segment = await bee.downloadData(feedUpdateRes.reference);
     const clusterIdIndex = findHexInUint8Array(segment, CLUSTER_ID);
 
@@ -199,6 +209,7 @@ async function findFirstCluster() {
         segment,
       };
     }
+    tempIndex = incrementHexString(tempIndex);
 
     if (seekIndex) {
       seekIndex = decrementHexString(seekIndex);
@@ -221,14 +232,28 @@ function getClusterTimestampInSeconds(segment: Uint8Array) {
   return vint.value / 1000;
 }
 
-function clearSourceBuffer() {
-  if (sourceBuffer.buffered.length > 0) {
-    const start = sourceBuffer.buffered.start(0);
-    const end = sourceBuffer.buffered.end(sourceBuffer.buffered.length - 1);
-    sourceBuffer.remove(start, end);
-  }
-}
-
 function setSeekIndex(index: number) {
   seekIndex = index.toString(16).padStart(16, '0');
+}
+
+let DYNAMIC_BUFFER_INCREMENT = 0;
+const MIN_LIVE_TRHESHOLD = 1;
+function handleBuffer() {
+  const bufferTimeRanges = sourceBuffer.buffered;
+  const bufferEnd = bufferTimeRanges.end(bufferTimeRanges.length - 1);
+  const diff = bufferEnd - mediaElement.currentTime;
+
+  if (BUFFER > 0) {
+    return;
+  }
+
+  if (diff <= MIN_LIVE_TRHESHOLD) {
+    mediaElement.pause();
+    console.log('Buffering...');
+    BUFFER = 5 + DYNAMIC_BUFFER_INCREMENT;
+    DYNAMIC_BUFFER_INCREMENT = BUFFER / 2;
+  } else if (mediaElement.paused && diff >= MIN_LIVE_TRHESHOLD) {
+    mediaElement.play();
+    console.log('Buffering complete');
+  }
 }
