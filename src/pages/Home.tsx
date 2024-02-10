@@ -1,32 +1,80 @@
-import { useState } from 'react';
-import { useEthers } from '@usedapp/core';
+import { Fragment, useState } from 'react';
 import { produce } from 'immer';
 
 import { Button } from '../components/Button';
 import { Container } from '../components/Container';
 import { TextInput } from '../components/TextInput';
 import { VideoPlayer } from '../components/VideoPlayer';
-import { setFeedReader } from '../libs/player';
+import { setFeedReader, setPlayerOptions } from '../libs/player';
 
 import './Home.scss';
 
+interface CommonForm {
+  label: string;
+  placeholder: string;
+  value: any;
+}
+
 export function Home() {
-  const { account } = useEthers();
   const [showPlayer, setShowPlayer] = useState(false);
-  const [form, setForm] = useState<Record<string, string>>({
-    wallet: '',
-    topic: '',
+  const [feedDataForm, setFeedDataForm] = useState<Record<string, CommonForm>>({
+    address: {
+      label: 'Please add the public address that streams the feed',
+      placeholder: 'Wallet address',
+      value: '',
+    },
+    topic: {
+      label: 'The topic of the stream',
+      placeholder: 'Stream topic',
+      value: '',
+    },
+  });
+  const [playerOptionsForm, setPlayerOptionsForm] = useState<Record<string, CommonForm>>({
+    timeslice: {
+      label: 'Timeslice',
+      placeholder: 'Timeslice',
+      value: 2000,
+    },
+    minLiveThreshold: {
+      label: 'Min live threshold',
+      placeholder: 'Min live threshold',
+      value: 1,
+    },
+    initBufferTime: {
+      label: 'Init buffer time',
+      placeholder: 'Init buffer time',
+      value: 5000,
+    },
+    buffer: {
+      label: 'Buffer',
+      placeholder: 'Buffer',
+      value: 5,
+    },
+    dynamicBufferIncrement: {
+      label: 'Dynamic buffer increment',
+      placeholder: 'Dynamic buffer increment',
+      value: 0,
+    },
   });
 
-  const onFormChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextState = produce(form, (draft) => {
-      draft[event.target.name] = event.target.value;
-    });
-    setForm(nextState);
-  };
+  const onFormChange =
+    (form: Record<string, any>, onChange: (form: Record<string, any>) => void) =>
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const nextState = produce(form, (draft) => {
+        draft[event.target.name].value = event.target.value;
+      });
+      onChange(nextState);
+    };
 
   const find = () => {
-    const reader = setFeedReader(form.topic, form.wallet);
+    setPlayerOptions({
+      timeslice: playerOptionsForm.timeslice.value,
+      minLiveThreshold: playerOptionsForm.minLiveThreshold.value,
+      initBufferTime: playerOptionsForm.initBufferTime.value,
+      buffer: playerOptionsForm.buffer.value,
+      dynamicBufferIncrement: playerOptionsForm.dynamicBufferIncrement.value,
+    });
+    setFeedReader(feedDataForm.topic.value, feedDataForm.address.value);
     setShowPlayer(true);
   };
 
@@ -36,15 +84,28 @@ export function Home() {
         <VideoPlayer />
       ) : (
         <Container className="browser-form">
-          <p>Link your wallet to auto populate this field</p>
-          <TextInput
-            placeholder="Wallet address"
-            value={form.wallet || account || ''}
-            name="wallet"
-            onChange={onFormChange}
-          />
-          <p>This is how others will find your stream</p>
-          <TextInput placeholder="Stream topic" value={form.topic} name="topic" onChange={onFormChange} />
+          {Object.entries(feedDataForm).map(([key, value]) => (
+            <Fragment key={key}>
+              <p>{value.label}</p>
+              <TextInput
+                placeholder={value.placeholder}
+                value={value.value}
+                name={key}
+                onChange={onFormChange(feedDataForm, setFeedDataForm)}
+              />
+            </Fragment>
+          ))}
+          {Object.entries(playerOptionsForm).map(([key, value]) => (
+            <Fragment key={key}>
+              <p>{value.label}</p>
+              <TextInput
+                placeholder={value.placeholder}
+                value={value.value}
+                name={key}
+                onChange={onFormChange(playerOptionsForm, setPlayerOptionsForm)}
+              />
+            </Fragment>
+          ))}
           <Button onClick={find}>Find stream</Button>
         </Container>
       )}

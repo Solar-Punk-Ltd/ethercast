@@ -20,6 +20,14 @@ export interface VideoDuration {
   index: number;
 }
 
+export interface PlayerOptions {
+  timeslice: number;
+  minLiveThreshold: number;
+  initBufferTime: number;
+  buffer: number;
+  dynamicBufferIncrement: number;
+}
+
 let mediaElement: HTMLVideoElement;
 let mediaSource: MediaSource;
 let sourceBuffer: SourceBuffer;
@@ -27,9 +35,14 @@ let streamTimer: NodeJS.Timeout | null;
 let reader: FeedReader;
 let currIndex = '';
 let seekIndex = '';
-const bee = getBee();
-const TIMESLICE = 2000;
+
+const bee = getBee('http://104.248.241.12:1633'); // Test address
+
+let TIMESLICE = 2000;
+let MIN_LIVE_TRHESHOLD = 1;
+let INIT_BUFFER_TIME = 5000;
 let BUFFER = 5;
+let DYNAMIC_BUFFER_INCREMENT = 0;
 
 export async function getApproxDuration(): Promise<VideoDuration> {
   const metaFeedUpdateRes = await reader.download();
@@ -41,10 +54,17 @@ export function getMediaElement() {
   return mediaElement;
 }
 
+export function setPlayerOptions(options: PlayerOptions) {
+  TIMESLICE = options.timeslice;
+  MIN_LIVE_TRHESHOLD = options.minLiveThreshold;
+  INIT_BUFFER_TIME = options.initBufferTime;
+  BUFFER = options.buffer;
+  DYNAMIC_BUFFER_INCREMENT = options.dynamicBufferIncrement;
+}
+
 export function setFeedReader(rawTopic: string, owner: string) {
   const topic = bee.makeFeedTopic(rawTopic);
-  reader = bee.makeFeedReader('sequence', topic, owner);
-  return reader;
+  bee.makeFeedReader('sequence', topic, owner);
 }
 
 export function setVolumeControl(volumeControl: HTMLInputElement) {
@@ -106,8 +126,7 @@ async function startAppending() {
   const queue = new AsyncQueue({ indexed: false });
   streamTimer = setInterval(() => queue.enqueue(append), TIMESLICE);
 
-  await sleep(BUFFER * 1000);
-  BUFFER = 0;
+  await sleep(INIT_BUFFER_TIME);
   mediaElement.play();
 }
 
@@ -132,8 +151,7 @@ async function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
   let prevIndex = '';
 
   return async () => {
-    handleBuffer();
-    BUFFER -= 1;
+    handleBuffering();
 
     try {
       feedUpdateRes = await reader.download({ index: currIndex });
@@ -193,15 +211,13 @@ async function createInitSegment(clusterStartIndex: number, segment: Data) {
 }
 
 async function findFirstCluster() {
-  let isClusterFound = false;
-  let tempIndex = '0000000000000000';
-  do {
-    const feedUpdateRes = await reader.download({ index: seekIndex || tempIndex });
+  const UNTIL_CLUSTER_IS_FOUND = true;
+  while (UNTIL_CLUSTER_IS_FOUND) {
+    const feedUpdateRes = await reader.download({ index: seekIndex });
     const segment = await bee.downloadData(feedUpdateRes.reference);
     const clusterIdIndex = findHexInUint8Array(segment, CLUSTER_ID);
 
     if (clusterIdIndex !== -1) {
-      isClusterFound = true;
       seekIndex = '';
       return {
         feedIndex: feedUpdateRes.feedIndexNext || incrementHexString(feedUpdateRes.feedIndex),
@@ -209,13 +225,12 @@ async function findFirstCluster() {
         segment,
       };
     }
-    tempIndex = incrementHexString(tempIndex);
 
     if (seekIndex) {
       seekIndex = decrementHexString(seekIndex);
     }
     await sleep(TIMESLICE);
-  } while (!isClusterFound);
+  }
 }
 
 function addMetaToClusterStartSegment(clusterStartIndex: number, meta: Data, segment: Data): Uint8Array {
@@ -236,9 +251,7 @@ function setSeekIndex(index: number) {
   seekIndex = index.toString(16).padStart(16, '0');
 }
 
-let DYNAMIC_BUFFER_INCREMENT = 0;
-const MIN_LIVE_TRHESHOLD = 1;
-function handleBuffer() {
+function handleBuffering() {
   const bufferTimeRanges = sourceBuffer.buffered;
   const bufferEnd = bufferTimeRanges.end(bufferTimeRanges.length - 1);
   const diff = bufferEnd - mediaElement.currentTime;
@@ -256,4 +269,6 @@ function handleBuffer() {
     mediaElement.play();
     console.log('Buffering complete');
   }
+
+  BUFFER -= 1;
 }
