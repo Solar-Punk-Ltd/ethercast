@@ -51,7 +51,7 @@ export function Home() {
       value: 5,
     },
     dynamicBufferIncrement: {
-      label: 'Dynamic buffer increment',
+      label: 'Init Dynamic buffer increment',
       placeholder: 'Dynamic buffer increment',
       value: 0,
     },

@@ -1,4 +1,4 @@
-import { Data, FeedReader } from '@ethersphere/bee-js';
+import { Bee, Data, FeedReader } from '@ethersphere/bee-js';
 
 import { sleep } from '../utils/common';
 import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX } from '../utils/constants';
@@ -6,7 +6,6 @@ import { decrementHexString, incrementHexString } from '../utils/operations';
 import { findHexInUint8Array, parseVint } from '../utils/webm';
 
 import { AsyncQueue } from './asyncQueue';
-import { getBee } from './bee';
 
 // TODO import this type from @ethersphere/bee-js
 interface FeedUpdateResonse {
@@ -36,7 +35,7 @@ let reader: FeedReader;
 let currIndex = '';
 let seekIndex = '';
 
-const bee = getBee('http://104.248.241.12:1633'); // Test address
+const bee = new Bee('http://104.248.241.12:1633'); // Test address
 
 let TIMESLICE = 2000;
 let MIN_LIVE_TRHESHOLD = 1;
@@ -64,7 +63,7 @@ export function setPlayerOptions(options: PlayerOptions) {
 
 export function setFeedReader(rawTopic: string, owner: string) {
   const topic = bee.makeFeedTopic(rawTopic);
-  bee.makeFeedReader('sequence', topic, owner);
+  reader = bee.makeFeedReader('sequence', topic, owner);
 }
 
 export function setVolumeControl(volumeControl: HTMLInputElement) {
@@ -213,7 +212,7 @@ async function createInitSegment(clusterStartIndex: number, segment: Data) {
 async function findFirstCluster() {
   const UNTIL_CLUSTER_IS_FOUND = true;
   while (UNTIL_CLUSTER_IS_FOUND) {
-    const feedUpdateRes = await reader.download({ index: seekIndex });
+    const feedUpdateRes = await reader.download(seekIndex ? { index: seekIndex } : undefined);
     const segment = await bee.downloadData(feedUpdateRes.reference);
     const clusterIdIndex = findHexInUint8Array(segment, CLUSTER_ID);
 

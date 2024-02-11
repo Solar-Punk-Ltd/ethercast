@@ -1,10 +1,9 @@
-import { BatchId, FeedWriter } from '@ethersphere/bee-js';
+import { BatchId, Bee, FeedWriter } from '@ethersphere/bee-js';
 
 import { CLUSTER_ID } from '../utils/constants';
 import { findHexInUint8Array } from '../utils/webm';
 
 import { AsyncQueue } from './asyncQueue';
-import { getBee } from './bee';
 
 interface Signer {
   address: string;
@@ -22,7 +21,7 @@ interface Options {
   };
 }
 
-const bee = getBee('http://104.248.251.249:1633'); // Test address
+const bee = new Bee('http://104.248.251.249:1633'); // Test address
 let feedWriter: FeedWriter;
 let mediaRecorder: MediaRecorder;
 let mediaStream: MediaStream;
@@ -83,7 +82,7 @@ async function uploadChunk(stamp: BatchId, chunk: Uint8Array, index: string) {
   await feedWriter.upload(stamp, chunkResult.reference, { index });
 }
 
-async function initFeed(signer: Signer, rawTopic: string, stamp: string | BatchId) {
+async function initFeed(signer: Signer, rawTopic: string, stamp: BatchId) {
   const topic = bee.makeFeedTopic(rawTopic);
   await bee.createFeedManifest(stamp, 'sequence', topic, signer.address);
   feedWriter = bee.makeFeedWriter('sequence', topic, signer.key);

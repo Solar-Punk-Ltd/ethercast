@@ -11,7 +11,6 @@ import { TextInput } from '../components/TextInput';
 import { isStreamOngoing, startStream, stopStream } from '../libs/stream';
 
 import './Stream.scss';
-
 interface CommonForm {
   label: string;
   placeholder: string;
@@ -27,7 +26,7 @@ export function Stream() {
   const [timeslice, setTimeslice] = useState<number>(2000); // [ms
   const [feedDataForm, setFeedDataForm] = useState<Record<string, CommonForm>>({
     key: {
-      label: 'Link your wallet to auto populate this field',
+      label: 'Please provide your key for the feed',
       placeholder: 'Key',
       value: '41794f971474641445c149425519dc7af14047012658d5ac557300cd644b6e0c',
     },
