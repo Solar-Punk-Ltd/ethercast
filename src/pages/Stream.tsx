@@ -72,18 +72,16 @@ export function Stream() {
       feedDataForm.topic.value,
       feedDataForm.stamp.value as BatchId,
       {
-        stream: {
-          audio,
-          video,
-          videoDetails: video
-            ? {
-                width: streamDataForm.width.value,
-                height: streamDataForm.height.value,
-                frameRate: streamDataForm.frameRate.value,
-              }
-            : undefined,
-        },
+        audio,
+        video,
         timeslice,
+        videoDetails: video
+          ? {
+              width: streamDataForm.width.value,
+              height: streamDataForm.height.value,
+              frameRate: streamDataForm.frameRate.value,
+            }
+          : undefined,
       },
     );
 

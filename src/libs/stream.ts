@@ -12,17 +12,14 @@ interface Signer {
 }
 
 interface Options {
-  stream: {
-    video: boolean;
-    videoDetails?: {
-      width: number;
-      height: number;
-      frameRate: number;
-    };
-
-    audio: boolean;
-  };
+  video: boolean;
+  audio: boolean;
   timeslice: number;
+  videoDetails?: {
+    width: number;
+    height: number;
+    frameRate: number;
+  };
 }
 
 const bee = getBee('http://104.248.251.249:1633'); // Test address
@@ -33,16 +30,16 @@ let mediaStream: MediaStream;
 export async function startStream(signer: Signer, topic: string, stamp: BatchId, options: Options): Promise<void> {
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: options.stream.video && {
+      video: options.video && {
         width: {
-          ideal: options.stream.videoDetails?.width,
+          ideal: options.videoDetails?.width,
         },
         height: {
-          ideal: options.stream.videoDetails?.height,
+          ideal: options.videoDetails?.height,
         },
-        frameRate: { ideal: options.stream.videoDetails?.frameRate },
+        frameRate: { ideal: options.videoDetails?.frameRate },
       },
-      audio: options.stream.audio,
+      audio: options.audio,
     });
 
     mediaRecorder = new MediaRecorder(mediaStream, {
