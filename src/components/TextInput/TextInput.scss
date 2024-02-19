@@ -1,0 +1,25 @@
+.text-input-container {
+  margin: 10px;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+}
+
+.text-input-label {
+  margin-bottom: 5px;
+  font-size: 16px;
+  color: #333;
+}
+
+.text-input-field {
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.text-input-field:focus {
+  border-color: $sp-bg-primary-100;
+}

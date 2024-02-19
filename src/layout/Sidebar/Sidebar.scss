@@ -1,0 +1,24 @@
+.sidebar {
+  position: fixed;
+  left: -100px;
+  top: $sp-header-height;
+  bottom: 0;
+  width: $sp-sidebar-width;
+  box-sizing: border-box;
+  display: inline-block;
+  background-color: $sp-bg-primary-100;
+  z-index: 2200;
+  padding: 0 4px;
+  transition: all .3s ease;
+
+  &.open {
+    left: 0;
+  }
+
+  .menu-list {
+    display: flex;
+    flex-direction: column;
+    margin-top: 4px;
+    background-color: transparent;
+  }
+}

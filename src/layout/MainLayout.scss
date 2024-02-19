@@ -1,0 +1,21 @@
+.layout {
+  position: relative;
+}
+
+main {
+  margin-top: $sp-header-height;
+  background-image: url(/assets/background.png);
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: 50% 50%;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0px;
+  z-index: 2100;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.3);
+}
