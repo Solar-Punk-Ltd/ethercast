@@ -3,8 +3,9 @@ import ReactDOM from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { Config, DAppProvider, Gnosis, MetamaskConnector } from '@usedapp/core';
 
+import BaseRouter from '../routes';
+
 import { MainLayout } from './layout/MainLayout';
-import BaseRouter from './routes';
 
 import './App.scss';
 

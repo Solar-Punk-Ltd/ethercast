@@ -1,0 +1,15 @@
+.join-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  width: 95%;
+  height: 20px;
+  background-color: rgb(255, 140, 0);
+  border-color: orange;
+
+  &:hover {
+    border-color: rgb(239, 63, 63);
+    background-color: rgb(255, 140, 0);
+  }
+}

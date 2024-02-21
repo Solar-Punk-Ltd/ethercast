@@ -1,8 +1,8 @@
 import { ReactElement } from 'react';
 import { Route, Routes } from 'react-router-dom';
 
-import { Home } from './pages/Home';
-import { Stream } from './pages/Stream';
+import { Home } from './pages/Home/Home';
+import { Stream } from './pages/Stream/Stream';
 
 export enum ROUTES {
   HOME = '/',

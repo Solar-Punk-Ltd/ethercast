@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import volumeDownIcon from '../../../../assets/icons/volume-down-fill.svg';
 import volumeMuteIcon from '../../../../assets/icons/volume-mute-fill.svg';
 import volumeUpIcon from '../../../../assets/icons/volume-up-fill.svg';
-import { Button, ButtonVariant } from '../../../Button';
+import { Button, ButtonVariant } from '../../../Button/Button';
 
 import './VolumeControl.scss';
 

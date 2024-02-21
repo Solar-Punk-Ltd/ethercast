@@ -3,14 +3,15 @@ import { BatchId } from '@ethersphere/bee-js';
 import { useEthers } from '@usedapp/core';
 import { produce } from 'immer';
 
-import { Button } from '../components/Button/Button';
-import { CheckInput } from '../components/CheckInput';
-import { Container } from '../components/Container';
-import { LiveIndicator } from '../components/LiveIndicator';
-import { TextInput } from '../components/TextInput';
-import { isStreamOngoing, startStream, stopStream } from '../libs/stream';
+import { Button } from '../../components/Button/Button';
+import { CheckInput } from '../../components/CheckInput';
+import { FormContainer } from '../../components/FormContainer';
+import { LiveIndicator } from '../../components/LiveIndicator/LiveIndicator';
+import { TextInput } from '../../components/TextInput/TextInput';
+import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
 
 import './Stream.scss';
+
 interface CommonForm {
   label: string;
   placeholder: string;
@@ -103,7 +104,7 @@ export function Stream() {
 
   return (
     <div className="stream">
-      <Container className="stream-form">
+      <FormContainer className="stream-form">
         {isLive ? (
           <>
             <LiveIndicator className="indicator" />
@@ -152,7 +153,7 @@ export function Stream() {
             <Button onClick={start}>Start stream</Button>
           </>
         )}
-      </Container>
+      </FormContainer>
     </div>
   );
 }

@@ -3,8 +3,8 @@ import clsx from 'clsx';
 
 import { attach, detach, getApproxDuration, pause, play, restart, seek, setVolumeControl } from '../../libs/player';
 
-import { Controls } from './Controls';
-import { StartOverlay } from './StartOverlay';
+import { Controls } from './Controls/Controls';
+import { StartOverlay } from './StartOverlay/StartOverlay';
 
 import './VideoPlayer.scss';
 
@@ -44,7 +44,7 @@ export function VideoPlayer() {
   };
 
   return (
-    <div className="video-container" onMouseEnter={onMouseEnterVideo} onMouseLeave={onMouseLeaveVideo}>
+    <div className="video-player" onMouseEnter={onMouseEnterVideo} onMouseLeave={onMouseLeaveVideo}>
       {!initClick && <StartOverlay onStart={playStream} />}
       <video ref={videoRef} controlsList="nodownload"></video>
       <Controls

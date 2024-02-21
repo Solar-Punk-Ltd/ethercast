@@ -1,0 +1,21 @@
+.chat {
+  position: relative;
+  height: calc(100vh - $sp-header-height - 50px);
+  width: 300px;
+  background-color: rgba(255, 255, 255, 0.3);
+
+  .header {
+    display: flex;
+    justify-content: center;
+    border-bottom: 1px solid black;
+    padding: 12px
+  }
+  .body {
+    position: absolute;
+    top: 50px;
+    left: 0;
+    right: 0;
+    bottom: 0px;
+    overflow: auto;
+  }
+}

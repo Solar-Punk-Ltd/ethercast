@@ -1,5 +1,5 @@
-import MenuIcon from '../assets/icons/list.svg';
-import { Connect } from '../components/Connect';
+import MenuIcon from '../../assets/icons/list.svg';
+import { Connect } from '../../components/Connect';
 
 import './Header.scss';
 

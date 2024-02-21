@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import playIcon from '../../../assets/icons/play-btn.svg';
 import playFillIcon from '../../../assets/icons/play-btn-fill.svg';
-import { Button, ButtonVariant } from '../../Button';
+import { Button, ButtonVariant } from '../../Button/Button';
 
 import './StartOverlay.scss';
 

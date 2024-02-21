@@ -1,5 +1,5 @@
 import fullscreenIcon from '../../../../assets/icons/fullscreen.svg';
-import { Button, ButtonVariant } from '../../../Button';
+import { Button, ButtonVariant } from '../../../Button/Button';
 
 import './FullscreenControl.scss';
 

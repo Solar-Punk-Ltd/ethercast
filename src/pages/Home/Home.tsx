@@ -1,11 +1,16 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { produce } from 'immer';
 
-import { Button } from '../components/Button';
-import { Container } from '../components/Container';
-import { TextInput } from '../components/TextInput';
-import { VideoPlayer } from '../components/VideoPlayer';
-import { setFeedReader, setPlayerOptions } from '../libs/player';
+import { Button } from '../../components/Button/Button';
+import { Chat } from '../../components/Chat/Chat';
+import { FormContainer } from '../../components/FormContainer';
+import { JoinButton } from '../../components/JoinButton/JoinButton';
+import { TextInput } from '../../components/TextInput/TextInput';
+import { VideoList } from '../../components/VideoList/VideoList';
+import { VideoPlayer } from '../../components/VideoPlayer/VideoPlayer';
+import { setFeedReader, setPlayerOptions } from '../../libs/player';
+
+import { ViewContainer } from './containers/ViewerContainer';
 
 import './Home.scss';
 
@@ -15,8 +20,10 @@ interface CommonForm {
   value: any;
 }
 
+const items = [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}];
+
 export function Home() {
-  const [showPlayer, setShowPlayer] = useState(false);
+  const [showPlayer, setShowPlayer] = useState(true);
   const [feedDataForm, setFeedDataForm] = useState<Record<string, CommonForm>>({
     address: {
       label: 'Please add the public address that streams the feed',
@@ -57,6 +64,8 @@ export function Home() {
     },
   });
 
+  const showForm = useMemo(() => !showPlayer, [showPlayer]);
+
   const onFormChange =
     (form: Record<string, any>, onChange: (form: Record<string, any>) => void) =>
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,7 +75,7 @@ export function Home() {
       onChange(nextState);
     };
 
-  const find = () => {
+  const findStream = () => {
     setPlayerOptions({
       timeslice: playerOptionsForm.timeslice.value,
       minLiveThreshold: playerOptionsForm.minLiveThreshold.value,
@@ -80,10 +89,19 @@ export function Home() {
 
   return (
     <div className="home">
-      {showPlayer ? (
-        <VideoPlayer />
-      ) : (
-        <Container className="browser-form">
+      {showPlayer && (
+        <>
+          <ViewContainer>
+            <VideoPlayer />
+            <JoinButton onClick={() => ({})} />
+            <VideoList items={items} />
+          </ViewContainer>
+          <Chat />
+        </>
+      )}
+
+      {showForm && (
+        <FormContainer className="browser-form">
           {Object.entries(feedDataForm).map(([key, value]) => (
             <Fragment key={key}>
               <p>{value.label}</p>
@@ -106,8 +124,8 @@ export function Home() {
               />
             </Fragment>
           ))}
-          <Button onClick={find}>Find stream</Button>
-        </Container>
+          <Button onClick={findStream}>Find stream</Button>
+        </FormContainer>
       )}
     </div>
   );

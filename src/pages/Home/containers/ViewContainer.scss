@@ -1,0 +1,32 @@
+#view-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-left: 12px;
+  background-color: rgba(0, 0, 0, 0.5);
+  max-width: 800px;
+  max-height: calc(100vh - 60px);
+  overflow-y: scroll;
+
+  .video-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 24px 0px;
+  }
+  #view-secondary-actions {
+    position: absolute;
+    bottom: 0px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    z-index: 10000;
+  }
+  .list-section {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+}

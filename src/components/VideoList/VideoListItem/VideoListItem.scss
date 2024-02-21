@@ -1,0 +1,14 @@
+.video-list-item {
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 120px;
+  width: 160px;
+  border-color: white;
+  border: 1px solid rgba(255, 255, 255, 0.5 );
+  img {
+    width: 30p;
+    height: 30px;
+  }
+}

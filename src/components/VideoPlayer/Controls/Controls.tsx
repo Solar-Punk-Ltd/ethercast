@@ -3,12 +3,12 @@ import clsx from 'clsx';
 import pauseIcon from '../../../assets/icons/pause-fill.svg';
 import playIcon from '../../../assets/icons/play-fill.svg';
 import { VideoDuration } from '../../../libs/player';
-import { Button, ButtonVariant } from '../../Button';
-import { LiveIndicator } from '../../LiveIndicator';
+import { Button, ButtonVariant } from '../../Button/Button';
+import { LiveIndicator } from '../../LiveIndicator/LiveIndicator';
 
-import { FullscreenControl } from './FullscreenControl';
-import { ProgressBar } from './ProgressBar';
-import { VolumeControl } from './VolumeControl';
+import { FullscreenControl } from './FullscreenControl/FullscreenControl';
+import { ProgressBar } from './ProgressBar/ProgressBar';
+import { VolumeControl } from './VolumeControl/VolumeControl';
 
 import './Controls.scss';
 
