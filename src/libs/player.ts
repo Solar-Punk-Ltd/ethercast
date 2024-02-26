@@ -7,8 +7,9 @@ import { findHexInUint8Array, parseVint } from '../utils/webm';
 
 import { AsyncQueue } from './asyncQueue';
 
+// TODO fix bee-js related types in general
 // TODO import this type from @ethersphere/bee-js
-interface FeedUpdateResonse {
+interface FeedUpdateResponse {
   feedIndex: string;
   feedIndexNext: string;
   reference: string;
@@ -45,7 +46,7 @@ let DYNAMIC_BUFFER_INCREMENT = 0;
 
 export async function getApproxDuration(): Promise<VideoDuration> {
   const metaFeedUpdateRes = await reader.download();
-  const decimalIndex = parseInt(metaFeedUpdateRes.feedIndex, 16);
+  const decimalIndex = parseInt(metaFeedUpdateRes.feedIndex as string, 16);
   return { duration: decimalIndex * TIMESLICE, index: decimalIndex };
 }
 
@@ -146,14 +147,14 @@ async function initStream(appendToSourceBuffer: (data: Uint8Array) => void) {
 }
 
 async function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
-  let feedUpdateRes: FeedUpdateResonse;
+  let feedUpdateRes: FeedUpdateResponse;
   let prevIndex = '';
 
   return async () => {
     handleBuffering();
 
     try {
-      feedUpdateRes = await reader.download({ index: currIndex });
+      feedUpdateRes = (await reader.download({ index: currIndex })) as any;
       currIndex = incrementHexString(currIndex);
     } catch (error) {
       currIndex = prevIndex;
@@ -219,7 +220,7 @@ async function findFirstCluster() {
     if (clusterIdIndex !== -1) {
       seekIndex = '';
       return {
-        feedIndex: feedUpdateRes.feedIndexNext || incrementHexString(feedUpdateRes.feedIndex),
+        feedIndex: feedUpdateRes.feedIndexNext || incrementHexString(feedUpdateRes.feedIndex as string),
         clusterIdIndex,
         segment,
       };
