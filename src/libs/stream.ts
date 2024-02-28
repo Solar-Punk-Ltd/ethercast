@@ -21,7 +21,7 @@ interface Options {
   };
 }
 
-const bee = new Bee('http://104.248.251.249:1633'); // Test address
+const bee = new Bee('http://localhost:1633'); // Test address
 let feedWriter: FeedWriter;
 let mediaRecorder: MediaRecorder;
 let mediaStream: MediaStream;

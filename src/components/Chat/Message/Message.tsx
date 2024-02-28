@@ -10,9 +10,13 @@ interface MessageProps {
 
 export function Message({ name, message, own }: MessageProps) {
   return (
-    <div className="message">
+    <>
       {!own && <span className="name">{name}:</span>}
-      <span className={clsx(own ? 'own' : '')}>{message}</span>
-    </div>
+      <div className="message">
+        <div className={clsx(own ? 'own' : 'other')}>
+          <span>{message}</span>
+        </div>
+      </div>
+    </>
   );
 }

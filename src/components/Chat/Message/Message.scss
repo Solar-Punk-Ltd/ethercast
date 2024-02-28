@@ -1,13 +1,25 @@
 .message {
-  display: flex;
-  padding: 12px;
   font-size: 13px;
+  margin-bottom: 5px;
+  display: flex;
 }
 .name {
-  font-weight: bold;
-  margin-right: 4px;
-
+  margin-left: 16px;
+  font-size: 10px;
 }
 .own {
   margin-left: auto;
+  padding: 10px;
+  border-radius: 12px;
+  background-color: $sp-text-orange;
+  color: $sp-bg-primary-100;
+  margin-right: 10px;
+}
+
+.other {
+  background-color: $sp-bg-primary-100;
+  padding: 10px;
+  border-radius: 12px;
+  color: $sp-text-orange;
+  margin-left: 10px;
 }
