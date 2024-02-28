@@ -17,7 +17,7 @@ export function TextInput({ label, ...props }: TextInputProps) {
   return (
     <div className={clsx('text-input-container', props.className)}>
       {label && <label className="text-input-label">{label}</label>}
-      <input className="text-input-field" {...props} />
+      <input className="text-input-field" />
     </div>
   );
 }

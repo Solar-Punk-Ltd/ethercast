@@ -13,6 +13,7 @@ const messages = [
   {
     message: 'Hello there!',
     name: 'Obi-Wan Kenobi',
+    own: true,
   },
   {
     message: 'Hello there!',
@@ -21,6 +22,7 @@ const messages = [
   {
     message: 'Hello there!',
     name: 'Obi-Wan Kenobi',
+    own: true,
   },
   {
     message: 'Hello there!',
@@ -29,6 +31,7 @@ const messages = [
   {
     message: 'Hello there!',
     name: 'Obi-Wan Kenobi',
+    own: true,
   },
   {
     message: 'Hello there!',
@@ -37,6 +40,7 @@ const messages = [
   {
     message: 'Hello there!',
     name: 'Obi-Wan Kenobi',
+    own: true,
   },
   {
     message: 'Hello there!',
@@ -45,6 +49,7 @@ const messages = [
   {
     message: 'Hello there!',
     name: 'Obi-Wan Kenobi',
+    own: true,
   },
   {
     message: 'Hello there!',
@@ -53,6 +58,7 @@ const messages = [
   {
     message: 'Hello there!',
     name: 'Obi-Wan Kenobi',
+    own: true,
   },
   {
     message: 'Hello there!',
@@ -61,6 +67,7 @@ const messages = [
   {
     message: 'Hello there!',
     name: 'Obi-Wan Kenobi',
+    own: true,
   },
   {
     message: 'Hello there!',
@@ -69,6 +76,7 @@ const messages = [
   {
     message: 'Hello there!',
     name: 'Obi-Wan Kenobi',
+    own: true,
   },
   {
     message: 'Hello there!',
@@ -77,6 +85,7 @@ const messages = [
   {
     message: 'Hello there!',
     name: 'Obi-Wan Kenobi',
+    own: true,
   },
   {
     message: 'Hello there!',
@@ -92,7 +101,7 @@ const messages = [
 export function Chat(_: ChatProps) {
   return (
     <div className="chat">
-      <div className="header">Super Swarm chat</div>
+      {/* <div className="header">MESSAGES</div> */}
       <div className="body">
         {messages.map((m, i) => (
           <Message key={i} name={m.name} message={m.message} own={m.own} />

@@ -29,7 +29,7 @@ export function Stream() {
     key: {
       label: 'Please provide your key for the feed',
       placeholder: 'Key',
-      value: '41794f971474641445c149425519dc7af14047012658d5ac557300cd644b6e0c',
+      value: '',
     },
     topic: {
       label: 'This is how others will find your stream',
