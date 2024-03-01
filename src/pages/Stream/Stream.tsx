@@ -29,7 +29,7 @@ export function Stream() {
     key: {
       label: 'Please provide your key for the feed',
       placeholder: 'Key',
-      value: '',
+      value: 'bfe707e4802c437c8e507634b34baa2b94118f28eccd5479095d4de8d75d4b87',
     },
     topic: {
       label: 'This is how others will find your stream',
@@ -39,7 +39,7 @@ export function Stream() {
     stamp: {
       label: 'Please provide a valid stamp',
       placeholder: 'Stamp',
-      value: '',
+      value: 'bbf2367c76c21335adf69a4fa7b9a47c4458f1436e068c9da9da2e828d4fc38f',
     },
   });
   const [streamDataForm, setStreamDataForm] = useState<Record<string, CommonForm>>({
