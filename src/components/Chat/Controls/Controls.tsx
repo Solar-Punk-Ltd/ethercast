@@ -7,7 +7,7 @@ interface ControlsProps {}
 export function Controls(_: ControlsProps) {
   return (
     <div className="controls">
-      <TextInput className="chat-input" value="test" name="test" />
+      <TextInput className="chat-input" value="hello world" name="test" />
     </div>
   );
 }
