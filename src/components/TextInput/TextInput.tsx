@@ -11,13 +11,19 @@ interface TextInputProps {
   value: string | number;
   name: string;
   onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onKeyPress?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 export function TextInput({ label, ...props }: TextInputProps) {
   return (
     <div className={clsx('text-input-container', props.className)}>
       {label && <label className="text-input-label">{label}</label>}
-      <input className="text-input-field" value={props.value}/>
+      <input 
+        className="text-input-field"
+        value={props.value}
+        onChange={props.onChange}
+        onKeyPress={props.onKeyPress}
+      />
     </div>
   );
 }

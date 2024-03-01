@@ -1,6 +1,6 @@
 import express, { Request } from 'express';
 const router = express.Router();
-import { createChatRoomIfNotExist, readMessageToIndex, uploadMessageToFeed } from '../utils/roomInitUtils';
+import { createChatRoomIfNotExist, getUpdateIndex, readMessageToIndex, uploadMessageToFeed } from '../utils/roomInitUtils';
 
 
 // Create new room
@@ -23,7 +23,7 @@ router.post('/create', async function (req: Request, res) {
 // Send message to room
 router.post('/send', async function (req: Request, res) {
     try {
-        const reference = await uploadMessageToFeed(req.body.message, req.body.roomId);
+        const reference = await uploadMessageToFeed(req.body.message, req.body.name, req.body.roomId);
 
         res.status(200);
         res.send({ reference: reference })
@@ -53,6 +53,22 @@ router.get('/read', async function (req: Request, res) {
             message: `There was an error while reading message with index ${req.query.index} in room ${req.query.roomId}`,
             error
         });
+    }
+});
+
+// Get feed index for a given room
+router.get('/get-feed-index', async function (req: Request, res) {
+    try {
+        const roomId = req.query.roomId as string;
+        if (roomId.length === 0) throw "No roomId provided!";
+        const result = await getUpdateIndex(roomId);
+
+        res.status(200);
+        res.send({ index: result, roomId: req.query.roomId });
+    } catch (error) {
+        console.error(`There was an error while trying to get feed index for room ${req.query.roomId}`);
+        res.status(500);
+        res.send({ message: `There was an error while trying to get feed index for room ${req.query.roomId}`, error});
     }
 });
 
