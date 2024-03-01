@@ -1,5 +1,5 @@
 .controls {
-  // display: flex;
+  display: flex;
   // align-items: center;
   // position: absolute;
   // bottom: -50px;
@@ -11,8 +11,24 @@
   // margin: 0px;
 
   .chat-input {
-    // margin: 0px;
+    margin: 0px;
     // padding: 10px;
     // padding: 30px;
+  }
+
+  button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    width: 40px;
+    height: 100%;
+    background-color: rgb(255, 140, 0);
+    border-color: orange;
+  
+    &:hover {
+      border-color: rgb(239, 63, 63);
+      background-color: rgb(255, 140, 0);
+    }
   }
 }

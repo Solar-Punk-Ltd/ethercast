@@ -33,7 +33,7 @@ export function Home() {
     topic: {
       label: 'The topic of the stream',
       placeholder: 'Stream topic',
-      value: '',
+      value: 'example-room-4',
     },
   });
   const [playerOptionsForm, setPlayerOptionsForm] = useState<Record<string, CommonForm>>({
@@ -96,7 +96,7 @@ export function Home() {
             <JoinButton onClick={() => ({})} />
             <VideoList items={items} />
           </ViewContainer>
-          <Chat />
+          <Chat topic={feedDataForm.topic.value} />
         </>
       )}
 

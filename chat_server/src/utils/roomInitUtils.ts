@@ -1,6 +1,6 @@
 import { BatchId, Bee, FeedReader, FeedWriter, Signer, Utils } from "@ethersphere/bee-js";
 import { getConsensualPrivateKey, getGraffitiWallet, numberToFeedIndex, serializeGraffitiRecord, sleep } from "./graffitiUtils";
-import { RoomID } from "../types/types";
+import { Message, RoomID } from "../types/types";
 import bee from "./beeInstance";
 require('dotenv').config();
 
@@ -37,7 +37,11 @@ export async function createChatRoomIfNotExist(roomId: RoomID) {
     console.log("createFeedManifest result", manifestResult.reference)
     sleep(2000)
 
-    const data = {text: 'Welcome to the chat!', timestamp: Date.now()}
+    const data: Message = {
+        message: 'Welcome to the chat!',
+        name: "admin",
+        timestamp: Date.now()
+    }
     const feedWriter = bee.makeFeedWriter('sequence', consensusHash, graffitiSigner)
     try {
         const beeUploadRef = await bee.uploadData(STAMP, serializeGraffitiRecord(data))
@@ -83,15 +87,19 @@ export async function feedReaderFromRoomId(roomId: RoomID) {
     return  bee.makeFeedReader('sequence', consensusHash, graffitiSigner.address);
 }
 
-export async function uploadMessageToBee(message: string) {
-    const data = {text: message, timestamp: Date.now()}
+export async function uploadMessageToBee(message: string, name: string) {
+    const data = {
+        message: message, 
+        name: name,
+        timestamp: Date.now()
+    }
     const result = await bee.uploadData(STAMP as any, serializeGraffitiRecord(data));
 
     return result;
 }
 
-export async function uploadMessageToFeed(message: string, roomId: RoomID) {
-    const reference = await uploadMessageToBee(message)
+export async function uploadMessageToFeed(message: string, name: string, roomId: RoomID) {
+    const reference = await uploadMessageToBee(message, name)
     console.log("uploaded message: " + message, "reference: " + reference.reference)
 
     const feedWriter: FeedWriter = await feedWriterFromRoomId(roomId);
@@ -107,10 +115,17 @@ export async function readMessageToIndex(index: number, roomId: RoomID) {
     }
     try {
         console.log("read message with index: " + index);
-        const feedReader: FeedReader = await feedReaderFromRoomId(roomId)
-        const recordPointer = await feedReader.download(opts)
-        const data = await bee.downloadData(recordPointer.reference)
-        return JSON.parse(new TextDecoder().decode(data))
+        const feedReader: FeedReader = await feedReaderFromRoomId(roomId);
+        const recordPointer = await feedReader.download(opts);
+        const data = await bee.downloadData(recordPointer.reference);
+        return JSON.parse(new TextDecoder().decode(data));
     } catch (e) {
+      
     }
+}
+
+export async function getUpdateIndex(roomId: RoomID) {
+    const feedReader: FeedReader = await feedReaderFromRoomId(roomId);
+    const feedUpdate = await feedReader.download();
+    return parseInt(feedUpdate.feedIndex as string, 16);
 }
