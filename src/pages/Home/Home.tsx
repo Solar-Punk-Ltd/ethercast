@@ -23,7 +23,7 @@ interface CommonForm {
 const items = [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}];
 
 export function Home() {
-  const [showPlayer, setShowPlayer] = useState(true);
+  const [showPlayer, setShowPlayer] = useState(false);
   const [feedDataForm, setFeedDataForm] = useState<Record<string, CommonForm>>({
     address: {
       label: 'Please add the public address that streams the feed',
