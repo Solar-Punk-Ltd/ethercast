@@ -11,6 +11,7 @@ import { TextInput } from '../../components/TextInput/TextInput';
 import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
 
 import './Stream.scss';
+import { initChatRoom } from '../../libs/chat';
 
 interface CommonForm {
   label: string;
@@ -34,12 +35,12 @@ export function Stream() {
     topic: {
       label: 'This is how others will find your stream',
       placeholder: 'Stream topic',
-      value: '',
+      value: 'test42',
     },
     stamp: {
       label: 'Please provide a valid stamp',
       placeholder: 'Stamp',
-      value: '',
+      value: 'e29bdaebe7ad9e12a70e96f12801e47fb7ac1dff37c5ef7876bc8dc47dff9588',
     },
   });
   const [streamDataForm, setStreamDataForm] = useState<Record<string, CommonForm>>({
@@ -83,6 +84,11 @@ export function Stream() {
             }
           : undefined,
       },
+    );
+
+    initChatRoom(
+      feedDataForm.topic.value, 
+      feedDataForm.stamp.value as BatchId
     );
 
     setIsLive(true);

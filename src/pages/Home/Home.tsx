@@ -96,7 +96,7 @@ export function Home() {
             <JoinButton onClick={() => ({})} />
             <VideoList items={items} />
           </ViewContainer>
-          <Chat topic={feedDataForm.topic.value} />
+          <Chat feedDataForm={feedDataForm} />
         </>
       )}
 
