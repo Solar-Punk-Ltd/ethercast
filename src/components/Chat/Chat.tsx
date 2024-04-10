@@ -110,6 +110,14 @@ export function Chat({topic}: ChatProps) {
   }
 
 
+interface ChatProps {
+  feedDataForm: Record<string, any>;
+}
+
+export function Chat({ feedDataForm }: ChatProps) {
+  console.log(feedDataForm);
+  //setFeedReader(feedDataForm.topic.value, feedDataForm.address.value);
+
   return (
     <div className="chat">
       {/* <div className="header">MESSAGES</div> */}

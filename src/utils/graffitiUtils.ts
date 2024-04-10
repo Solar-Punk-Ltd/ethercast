@@ -1,6 +1,6 @@
 import { Utils } from '@ethersphere/bee-js'
-import { BytesLike, Wallet, hexlify } from 'ethers'
-import { Sha3Message } from '../types/types';
+import { BytesLike, Wallet, utils } from 'ethers'
+import { Sha3Message } from 'src/libs/chat'
 
 
 export function getConsensualPrivateKey(resource: Sha3Message) {
@@ -12,7 +12,7 @@ export function getConsensualPrivateKey(resource: Sha3Message) {
 }
 
 export function getGraffitiWallet(consensualPrivateKey: BytesLike) {
-    const privateKeyBuffer = hexlify(consensualPrivateKey);
+    const privateKeyBuffer =  utils.hexlify(consensualPrivateKey);
     return new Wallet(privateKeyBuffer)
 }
 
