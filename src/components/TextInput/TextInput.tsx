@@ -18,12 +18,7 @@ export function TextInput({ label, ...props }: TextInputProps) {
   return (
     <div className={clsx('text-input-container', props.className)}>
       {label && <label className="text-input-label">{label}</label>}
-      <input 
-        className="text-input-field"
-        value={props.value}
-        onChange={props.onChange}
-        onKeyPress={props.onKeyPress}
-      />
+      <input className="text-input-field" {...props} />
     </div>
   );
 }

@@ -33,7 +33,12 @@ export function Home() {
     topic: {
       label: 'The topic of the stream',
       placeholder: 'Stream topic',
-      value: 'example-room-4',
+      value: '',
+    },
+    stamp: {
+      label: 'Please provide a valid stamp',
+      placeholder: 'Stamp',
+      value: '9c686d6f2beff69d193b90ba05db4166009efa87ab8412e3d4bf2a45bfee2317',
     },
   });
   const [playerOptionsForm, setPlayerOptionsForm] = useState<Record<string, CommonForm>>({

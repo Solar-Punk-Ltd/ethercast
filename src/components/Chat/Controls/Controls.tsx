@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { TextInput } from '../../TextInput/TextInput';
-import { sendMessage } from '../../../utils/chat';
 import './Controls.scss';
+import { RoomID, generateRoomId, sendMessage } from '../../../libs/chat';
+import { BatchId } from '@ethersphere/bee-js';
 
 interface ControlsProps {
   topic: string;
   nickname: string;
-  setNickname: (name: string) => void;
+  stamp: BatchId;
 }
 
-export function Controls({topic, nickname, setNickname}: ControlsProps) {
+export function Controls({topic, nickname, stamp}: ControlsProps) {
   const [newMessage, setNewMessage] = useState("");
-  const [newName, setNewName] = useState(nickname);
+  const roomId: RoomID = generateRoomId(topic);
 
   async function handleSubmit() {
-    const result = await sendMessage(topic, newMessage, nickname);
+    const result = await sendMessage(newMessage, nickname, roomId, stamp);
     console.log("Send result: ", result);
     setNewMessage("");
   }
@@ -38,16 +39,6 @@ export function Controls({topic, nickname, setNickname}: ControlsProps) {
       <button onClick={handleSubmit}>
         {"→"}
       </button>
-      {false && <div>
-        <TextInput
-        className='set-name'
-        value={newName}
-        name={"Nickname"}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewName(e.target.value)}
-      />
-      <button></button>
-      <button onClick={() => setNickname(newName)}>Set</button>
-      </div>}
     </div>
   );
 }
