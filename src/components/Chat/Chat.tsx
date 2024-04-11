@@ -3,30 +3,33 @@ import { Message } from './Message/Message';
 
 import './Chat.scss';
 import { useEffect, useRef, useState } from 'react';
-import { MessageData, createRoom, getFeedActualUpdateIndex, readSingleMessage } from '../../utils/chat';
+import { MessageData, RoomID, generateRoomId, getUpdateIndex, readSingleMessage } from '../../libs/chat';
+import { TextInput } from '../TextInput/TextInput';
+import { loadMessages, saveMessages } from '../../utils/chat';
 
 interface ChatProps {
-  topic: string;
+  feedDataForm: Record<string, any>;
 }
 
-  
-export function Chat({topic}: ChatProps) {
-  const [messages, setMessages] = useState<MessageData[]>([]);
-  const [lastReadIndex, setLastReadIndex] = useState(Number(localStorage.getItem('lastReadIndex')) || -1);
+
+export function Chat({feedDataForm}: ChatProps) {
+  const [messages, setMessages] = useState<MessageData[]>(                              // Load messages from localStorage
+    loadMessages(feedDataForm.topic.value)
+  );
+  const [lastReadIndex, setLastReadIndex] = useState(messages.length || -1);
   const lastReadIndexRef = useRef(lastReadIndex);
-  //const [feedIndex, setFeedIndex] = useState(-1);
   const [initialized, setInitialized] = useState(false);
   const [nickname, setNickname] = useState("tester");   // Our name
   const readInterval = 1000;
 
-  useEffect(() => {
-    init();
-  }, [topic]);
+  // Load the messages from Swarm
+  if (!initialized) init();
 
+  // Set a timer, to check for new messages
   useEffect(() => {
     if (initialized) {
       const messageChecker = setInterval(async () => {
-        await readNewMessage();
+        await checkForMessages();
       }, readInterval);
       return () =>  clearInterval(messageChecker);
     }
@@ -38,70 +41,50 @@ export function Chat({topic}: ChatProps) {
   
   // Init the chat application
   async function init() {
-    await createRoom(topic);
-    //const currentIndex = Number(await getFeedActualUpdateIndex(topic));
-    //setFeedIndex(currentIndex);
-    await readNextMessage();
+    console.time("init")
+    setInitialized(true)
     await readMessagesOnLoad();
-    setNickname("Peter");
+    console.timeEnd("init")
   }
 
-
-
-  function saveMessages() {
-    /*
-    console.log("saving messages")
-    let messages = JSON.parse(localStorage.getItem('messages') || '{}');
-    messages[this.state.hash] = messages;
-    localStorage.setItem('messages', JSON.stringify(messages));
-    let chats = JSON.parse(localStorage.getItem('chats') || '[]');
-    const chatIndex = chats.findIndex((chat) => chat.hash === this.state.hash);
-    if (chatIndex > -1) {
-        chats[chatIndex].lastReadIndex = this.lastReadIndex;
-        localStorage.setItem('chats', JSON.stringify(chats));
-    }
-    console.log("messages saved")
-    */
-  }
-
+  // Reads a single message, and will also save the messages to localStorage
   async function readNextMessage() {
-    console.log("processing message with index: " + (lastReadIndexRef.current+1));
-    const message = await readSingleMessage(topic, lastReadIndexRef.current+1);
-    console.log("message received", message);
+    //console.log("processing message with index: " + (lastReadIndexRef.current+1));
+    const roomId: RoomID = generateRoomId(feedDataForm.topic.value);
+    const message = await readSingleMessage(lastReadIndexRef.current+1, roomId);
+    //console.log("message received", message);
 
     if (message.message) {
       setMessages((prevState) => [...prevState, message]);
-      saveMessages();
+      saveMessages(feedDataForm.topic.value, messages);
       setLastReadIndex((state) => state + 1);
     }
   }
 
+  // Reads those messags from Swarm, that does not exist in localStorage
   async function readMessagesOnLoad() {
-    console.log("called readMessagesOnLoad");
-    console.log("feed is retrievable");   // we are not doing this check
-    
-    const feedIndex: number = Number(await getFeedActualUpdateIndex(topic));
-    console.log("FEEDINDEX: ", feedIndex)
-    console.log(feedIndex, lastReadIndexRef.current);
-    for (let i = lastReadIndexRef.current; i < feedIndex; i++) {
-      console.log("processing message with index: " + (i + 1));
-      const message = await readSingleMessage(topic, i + 1);
-      console.log("message received", message);
-      setMessages((prevState) => [...prevState, message]);
-      saveMessages();
-      
+    console.log("feed is retrievable");   // we are not doing this check, probably we should do this check
+    const roomId: RoomID = generateRoomId(feedDataForm.topic.value);    
+    const feedIndex: number = Number(await getUpdateIndex(roomId));
+
+    for (let i = messages.length; i < feedIndex; i++) {
+      const message = await readSingleMessage(i + 1, roomId);
+      setMessages((prevState) => {
+        let resultingArray = [...prevState];
+        resultingArray[i] = message;
+        return resultingArray;
+      });
+      saveMessages(feedDataForm.topic.value, messages);
     }
-    //while (feedIndex > lastReadIndex) {
-      //}
       
     setLastReadIndex(feedIndex);
-    setInitialized(true); 
   }
 
-  async function readNewMessage(){
-    console.log("checking for new messages");
+  // Will update feedIndex, will do message fetch as well, if feed index changed.
+  async function checkForMessages(){
+    const roomId: RoomID = generateRoomId(feedDataForm.topic.value);
     
-    const feedIndex: number = Number(await getFeedActualUpdateIndex(topic));
+    const feedIndex: number = Number(await getUpdateIndex(roomId));
     setLastReadIndex((prevState) => prevState);
     console.log("feedIndex > lastReadIndex", feedIndex, lastReadIndexRef.current)
     if (feedIndex > lastReadIndexRef.current) {
@@ -109,24 +92,29 @@ export function Chat({topic}: ChatProps) {
     }
   }
 
-
-interface ChatProps {
-  feedDataForm: Record<string, any>;
-}
-
-export function Chat({ feedDataForm }: ChatProps) {
-  console.log(feedDataForm);
-  //setFeedReader(feedDataForm.topic.value, feedDataForm.address.value);
-
   return (
     <div className="chat">
-      {/* <div className="header">MESSAGES</div> */}
+      <div className="header">
+        <TextInput
+          className='set-name'
+          value={nickname}
+          name={"Nickname"}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNickname (e.target.value)}
+        />
+        
+      </div>  
+      
       <div className="body">
         {messages.map((m: MessageData, i: number) => (
           <Message key={i} name={m.name} message={m.message} own={nickname === m.name} />
         ))}
       </div>
-      <Controls topic={topic} nickname={nickname} setNickname={setNickname}/>
+
+      <Controls
+        topic={feedDataForm.topic.value}  
+        nickname={nickname}
+        stamp={feedDataForm.stamp.value}
+      />
     </div>
   );
 }
