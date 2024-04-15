@@ -67,7 +67,7 @@ export function Chat({feedDataForm}: ChatProps) {
     const roomId: RoomID = generateRoomId(feedDataForm.topic.value);    
     const feedIndex: number = Number(await getUpdateIndex(roomId));
 
-    for (let i = messages.length; i < feedIndex; i++) {
+    for (let i = messages.length-1; i < feedIndex; i++) {
       const message = await readSingleMessage(i + 1, roomId);
       setMessages((prevState) => {
         let resultingArray = [...prevState];

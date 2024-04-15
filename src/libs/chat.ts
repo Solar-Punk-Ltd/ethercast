@@ -8,6 +8,7 @@ export type Sha3Message = string | number[] | ArrayBuffer | Uint8Array;
 
 // Initialize the bee instance
 const bee = new Bee("http://localhost:1633");
+//const bee = new Bee("http://161.97.125.121:1933");
 
 export interface MessageData {
     message: string;
