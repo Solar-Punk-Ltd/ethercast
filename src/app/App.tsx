@@ -1,8 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { ErrorBoundary } from 'react-error-boundary';
 import { HashRouter } from 'react-router-dom';
 import { Config, DAppProvider, Gnosis, MetamaskConnector } from '@usedapp/core';
 
+import { ErrorFallback } from '../components/ErrorFallback/ErrorFallback';
 import BaseRouter from '../routes';
 
 import { MainLayout } from './layout/MainLayout';
@@ -22,12 +24,14 @@ const config: Config = {
 
 root.render(
   <React.StrictMode>
-    <DAppProvider config={config}>
-      <HashRouter basename="/">
-        <MainLayout>
-          <BaseRouter />
-        </MainLayout>
-      </HashRouter>
-    </DAppProvider>
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <DAppProvider config={config}>
+        <HashRouter basename="/">
+          <MainLayout>
+            <BaseRouter />
+          </MainLayout>
+        </HashRouter>
+      </DAppProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

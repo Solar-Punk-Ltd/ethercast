@@ -3,7 +3,7 @@ import { produce } from 'immer';
 
 import { Button } from '../../components/Button/Button';
 import { Chat } from '../../components/Chat/Chat';
-import { FormContainer } from '../../components/FormContainer';
+import { FormContainer } from '../../components/FormContainer/FormContainer';
 import { JoinButton } from '../../components/JoinButton/JoinButton';
 import { TextInput } from '../../components/TextInput/TextInput';
 import { VideoList } from '../../components/VideoList/VideoList';

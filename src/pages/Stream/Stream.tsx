@@ -4,8 +4,8 @@ import { useEthers } from '@usedapp/core';
 import { produce } from 'immer';
 
 import { Button } from '../../components/Button/Button';
-import { CheckInput } from '../../components/CheckInput';
-import { FormContainer } from '../../components/FormContainer';
+import { CheckInput } from '../../components/CheckInput/CheckInput';
+import { FormContainer } from '../../components/FormContainer/FormContainer';
 import { LiveIndicator } from '../../components/LiveIndicator/LiveIndicator';
 import { TextInput } from '../../components/TextInput/TextInput';
 import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
