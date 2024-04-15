@@ -4,6 +4,7 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+  background-color: white;
 }
 
 .text-input-label {
@@ -24,4 +25,19 @@
 
 .text-input-field:focus {
   border-color: $sp-bg-primary-100;
+}
+
+.text-input-icon {
+  position: absolute;
+  right: 40px;
+  bottom: -7px;
+  transform: translateY(-50%);
+  color: #1b09007a;
+}
+
+.text-input-icons {
+  position: relative;
+  bottom: 29px;
+  height: 200px;
+  background-color: white;
 }

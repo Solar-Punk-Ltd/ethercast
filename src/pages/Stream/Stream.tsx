@@ -35,7 +35,7 @@ export function Stream() {
     topic: {
       label: 'This is how others will find your stream',
       placeholder: 'Stream topic',
-      value: 'test42',
+      value: '',
     },
     stamp: {
       label: 'Please provide a valid stamp',
@@ -87,10 +87,7 @@ export function Stream() {
       },
     );
 
-    initChatRoom(
-      feedDataForm.topic.value, 
-      feedDataForm.stamp.value as BatchId
-    );
+    initChatRoom(feedDataForm.topic.value, feedDataForm.stamp.value as BatchId);
 
     setIsLive(true);
   };
