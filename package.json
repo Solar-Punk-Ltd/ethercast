@@ -13,7 +13,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emotion/react": "^11.11.4",
+    "@emotion/styled": "^11.11.5",
     "@ethersphere/bee-js": "file:.yalc/@ethersphere/bee-js",
+    "@mui/icons-material": "^5.15.15",
     "@usedapp/core": "^1.2.13",
     "clsx": "^2.1.0",
     "ethers": "^5.7.2",

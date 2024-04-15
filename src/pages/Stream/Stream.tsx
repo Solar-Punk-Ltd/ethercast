@@ -35,12 +35,12 @@ export function Stream() {
     topic: {
       label: 'This is how others will find your stream',
       placeholder: 'Stream topic',
-      value: 'test42',
+      value: '',
     },
     stamp: {
       label: 'Please provide a valid stamp',
       placeholder: 'Stamp',
-      value: '73e3c77850228c6a2a891ef3069f506e4bf8f21f19dc496c6083189547340f2b',
+      value: '',
     },
   });
   const [streamDataForm, setStreamDataForm] = useState<Record<string, CommonForm>>({
@@ -86,10 +86,7 @@ export function Stream() {
       },
     );
 
-    initChatRoom(
-      feedDataForm.topic.value, 
-      feedDataForm.stamp.value as BatchId
-    );
+    initChatRoom(feedDataForm.topic.value, feedDataForm.stamp.value as BatchId);
 
     setIsLive(true);
   };
