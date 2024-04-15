@@ -1,4 +1,4 @@
-import { Bee, Data, FeedReader } from '@ethersphere/bee-js';
+import { Bee, Data, FeedReader } from '@solarpunk/bee-js';
 
 import { sleep } from '../utils/common';
 import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX } from '../utils/constants';

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from 'react';
-import { BatchId } from '@ethersphere/bee-js';
+import { BatchId } from '@solarpunk/bee-js';
 import { useEthers } from '@usedapp/core';
 import { produce } from 'immer';
 
