@@ -22,6 +22,8 @@ interface Options {
 }
 
 const bee = new Bee('http://localhost:1633'); // Test address
+//const bee = new Bee("http://161.97.125.121:1933");
+
 let feedWriter: FeedWriter;
 let mediaRecorder: MediaRecorder;
 let mediaStream: MediaStream;
