@@ -13,7 +13,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@ethersphere/bee-js": "file:.yalc/@ethersphere/bee-js",
+    "@solarpunk/bee-js": "^6.9.0",
     "@usedapp/core": "^1.2.13",
     "clsx": "^2.1.0",
     "ethers": "^5.7.2",
