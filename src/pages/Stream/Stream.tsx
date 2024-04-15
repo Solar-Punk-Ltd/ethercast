@@ -8,6 +8,7 @@ import { CheckInput } from '../../components/CheckInput/CheckInput';
 import { FormContainer } from '../../components/FormContainer/FormContainer';
 import { LiveIndicator } from '../../components/LiveIndicator/LiveIndicator';
 import { TextInput } from '../../components/TextInput/TextInput';
+import { WithErrorBoundary } from '../../hooks/WithErrorBoundary';
 import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
 
 import './Stream.scss';
@@ -64,10 +65,10 @@ export function Stream() {
     setIsLive(isStreamOngoing());
   }, []);
 
-  const start = async () => {
+  const start = WithErrorBoundary<void>(async () => {
     if (!library) return;
 
-    startStream(
+    await startStream(
       { address: account!, key: feedDataForm.key.value },
       feedDataForm.topic.value,
       feedDataForm.stamp.value as BatchId,
@@ -86,12 +87,12 @@ export function Stream() {
     );
 
     setIsLive(true);
-  };
+  });
 
-  const stop = () => {
+  const stop = WithErrorBoundary<void>(() => {
     stopStream();
     setIsLive(false);
-  };
+  });
 
   const onFormChange =
     (form: Record<string, any>, onChange: (form: Record<string, any>) => void) =>

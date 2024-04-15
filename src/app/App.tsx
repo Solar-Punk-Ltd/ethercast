@@ -4,9 +4,9 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { HashRouter } from 'react-router-dom';
 import { Config, DAppProvider, Gnosis, MetamaskConnector } from '@usedapp/core';
 
-import { ErrorFallback } from '../components/ErrorFallback/ErrorFallback';
 import BaseRouter from '../routes';
 
+import { ErrorFallback } from './ErrorFallback/ErrorFallback';
 import { MainLayout } from './layout/MainLayout';
 
 import './App.scss';
