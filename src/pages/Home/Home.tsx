@@ -38,9 +38,7 @@ export function Home() {
     stamp: {
       label: 'Please provide a valid stamp',
       placeholder: 'Stamp',
-      value: 'e6463d423f74aca146d90885debf31a1318f1efa8a49a689dbef0c3030722b5b', // local-sepolia     
-      //value: 'ac9c998123b31557e0f972eda388d8a5966b3a030aa032042e74d3c233a349e7', //dev
-
+      value: '',
     },
   });
   const [playerOptionsForm, setPlayerOptionsForm] = useState<Record<string, CommonForm>>({

@@ -13,12 +13,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emoji-mart/data": "^1.1.2",
+    "@emoji-mart/react": "^1.1.1",
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
     "@ethersphere/bee-js": "file:.yalc/@ethersphere/bee-js",
     "@mui/icons-material": "^5.15.15",
     "@usedapp/core": "^1.2.13",
     "clsx": "^2.1.0",
+    "emoji-mart": "^5.5.2",
+    "emoji-picker-react": "^4.9.2",
     "ethers": "^5.7.2",
     "immer": "^10.0.3",
     "mantaray-js": "^1.0.3",

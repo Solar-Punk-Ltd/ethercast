@@ -36,8 +36,104 @@
 }
 
 .text-input-icons {
-  position: relative;
-  bottom: 29px;
-  height: 200px;
+  position: absolute;
+  bottom: 34px;
+  width: 100%;
+  // overflow: hidden;
+  // height: 200px;
   background-color: white;
 }
+// ----Innen teszt
+// em-emoji-picker {
+//   width: 100%;
+// }
+
+// aside.EmojiPickerReact {
+//   border-radius: 0px;
+//   box-sizing: border-box;
+// }
+
+// .epr-header .epr-category-nav {
+//   height: 35px;
+//   padding-top: 0px;
+//   padding-bottom: 5px;
+// }
+
+// .controls button.epr-emoji {
+//   background-color: transparent;
+//   width: 26px;
+// }
+
+// .epr-category-nav .epr-btn {
+//   background-color: transparent;
+// }
+
+// h2.epr-emoji-category-label {
+//   font-size: 12px;
+//   height: auto;
+//   padding-bottom: 5px;
+// }
+
+// .epr-header > :first-child {
+//   padding-top: 5px;
+//   padding-bottom: 5px;
+// }
+
+// .epr-search-container input {
+//   border-radius: 0px;
+//   height: 34px;
+//   border: none;
+//   color: white !important;
+// }
+// ----Innen teszt ideaig
+
+// button .epr-emoji-img {
+//   width: 25px;
+//   height: 25px;
+//   padding: 1px;
+// }
+
+// .epr_-u8wwnq {
+//   all: initial !important;
+// }
+// .epr_-u8wwnq {
+//   height: 20px !important;
+// }
+
+// .epr_xfdx0l {
+//   all: initial;
+// }
+// .epr_xfdx0l {
+//   width: 20px !important;
+// }
+
+// button .epr_dkrjwv {
+//   padding: 1px;
+// }
+
+// .epr_-6npj90 {
+//   --epr-emoji-size: 10px;
+// }
+
+// :root {
+//   --epr-emoji-size: 25px;
+// }
+
+// .EmojiPickerReact.epr_-6npj90 {
+//   --epr-emoji-size: 20px;
+//   --epr-picker-border-radius: 0px;
+//   --epr-search-input-border-radius: 0px;
+//   --epr-category-navigation-button-size: 30px;
+//   --epr-header-padding: 5px;
+//   --epr-category-label-height: 30px;
+//   --epr-preview-height: 50px;
+//   --epr-dark-search-input-bg-color-active: #1b0900;
+//   --epr-search-input-text-color: rgb(255, 140, 0);
+//   // box-sizing: border-box;
+//   // --epr-emoji-fullsize: var(--epr-emoji-size);
+//   // --epr-search-input-placeholder-color: white;
+// }
+
+// .epr_-bbny0t > button.epr-btn {
+//   border-radius: 0px;
+// }
