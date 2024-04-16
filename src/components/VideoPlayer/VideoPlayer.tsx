@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 
+import { WithErrorBoundary } from '../../hooks/WithErrorBoundary';
 import { attach, detach, getApproxDuration, pause, play, restart, seek, setVolumeControl } from '../../libs/player';
 
 import { Controls } from './Controls/Controls';
@@ -48,10 +49,10 @@ export function VideoPlayer() {
       {!initClick && <StartOverlay onStart={playStream} />}
       <video ref={videoRef} controlsList="nodownload"></video>
       <Controls
-        onPlay={playStream}
-        onPause={pauseStream}
-        onRestart={restart}
-        onSeek={seek}
+        onPlay={WithErrorBoundary(playStream)}
+        onPause={WithErrorBoundary(pauseStream)}
+        onRestart={WithErrorBoundary(restart)}
+        onSeek={WithErrorBoundary(seek)}
         getDuration={getApproxDuration}
         setVolumeControl={setVolumeControl}
         mediaElement={videoRef.current}

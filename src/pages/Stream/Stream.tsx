@@ -8,7 +8,7 @@ import { CheckInput } from '../../components/CheckInput/CheckInput';
 import { FormContainer } from '../../components/FormContainer/FormContainer';
 import { LiveIndicator } from '../../components/LiveIndicator/LiveIndicator';
 import { TextInput } from '../../components/TextInput/TextInput';
-import { WithErrorBoundary } from '../../hooks/WithErrorBoundary';
+import { WithAsyncErrorBoundary, WithErrorBoundary } from '../../hooks/WithErrorBoundary';
 import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
 
 import './Stream.scss';
@@ -65,7 +65,7 @@ export function Stream() {
     setIsLive(isStreamOngoing());
   }, []);
 
-  const start = WithErrorBoundary<void>(async () => {
+  const start = WithAsyncErrorBoundary(async () => {
     if (!library) return;
 
     await startStream(

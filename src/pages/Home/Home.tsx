@@ -8,6 +8,7 @@ import { JoinButton } from '../../components/JoinButton/JoinButton';
 import { TextInput } from '../../components/TextInput/TextInput';
 import { VideoList } from '../../components/VideoList/VideoList';
 import { VideoPlayer } from '../../components/VideoPlayer/VideoPlayer';
+import { WithErrorBoundary } from '../../hooks/WithErrorBoundary';
 import { setFeedReader, setPlayerOptions } from '../../libs/player';
 
 import { ViewContainer } from './containers/ViewerContainer';
@@ -75,7 +76,7 @@ export function Home() {
       onChange(nextState);
     };
 
-  const findStream = () => {
+  const findStream = WithErrorBoundary(() => {
     setPlayerOptions({
       timeslice: playerOptionsForm.timeslice.value,
       minLiveThreshold: playerOptionsForm.minLiveThreshold.value,
@@ -85,7 +86,7 @@ export function Home() {
     });
     setFeedReader(feedDataForm.topic.value, feedDataForm.address.value);
     setShowPlayer(true);
-  };
+  });
 
   return (
     <div className="home">

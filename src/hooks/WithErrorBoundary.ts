@@ -1,13 +1,27 @@
-import { useErrorBoundary } from 'react-error-boundary';
+import { useError } from '../app/Error/ErrorContext';
 
 export function WithErrorBoundary<T>(fn: any) {
-  const { showBoundary } = useErrorBoundary();
+  const { setError } = useError();
 
-  const callback = (): T | void => {
+  const callback = (): T => {
     try {
-      return fn();
+      return fn() as T;
     } catch (error) {
-      return showBoundary(error);
+      return setError(error as Error) as T;
+    }
+  };
+
+  return callback;
+}
+
+export function WithAsyncErrorBoundary<T>(fn: any) {
+  const { setError } = useError();
+
+  const callback = async () => {
+    try {
+      return (await fn()) as T;
+    } catch (error) {
+      return setError(error as Error) as T;
     }
   };
 
