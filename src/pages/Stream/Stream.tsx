@@ -25,7 +25,7 @@ export function Stream() {
   const [isLive, setIsLive] = useState(false);
   const [audio, setAudio] = useState<boolean>(true);
   const [video, setVideo] = useState<boolean>(true);
-  const [timeslice, setTimeslice] = useState<number>(2000); // [ms
+  const [timeslice, setTimeslice] = useState<number>(2000); // [ms]
   const [feedDataForm, setFeedDataForm] = useState<Record<string, CommonForm>>({
     key: {
       label: 'Please provide your key for the feed',
@@ -62,7 +62,7 @@ export function Stream() {
   });
 
   useEffect(() => {
-    setIsLive(isStreamOngoing());
+    setIsLive(WithErrorBoundary(isStreamOngoing()));
   }, []);
 
   const start = WithAsyncErrorBoundary(async () => {
