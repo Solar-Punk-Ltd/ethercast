@@ -62,7 +62,7 @@ export function Stream() {
   });
 
   useEffect(() => {
-    setIsLive(WithErrorBoundary(isStreamOngoing()));
+    setIsLive(WithErrorBoundary(isStreamOngoing));
   }, []);
 
   const start = WithAsyncErrorBoundary(async () => {

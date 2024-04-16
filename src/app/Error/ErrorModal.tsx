@@ -11,7 +11,7 @@ interface ErrorModalProps {
 
 export function ErrorModal({ error, onClose }: ErrorModalProps) {
   const [showDetails, setShowDetails] = useState(false);
-  console.log('ErrorModal', error, onClose, showDetails);
+
   return (
     <div role="alert" className="error-modal">
       <div className="error-container">
