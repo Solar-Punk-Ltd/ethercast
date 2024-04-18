@@ -4,7 +4,7 @@ import './Controls.scss';
 import { RoomID, generateRoomId, sendMessage } from '../../../libs/chat';
 import { BatchId } from '@ethersphere/bee-js';
 import SendIcon from '@mui/icons-material/Send';
-import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
 
 interface ControlsProps {
@@ -21,6 +21,10 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
   const [newMessage, setNewMessage] = useState('');
   const roomId: RoomID = generateRoomId(topic);
 
+  // useEffect(() => {
+  //   console.log('NewMessage', newMessage);
+  // }, [newMessage]);
+
   async function handleSubmit() {
     const result = await sendMessage(newMessage, nickname, roomId, stamp);
     console.log('Send result: ', result);
@@ -33,8 +37,8 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
     }
   }
 
-  function onEmojiClick(emojiData: EmojiClickData, event: React.MouseEvent<HTMLButtonElement>) {
-    setNewMessage(newMessage + emojiData.emoji);
+  function onEmojiClick(emojiData: EmojiClickData) {
+    setNewMessage((prev) => prev + emojiData.emoji);
   }
 
   return (
@@ -51,22 +55,20 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
       {showIcons && (
         <div className="text-input-icons">
           <EmojiPicker
-            previewConfig={{ showPreview: true }}
-            onEmojiClick={onEmojiClick}
-            emojiSize={10}
-            showPreview={true}
+            previewConfig={{ showPreview: false }}
+            onEmojiClick={(emoji: EmojiClickData) => onEmojiClick(emoji)}
             width="100%"
-            theme="dark"
+            theme={Theme.DARK}
             categories={[
-              { category: 'suggested', name: 'suggested' },
-              { category: 'smileys_people', name: 'Smileys & People' },
-              { category: 'animals_nature', name: 'Animal & Nature' },
-              { category: 'food_drink', name: 'Food & Drink' },
-              { category: 'travel_places', name: 'Travel & Places' },
-              { category: 'activities', name: 'Activities' },
-              { category: 'objects', name: 'Objects' },
-              { category: 'symbols', name: 'Symbols' },
-              { category: 'flags', name: 'Flags' },
+              { category: Categories.SUGGESTED, name: 'suggested' },
+              { category: Categories.SMILEYS_PEOPLE, name: 'Smileys & People' },
+              { category: Categories.ANIMALS_NATURE, name: 'Animal & Nature' },
+              { category: Categories.FOOD_DRINK, name: 'Food & Drink' },
+              { category: Categories.TRAVEL_PLACES, name: 'Travel & Places' },
+              { category: Categories.ACTIVITIES, name: 'Activities' },
+              { category: Categories.OBJECTS, name: 'Objects' },
+              { category: Categories.SYMBOLS, name: 'Symbols' },
+              { category: Categories.FLAGS, name: 'Flags' },
             ]}
           />
         </div>

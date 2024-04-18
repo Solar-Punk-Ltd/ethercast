@@ -61,11 +61,12 @@ export function Chat({ feedDataForm }: ChatProps) {
 
   // Reads those messags from Swarm, that does not exist in localStorage
   async function readMessagesOnLoad() {
-    console.log('feed is retrievable'); // we are not doing this check, probably we should do this check
+    // Vissza e
+    // console.log('feed is retrievable'); // we are not doing this check, probably we should do this check
     const roomId: RoomID = generateRoomId(feedDataForm.topic.value);
     const feedIndex: number = Number(await getUpdateIndex(roomId));
 
-    for (let i = messages.length-1; i < feedIndex; i++) {
+    for (let i = messages.length - 1; i < feedIndex; i++) {
       const message = await readSingleMessage(i + 1, roomId);
       setMessages((prevState) => {
         let resultingArray = [...prevState];
@@ -84,7 +85,8 @@ export function Chat({ feedDataForm }: ChatProps) {
 
     const feedIndex: number = Number(await getUpdateIndex(roomId));
     setLastReadIndex((prevState) => prevState);
-    console.log('feedIndex > lastReadIndex', feedIndex, lastReadIndexRef.current);
+    //Vissza e
+    // console.log('feedIndex > lastReadIndex', feedIndex, lastReadIndexRef.current);
     if (feedIndex > lastReadIndexRef.current) {
       await readNextMessage();
     }

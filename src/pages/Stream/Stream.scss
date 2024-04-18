@@ -2,13 +2,15 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  height: calc(100vh - #{$sp-header-height});
   // height: 100vh;
 
   .stream-form {
     display: flex;
     flex-direction: column;
-    margin-top: 50px;
+    // margin-top: 50px;
     min-width: 400px;
+    height: calc(100vh - #{$sp-header-height});
 
     .indicator {
       margin: auto;

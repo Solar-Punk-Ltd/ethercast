@@ -263,12 +263,14 @@ function handleBuffering() {
 
   if (diff <= MIN_LIVE_TRHESHOLD) {
     mediaElement.pause();
-    console.log('Buffering...');
+    //Vissza e
+    // console.log('Buffering...');
     BUFFER = 5 + DYNAMIC_BUFFER_INCREMENT;
     DYNAMIC_BUFFER_INCREMENT = BUFFER / 2;
   } else if (mediaElement.paused && diff >= MIN_LIVE_TRHESHOLD) {
     mediaElement.play();
-    console.log('Buffering complete');
+    //Vissza e
+    // console.log('Buffering complete');
   }
 
   BUFFER -= 1;

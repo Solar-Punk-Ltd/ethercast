@@ -1,13 +1,16 @@
 .layout {
   position: relative;
+  // height: 100vh;
 }
 
 main {
-  margin-top: $sp-header-height;
+  padding-top: $sp-header-height;
   background-image: url(/assets/background.png);
   background-size: cover;
   background-repeat: no-repeat;
   background-position: 50% 50%;
+  height: 100vh;
+  box-sizing: border-box;
 }
 
 .overlay {
