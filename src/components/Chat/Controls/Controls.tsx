@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { TextInput } from '../../TextInput/TextInput';
+import { useState, useContext, useEffect } from 'react';
 import './Controls.scss';
 import { RoomID, generateRoomId, sendMessage } from '../../../libs/chat';
 import { BatchId } from '@ethersphere/bee-js';
 import SendIcon from '@mui/icons-material/Send';
 import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
+import { ChatInput } from './ChatInput/ChatInput';
+// import { LayoutContext } from '../Chat';
 
 interface ControlsProps {
   topic: string;
@@ -15,25 +16,38 @@ interface ControlsProps {
 
 export function Controls({ topic, nickname, stamp }: ControlsProps) {
   const [showIcons, setShowIcons] = useState(false);
+  const [height, setHeight] = useState('37px');
+  const [newMessage, setNewMessage] = useState('');
+  // const { setChatBodyHeight } = useContext(LayoutContext);
   function handleSmileyClick() {
     setShowIcons(!showIcons);
   }
-  const [newMessage, setNewMessage] = useState('');
   const roomId: RoomID = generateRoomId(topic);
-
-  // useEffect(() => {
-  //   console.log('NewMessage', newMessage);
-  // }, [newMessage]);
 
   async function handleSubmit() {
     const result = await sendMessage(newMessage, nickname, roomId, stamp);
     console.log('Send result: ', result);
-    setNewMessage('');
+    setNewMessage(() => '');
   }
 
-  function handleKeyPress(event: React.KeyboardEvent<HTMLInputElement>) {
+  function handleKeyPress(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter') {
+      event.preventDefault();
       handleSubmit();
+      setHeight('37px');
+      // setChatBodyHeight('auto');
+    }
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    // alert(e.target.value);
+    setNewMessage(e.target.value);
+    const charsCount = e.target.value.length;
+    if (charsCount <= 54) {
+      setHeight('37px');
+    } else if (charsCount > 54) {
+      setHeight(`${Math.ceil(charsCount / 27) * 18}px`);
+      // setChatBodyHeight('10px');
     }
   }
 
@@ -42,15 +56,14 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
   }
 
   return (
-    <div className="controls">
-      <TextInput
+    <div style={{ height }} className="controls">
+      <ChatInput
         className="chat-input"
         value={newMessage}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewMessage(e.target.value)}
-        onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyPress(e)}
+        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange(e)}
+        onKeyPress={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyPress(e)}
         name={nickname}
         placeholder={'Type your message here'}
-        icon={true}
       />
       {showIcons && (
         <div className="text-input-icons">

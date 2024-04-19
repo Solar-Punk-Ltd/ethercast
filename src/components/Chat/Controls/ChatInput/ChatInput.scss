@@ -1,0 +1,38 @@
+.chat-textarea-container {
+  width: 100%;
+}
+
+.text-input-icon {
+  position: absolute;
+  right: 40px;
+  bottom: 6px;
+  color: #1b090070;
+}
+
+.chat-textarea-container textarea {
+  max-height: 120px;
+  resize: none;
+  transition: border-color 0.2s;
+  width: 100%;
+  height: $sp-input-height;
+  padding: 0px;
+  padding-left: 10px;
+  padding-right: 30px;
+  border: 0px;
+  outline: none;
+  box-sizing: border-box;
+  border: 1px solid white;
+  color: #1b0900;
+  caret-color: #1b0900;
+  font-family: 'iaWriterQuattroV';
+  line-height: $sp-input-height;
+}
+
+.chat-textarea-container textarea:focus {
+  border: 1px solid #1b0900;
+}
+
+.chat-textarea-container textarea::placeholder {
+  color: #1b0900;
+  line-height: $sp-input-height;
+}

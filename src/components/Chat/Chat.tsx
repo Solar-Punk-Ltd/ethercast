@@ -2,7 +2,7 @@ import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
 
 import './Chat.scss';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useContext } from 'react';
 import { MessageData, RoomID, generateRoomId, getUpdateIndex, readSingleMessage } from '../../libs/chat';
 import { TextInput } from '../TextInput/TextInput';
 import { loadMessages, saveMessages } from '../../utils/chat';
@@ -11,6 +11,7 @@ import EditIcon from '@mui/icons-material/Edit';
 interface ChatProps {
   feedDataForm: Record<string, any>;
 }
+export const LayoutContext = React.createContext({ chatBodyHeight: 'auto', setChatBodyHeight: (_: string) => {} });
 
 export function Chat({ feedDataForm }: ChatProps) {
   const [messages, setMessages] = useState<MessageData[]>(loadMessages(feedDataForm.topic.value)); // Load messages from localStorage
@@ -32,6 +33,7 @@ export function Chat({ feedDataForm }: ChatProps) {
       return () => clearInterval(messageChecker);
     }
   }, [initialized]);
+  const [chatBodyHeight, setChatBodyHeight] = useState('auto');
 
   useEffect(() => {
     lastReadIndexRef.current = lastReadIndex;
@@ -93,32 +95,34 @@ export function Chat({ feedDataForm }: ChatProps) {
   }
 
   return (
-    <div className="chat">
-      <div>
-        <div className="header">
-          {!isEditMode && <span>Nickname: {nickname}</span>}
-          {isEditMode && (
-            <TextInput
-              className="set-name"
-              value={nickname}
-              name={'Nickname'}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNickname(e.target.value)}
-              placeholder="Choose a nickname"
-            />
-          )}
-          <button onClick={() => setIsEditMode(!isEditMode)}>
-            <EditIcon />
-          </button>
+    <LayoutContext.Provider value={{ chatBodyHeight, setChatBodyHeight }}>
+      <div className="chat">
+        <div>
+          <div className="header">
+            {!isEditMode && <span>Nickname: {nickname}</span>}
+            {isEditMode && (
+              <TextInput
+                className="set-name"
+                value={nickname}
+                name={'Nickname'}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNickname(e.target.value)}
+                placeholder="Choose a nickname"
+              />
+            )}
+            <button onClick={() => setIsEditMode(!isEditMode)}>
+              <EditIcon />
+            </button>
+          </div>
+
+          <div style={{ height: chatBodyHeight }} className="body">
+            {messages.map((m: MessageData, i: number) => (
+              <Message key={i} name={m.name} message={m.message} own={nickname == m.name} />
+            ))}
+          </div>
         </div>
 
-        <div className="body">
-          {messages.map((m: MessageData, i: number) => (
-            <Message key={i} name={m.name} message={m.message} own={nickname == m.name} />
-          ))}
-        </div>
+        <Controls topic={feedDataForm.topic.value} nickname={nickname} stamp={feedDataForm.stamp.value} />
       </div>
-
-      <Controls topic={feedDataForm.topic.value} nickname={nickname} stamp={feedDataForm.stamp.value} />
-    </div>
+    </LayoutContext.Provider>
   );
 }
