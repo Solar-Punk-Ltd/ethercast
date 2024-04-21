@@ -1,5 +1,7 @@
 // TODO These utils should come from bee-js
 
+import { ethers } from 'ethers';
+
 export const BATCH_ID_HEX_LENGTH = 64;
 export const ADDRESS_HEX_LENGTH = 64;
 
@@ -85,9 +87,20 @@ export function assertBatchId(value: string) {
 
 export function assertPositiveInteger(value: string) {
   const parsed = parseInt(value, 10);
-  return (!isNaN(parsed) && parsed > 0) || 'Value must be a positive number';
+  return (!isNaN(parsed) && parsed >= 0) || 'Value must be a non negative number';
 }
 
 export function assertAtLeastFourChars(value: string) {
   return value.length >= 4 || 'Topic must have at least four characters';
+}
+
+export function assertPublicAddress(value: string) {
+  const address = value.startsWith('0x') ? value : `0x${value}`;
+  try {
+    // it throws an error if the address is invalid
+    ethers.utils.getAddress(address);
+    return true;
+  } catch (error) {
+    return 'This field must be a valid public address';
+  }
 }

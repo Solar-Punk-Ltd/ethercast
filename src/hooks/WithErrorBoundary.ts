@@ -1,11 +1,11 @@
 import { useError } from '../app/Error/ErrorContext';
 
-export function WithErrorBoundary<T>(fn: any) {
+export function WithErrorBoundary<T, Args extends any[]>(fn: (...args: Args) => T) {
   const { setError } = useError();
 
-  const callback = (): T => {
+  const callback = (...props: Args): T | void => {
     try {
-      return fn() as T;
+      return fn(...props) as T;
     } catch (error) {
       return setError(error as Error) as T;
     }
@@ -14,12 +14,12 @@ export function WithErrorBoundary<T>(fn: any) {
   return callback;
 }
 
-export function WithAsyncErrorBoundary<T>(fn: any) {
+export function WithAsyncErrorBoundary<T, Args extends any[]>(fn: (...args: Args) => T) {
   const { setError } = useError();
 
-  const callback = async () => {
+  const callback = async (...props: Args): Promise<T | void> => {
     try {
-      return (await fn()) as T;
+      return (await fn(...props)) as T;
     } catch (error) {
       return setError(error as Error) as T;
     }

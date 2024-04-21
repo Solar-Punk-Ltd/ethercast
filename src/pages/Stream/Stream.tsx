@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { BatchId } from '@solarpunk/bee-js';
 import { useEthers } from '@usedapp/core';
 
@@ -8,7 +8,7 @@ import { Button } from '../../components/Button/Button';
 import { CheckInput } from '../../components/CheckInput/CheckInput';
 import { FormContainer } from '../../components/FormContainer/FormContainer';
 import { LiveIndicator } from '../../components/LiveIndicator/LiveIndicator';
-import { TextInput } from '../../components/TextInput/TextInput';
+import { ControllerTextInput } from '../../components/TextInput/ControllerTextInput';
 import { WithAsyncErrorBoundary, WithErrorBoundary } from '../../hooks/WithErrorBoundary';
 import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
 
@@ -84,7 +84,7 @@ export function Stream() {
     setIsLive(isStreamOngoing());
   }, []);
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = WithAsyncErrorBoundary(async (data: FormData) => {
     if (!library) return;
 
     await startStream({ address: account!, key: data.key }, data.streamTopic, data.stamp as BatchId, {
@@ -101,12 +101,12 @@ export function Stream() {
     });
 
     setIsLive(true);
-  };
+  });
 
-  const stop = () => {
+  const stop = WithErrorBoundary(() => {
     stopStream();
     setIsLive(false);
-  };
+  });
 
   return (
     <div className="stream">
@@ -122,23 +122,7 @@ export function Stream() {
           ) : (
             <>
               {formFields.slice(0, 3).map((field) => (
-                <Controller
-                  key={field.name}
-                  name={field.name as keyof FormData}
-                  rules={field.rules}
-                  control={control}
-                  defaultValue={field.defaultValue}
-                  render={({ field: { onChange, value, ref }, fieldState: { error } }) => (
-                    <TextInput
-                      label={field.label}
-                      name={field.name}
-                      value={value}
-                      onChange={onChange}
-                      ref={ref}
-                      error={error?.message}
-                    />
-                  )}
-                />
+                <ControllerTextInput key={field.name} control={control} {...field} />
               ))}
 
               <div className="stream-options">
@@ -157,23 +141,7 @@ export function Stream() {
               {options.video && (
                 <>
                   {formFields.slice(3).map((field) => (
-                    <Controller
-                      key={field.name}
-                      name={field.name as keyof FormData}
-                      rules={field.rules}
-                      control={control}
-                      defaultValue={field.defaultValue}
-                      render={({ field: { onChange, value, ref }, fieldState: { error } }) => (
-                        <TextInput
-                          label={field.label}
-                          name={field.name}
-                          value={value}
-                          onChange={onChange}
-                          ref={ref}
-                          error={error?.message}
-                        />
-                      )}
-                    />
+                    <ControllerTextInput key={field.name} control={control} {...field} />
                   ))}
                 </>
               )}
