@@ -8,7 +8,7 @@ import { JoinButton } from '../../components/JoinButton/JoinButton';
 import { ControllerTextInput } from '../../components/TextInput/ControllerTextInput';
 import { VideoList } from '../../components/VideoList/VideoList';
 import { VideoPlayer } from '../../components/VideoPlayer/VideoPlayer';
-import { WithErrorBoundary } from '../../hooks/WithErrorBoundary';
+import { WithAsyncErrorBoundary } from '../../hooks/WithErrorBoundary';
 import { setFeedReader, setPlayerOptions } from '../../libs/player';
 import { remove0xPrefix } from '../../utils/common';
 import { assertAtLeastFourChars, assertPositiveInteger, assertPublicAddress } from '../../utils/formValidation';
@@ -80,7 +80,7 @@ export function Home() {
 
   const showForm = useMemo(() => !showPlayer, [showPlayer]);
 
-  const onSubmit = WithErrorBoundary(async (data: FormData) => {
+  const onSubmit = WithAsyncErrorBoundary(async (data: FormData) => {
     setPlayerOptions({
       timeslice: +data.timeslice,
       minLiveThreshold: +data.minLiveThreshold,
