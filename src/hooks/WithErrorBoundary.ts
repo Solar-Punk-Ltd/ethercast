@@ -7,7 +7,8 @@ export function WithErrorBoundary<T, Args extends any[]>(fn: (...args: Args) => 
     try {
       return fn(...props) as T;
     } catch (error) {
-      return setError(error as Error) as T;
+      setError(error as Error);
+      throw error;
     }
   };
 
@@ -23,7 +24,8 @@ export function WithAsyncErrorBoundary<T, Args extends any[]>(fn: (...args: Args
     try {
       return (await fn(...props)) as UnwrapPromise<T>;
     } catch (error) {
-      return setError(error as Error) as UnwrapPromise<T>;
+      setError(error as Error);
+      throw error;
     }
   };
 
