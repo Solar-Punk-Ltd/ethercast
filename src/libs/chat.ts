@@ -132,14 +132,11 @@ export async function sendMessage(message: string, name: string, roomId: RoomID,
 
 export async function checkUploadResult(reference: Reference) {
     try {
-        console.log("Checking upload result: ", reference);
-       // const result = await bee.downloadData(reference, { headers: { 'Access-Control-Allow-Headers': '*' }});
         const result = await bee.downloadChunk(reference);
-        console.log("Read back result: ", result);
-        return result;
+        return result.length > 0;
     } catch (error) {
         console.error("There was an error while trying to check upload result: ", error);
-        return null;
+        return false;
     }
 }
 
