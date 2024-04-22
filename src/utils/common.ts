@@ -5,3 +5,10 @@ export function padTo2Digits(num: number) {
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+export function remove0xPrefix(value: string) {
+  if (value.startsWith('0x')) {
+    return value.substring(2);
+  }
+  return value;
+}

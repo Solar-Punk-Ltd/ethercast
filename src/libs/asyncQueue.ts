@@ -28,6 +28,7 @@ export class AsyncQueue {
         }
       } catch (error) {
         console.error('Error processing promise:', error);
+        throw error;
       }
     }
 

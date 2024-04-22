@@ -14,11 +14,12 @@ interface ButtonProps {
   children?: React.ReactNode;
   className?: string;
   variant?: ButtonVariant;
+  type?: 'button' | 'submit' | 'reset';
 }
 
-export const Button = ({ children, className, onClick, variant = ButtonVariant.primary }: ButtonProps) => {
+export const Button = ({ children, className, onClick, type, variant = ButtonVariant.primary }: ButtonProps) => {
   return (
-    <button className={clsx('button', variant, className)} type="button" onClick={onClick}>
+    <button type={type} className={clsx('button', variant, className)} onClick={onClick}>
       {children}
     </button>
   );
