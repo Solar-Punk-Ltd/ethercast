@@ -36,17 +36,17 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
     let counter = 0;
 
     while (!success) {
-      if (counter > 100) {
+      if (counter > 32) {
         counter = 0;
         result = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
       }
-      await sleep(2000);
+
       if (result != -1) {
-        console.log("Check.")
-        checkUploadResult(result as Reference);
+        success = await checkUploadResult(result as Reference);
       }
-      console.log('Send result: ', result);
+
       counter++;
+      await sleep(2000);
     }
 
     setNewMessage('');
