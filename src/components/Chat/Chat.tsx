@@ -23,12 +23,12 @@ type MessageAction =
   | { type: 'insertMessage'; index: number; message: MessageData }
   | { type: 'deleteMessage'; index: number }
   | { type: 'incrementReadIndex' }
-  | { type: 'resetReadIndex' }
+  | { type: 'resetReadIndex' };
 
-function messagesReducer(state: { messages: MessageData[], readIndex: number }, action: MessageAction): ChatState {
+function messagesReducer(state: { messages: MessageData[]; readIndex: number }, action: MessageAction): ChatState {
   switch (action.type) {
     case 'incrementReadIndex':
-      return { ...state, readIndex: state.readIndex + 1};
+      return { ...state, readIndex: state.readIndex + 1 };
     case 'resetReadIndex':
       return { ...state, readIndex: 0 };
     case 'insertMessage':
@@ -38,24 +38,26 @@ function messagesReducer(state: { messages: MessageData[], readIndex: number }, 
     case 'deleteMessage':
       return {
         ...state,
-        messages: state.messages.filter((_, index) => index !== action.index)
-      }
+        messages: state.messages.filter((_, index) => index !== action.index),
+      };
     default:
       throw new Error();
   }
 }
 
-
 export function Chat({ feedDataForm }: ChatProps) {
-  const initialState: ChatState = { messages: loadMessages(feedDataForm.topic.value), readIndex: loadMessages(feedDataForm.topic.value).length }
-  const [state, dispatch] = useReducer(messagesReducer, initialState)
+  const initialState: ChatState = {
+    messages: loadMessages(feedDataForm.topic.value),
+    readIndex: loadMessages(feedDataForm.topic.value).length,
+  };
+  const [state, dispatch] = useReducer(messagesReducer, initialState);
   const [initialized, setInitialized] = useState(false);
   const [chatBodyHeight, setChatBodyHeight] = useState('auto');
   const [nickname, setNickname] = useState('tester'); // Our name
   const readInterval = 3000;
   const [isEditMode, setIsEditMode] = useState(false);
   const [time, setTime] = useState(Date.now());
-  
+
   // Load the messages from Swarm
   if (!initialized) init();
 
@@ -71,7 +73,7 @@ export function Chat({ feedDataForm }: ChatProps) {
 
   useEffect(() => {
     readMessage(state.readIndex);
-  }, [state.readIndex, time])
+  }, [state.readIndex, time]);
 
   // Init the chat application
   async function init() {
@@ -89,7 +91,7 @@ export function Chat({ feedDataForm }: ChatProps) {
       dispatch({
         type: 'insertMessage',
         message: message,
-        index: i
+        index: i,
       });
       saveMessages(feedDataForm.topic.value, state.messages);
     }
@@ -101,19 +103,21 @@ export function Chat({ feedDataForm }: ChatProps) {
 
     let feedIndex: number = Number(await getUpdateIndex(roomId));
     if (state.readIndex > feedIndex) {
-      console.error("Warning! lastReadIndex is higher then feedIndex, this should never happen!");
-      console.info("Setting readIndex to 0");
+      console.error('Warning! lastReadIndex is higher then feedIndex, this should never happen!');
+      console.info('Setting readIndex to 0');
       dispatch({ type: 'resetReadIndex' });
     }
 
     if (feedIndex === -1) {
-      console.warn("Warning! getUpdateIndex gave back an error, possibly the feed is not ready yet. Retrying in 1 second");
+      console.warn(
+        'Warning! getUpdateIndex gave back an error, possibly the feed is not ready yet. Retrying in 1 second',
+      );
       return;
     }
 
     if (feedIndex > state.readIndex) {
       console.log(`feedIndex > lastReadIndex | ${feedIndex} > ${state.readIndex}`);
-      console.log("Time: ", time)
+      console.log('Time: ', time);
       dispatch({ type: 'incrementReadIndex' });
       setTime(() => Date.now());
     }
@@ -121,45 +125,44 @@ export function Chat({ feedDataForm }: ChatProps) {
 
   // Reads a single message, and will also save the messages to localStorage
   async function readMessage(index: number) {
-    console.log("read with index ", index)
+    console.log('read with index ', index);
     const roomId: RoomID = generateRoomId(feedDataForm.topic.value);
     let message: MessageData | null = null;
-    
+
     do {
       message = await readSingleMessage(index, roomId);
       if (!message) {
-        console.error("Error reading message! Retrying...");
+        console.error('Error reading message! Retrying...');
         sleep(1000);
         continue;
       }
-  
-      if (message.message) {      
+
+      if (message.message) {
         //setReadIndex(readIndex+1); Last                                 // Read was successful, but we don't know yet if it's duplicate or not
         const isDuplicate = state.messages.some((msg) => msg.timestamp === message!.timestamp);
-        if (isDuplicate) {                                                  // We won't insert this message, but lastReadIndex was already incremented
-          console.log("Duplicate!");
+        if (isDuplicate) {
+          // We won't insert this message, but lastReadIndex was already incremented
+          console.log('Duplicate!');
           return;
         }
-  
+
         // theoretically, we don't need this. Messages are not inserted with Array.push(), and we are checking for duplicates above
         // This might as well just mess up the state
         dispatch({
           type: 'insertMessage',
           message: message,
-          index: index
+          index: index,
         });
-        setTime(() => Date.now())
-        console.log("messages: ", state.messages)
+        setTime(() => Date.now());
+        console.log('messages: ', state.messages);
 
         // const uniqMessages = removeDuplicate([...messages, message]);       // Remove duplicate messages (by timestamp)
         // const orderedMessages = orderMessages(uniqMessages);                // Order the messages, by timestamp
         // setMessages(orderedMessages);                                       // Show the messages in the app
-        saveMessages(feedDataForm.topic.value, state.messages);                // Save the messages to LocalStorage
+        saveMessages(feedDataForm.topic.value, state.messages); // Save the messages to LocalStorage
       }
-    } while (!message)
+    } while (!message);
   }
-
-
 
   return (
     <LayoutContext.Provider value={{ chatBodyHeight, setChatBodyHeight }}>
@@ -181,7 +184,7 @@ export function Chat({ feedDataForm }: ChatProps) {
             </button>
           </div>
 
-          <div style={{ height: chatBodyHeight }} className="body">
+          <div className="body">
             {state.messages.map((m: MessageData, i: number) => (
               <Message key={i} name={m.name} message={m.message} own={nickname == m.name} />
             ))}
