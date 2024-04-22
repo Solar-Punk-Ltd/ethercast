@@ -14,10 +14,11 @@ interface ChatInputProps {
 }
 
 export function ChatInput({ label, value, ...props }: ChatInputProps) {
-  const [lineHeight, setLineHeight] = useState('24px');
+  const [lineHeight, setLineHeight] = useState('37px');
   const [height, setHeight] = useState('37px');
 
   const handleInput = (e: any) => {
+    // alert(e.target.value.length);
     const charsCount = e.target.value.length;
     if (charsCount <= 27) {
       setLineHeight('37px');
