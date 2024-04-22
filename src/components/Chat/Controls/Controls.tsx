@@ -1,12 +1,13 @@
 import { useState, useContext, useEffect } from 'react';
 import './Controls.scss';
-import { RoomID, sendMessage } from '../../../libs/chat';
-import { BatchId } from '@ethersphere/bee-js';
+import { RoomID, checkUploadResult, readSingleMessage, sendMessage } from '../../../libs/chat';
+import { BatchId, Reference } from '@solarpunk/bee-js';
 import SendIcon from '@mui/icons-material/Send';
 import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
 import { ChatInput } from './ChatInput/ChatInput';
 import { generateRoomId } from '../../../utils/chat';
+import { sleep } from '../../../utils/common';
 // import { LayoutContext } from '../Chat';
 
 interface ControlsProps {
@@ -30,11 +31,16 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
     if (newMessage === '') return;
     setSendActive(false);
     const messageTimestamp = Date.now();  // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
-    let result = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
-    
-    while (result == -1) {
+    let result: Reference | number = -1;
+    let success = false;
+
+    while (!success) {
       result = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
-      // not good enough! check if it exists on Swarm
+      sleep(2000);
+      if (result != -1) {
+        console.log("Check.")
+        checkUploadResult(result as Reference);
+      }
       console.log('Send result: ', result);
     }
 

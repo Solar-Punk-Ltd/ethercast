@@ -1,6 +1,7 @@
-import { Utils } from '@solarpunk/bee-js';
-import { BytesLike, Wallet, utils } from 'ethers';
-import { Sha3Message } from 'src/libs/chat';
+import { Utils } from '@solarpunk/bee-js'
+import { BytesLike, Wallet, utils } from 'ethers'
+import { Sha3Message } from 'src/libs/chat'
+
 
 export function getConsensualPrivateKey(resource: Sha3Message) {
   if (Utils.isHexString(resource) && resource.length === 64) {
