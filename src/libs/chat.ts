@@ -1,4 +1,4 @@
-import { BatchId, Bee, FeedReader, FeedWriter, Signer, Utils } from '@solarpunk/bee-js';
+import { BatchId, Bee, FeedReader, FeedWriter, Reference, Signer, Utils } from '@solarpunk/bee-js';
 import {
   getConsensualPrivateKey,
   getGraffitiWallet,
@@ -128,6 +128,19 @@ export async function sendMessage(message: string, name: string, roomId: RoomID,
     console.error('There was an error while trying to send message: ', error);
     return -1;
   }
+}
+
+export async function checkUploadResult(reference: Reference) {
+    try {
+        console.log("Checking upload result: ", reference);
+       // const result = await bee.downloadData(reference, { headers: { 'Access-Control-Allow-Headers': '*' }});
+        const result = await bee.downloadChunk(reference);
+        console.log("Read back result: ", result);
+        return result;
+    } catch (error) {
+        console.error("There was an error while trying to check upload result: ", error);
+        return null;
+    }
 }
 
 export async function readSingleMessage(index: number, roomId: RoomID) {
