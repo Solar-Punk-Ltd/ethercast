@@ -4,15 +4,10 @@ import { TextInput } from './TextInput';
 
 interface ControllerTextInputProps {
   name: string;
-  rules:
-    | {
-        required: string;
-        validate?: undefined;
-      }
-    | {
-        required: string;
-        validate: (value: string) => string | true;
-      };
+  rules: {
+    required: string;
+    validate?: (value: string) => string | true;
+  };
   control: Control<any, any>;
   defaultValue: string;
   label: string;
