@@ -25,9 +25,9 @@ export function VideoPlayer() {
     };
   }, []);
 
-  const playStream = () => {
-    play();
+  const playStream = async () => {
     setInitClick(true);
+    await play();
     setIsPlaying(true);
   };
 
@@ -49,7 +49,7 @@ export function VideoPlayer() {
       {!initClick && <StartOverlay onStart={WithErrorBoundary(playStream)} />}
       <video ref={videoRef} controlsList="nodownload"></video>
       <Controls
-        onPlay={WithErrorBoundary(playStream)}
+        onPlay={WithAsyncErrorBoundary(playStream)}
         onPause={WithErrorBoundary(pauseStream)}
         onRestart={WithErrorBoundary(restart)}
         onSeek={WithErrorBoundary(seek)}

@@ -80,7 +80,7 @@ export async function play() {
   while (mediaSource.readyState !== 'open') {
     await sleep(100);
   }
-  startAppending();
+  await startAppending();
 }
 
 export function pause() {
