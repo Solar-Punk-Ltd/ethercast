@@ -8,6 +8,7 @@
   justify-content: space-between;
 
   .header {
+    height: 40px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -28,16 +29,19 @@
     color: #1b0900;
   }
 
-  .header input {
-    border: none;
-    outline: none;
-    background-color: transparent;
-    color: #1b0900;
-    padding: 10px;
-  }
   .body {
     overflow: auto;
     padding-top: 10px;
     padding-bottom: 10px;
+  }
+
+  .set-name {
+    height: 37px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    background-color: white;
+    color: #1b0900;
   }
 }

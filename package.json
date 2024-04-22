@@ -19,6 +19,7 @@
     "@mui/icons-material": "^5.15.15",
     "@usedapp/core": "^1.2.13",
     "clsx": "^2.1.0",
+    "emoji-picker-react": "^4.9.2",
     "ethers": "^5.7.2",
     "immer": "^10.0.3",
     "mantaray-js": "^1.0.3",

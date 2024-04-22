@@ -40,8 +40,7 @@ export function Stream() {
     stamp: {
       label: 'Please provide a valid stamp',
       placeholder: 'Stamp',
-      value: '830d584ad9164c50208c3078b490d718bfc26f4c5faad37d868a4e166cb0dd0e',  // local-sepolia
-     // value: 'ac9c998123b31557e0f972eda388d8a5966b3a030aa032042e74d3c233a349e7', //dev
+      value: '742549ce75e05824615585457b6965bc638cd3466a5e566947886a6089ad60fb',
     },
   });
   const [streamDataForm, setStreamDataForm] = useState<Record<string, CommonForm>>({
