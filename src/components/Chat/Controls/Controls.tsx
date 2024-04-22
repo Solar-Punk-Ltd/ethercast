@@ -31,17 +31,22 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
     if (newMessage === '') return;
     setSendActive(false);
     const messageTimestamp = Date.now();  // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
-    let result: Reference | number = -1;
+    let result: Reference | number = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
     let success = false;
+    let counter = 0;
 
     while (!success) {
-      result = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
-      sleep(2000);
+      if (counter > 100) {
+        counter = 0;
+        result = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
+      }
+      await sleep(2000);
       if (result != -1) {
         console.log("Check.")
         checkUploadResult(result as Reference);
       }
       console.log('Send result: ', result);
+      counter++;
     }
 
     setNewMessage('');
