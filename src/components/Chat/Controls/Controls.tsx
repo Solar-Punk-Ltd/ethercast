@@ -1,12 +1,13 @@
 import { useState, useContext, useEffect } from 'react';
 import './Controls.scss';
-import { RoomID, generateRoomId, sendMessage } from '../../../libs/chat';
-import { BatchId } from '@ethersphere/bee-js';
+import { RoomID, sendMessage } from '../../../libs/chat';
+import { BatchId } from '@solarpunk/bee-js';
 import SendIcon from '@mui/icons-material/Send';
 import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
 import { ChatInput } from './ChatInput/ChatInput';
-// import { LayoutContext } from '../Chat';
+import { generateRoomId } from '../../../utils/chat';
+import { LayoutContext } from '../Chat';
 
 interface ControlsProps {
   topic: string;
@@ -16,40 +17,52 @@ interface ControlsProps {
 
 export function Controls({ topic, nickname, stamp }: ControlsProps) {
   const [showIcons, setShowIcons] = useState(false);
-  const [height, setHeight] = useState('37px');
+  const [height, setControlHeight] = useState('37px');
+  const [sendActive, setSendActive] = useState(true);
   const [newMessage, setNewMessage] = useState('');
-  // const { setChatBodyHeight } = useContext(LayoutContext);
+  const { setChatBodyHeight } = useContext(LayoutContext);
   function handleSmileyClick() {
     setShowIcons(!showIcons);
   }
   const roomId: RoomID = generateRoomId(topic);
 
   async function handleSubmit() {
-    const result = await sendMessage(newMessage, nickname, roomId, stamp);
-    console.log('Send result: ', result);
-    setNewMessage(() => '');
+    if (newMessage === '') return;
+    setSendActive(false);
+    const messageTimestamp = Date.now(); // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
+    let result = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
+
+    while (result == -1) {
+      result = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
+      // not good enough! check if it exists on Swarm
+      console.log('Send result: ', result);
+    }
+
+    setNewMessage('');
+    setSendActive(true);
   }
 
   function handleKeyPress(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter') {
       event.preventDefault();
       handleSubmit();
-      setHeight('37px');
+      // setHeight('37px');
       // setChatBodyHeight('auto');
     }
   }
 
-  function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    // alert(e.target.value);
-    setNewMessage(e.target.value);
-    const charsCount = e.target.value.length;
-    if (charsCount <= 54) {
-      setHeight('37px');
-    } else if (charsCount > 54) {
-      setHeight(`${Math.ceil(charsCount / 27) * 18}px`);
-      // setChatBodyHeight('10px');
-    }
-  }
+  // function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+  //   // alert(e.target.value);
+  //   setNewMessage(e.target.value);
+  //   const charsCount = e.target.value.length;
+  //   if (charsCount <= 54) {
+  //     setHeight('37px');
+  //     // setChatBodyHeight('50vh');
+  //   } else if (charsCount > 54) {
+  //     setHeight(`${Math.ceil(charsCount / 27) * 18}px`);
+  //     setChatBodyHeight(`${680 - Math.ceil(charsCount / 27) * 18 - 37}px`);
+  //   }
+  // }
 
   function onEmojiClick(emojiData: EmojiClickData) {
     setNewMessage((prev) => prev + emojiData.emoji);
@@ -60,9 +73,11 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
       <ChatInput
         className="chat-input"
         value={newMessage}
-        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange(e)}
+        // onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange(e)}
         onKeyPress={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyPress(e)}
         name={nickname}
+        setValue={setNewMessage}
+        setControlHeight={setControlHeight}
         placeholder={'Type your message here'}
       />
       {showIcons && (

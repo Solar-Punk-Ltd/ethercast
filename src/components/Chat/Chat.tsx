@@ -1,12 +1,11 @@
+import { useEffect, useReducer, useState, createContext, useContext } from 'react';
 import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
 
-import './Chat.scss';
-import React, { useEffect, useRef, useState, useContext } from 'react';
-import { MessageData, RoomID, generateRoomId, getUpdateIndex, readSingleMessage } from '../../libs/chat';
-import { TextInput } from '../TextInput/TextInput';
-import { loadMessages, saveMessages } from '../../utils/chat';
-import EditIcon from '@mui/icons-material/Edit';
+export const LayoutContext = createContext({
+  chatBodyHeight: '79vh',
+  setChatBodyHeight: (_: string) => {},
+});
 
 interface ChatProps {
   feedDataForm: Record<string, any>;
@@ -14,10 +13,14 @@ interface ChatProps {
 export const LayoutContext = React.createContext({ chatBodyHeight: 'auto', setChatBodyHeight: (_: string) => {} });
 
 export function Chat({ feedDataForm }: ChatProps) {
-  const [messages, setMessages] = useState<MessageData[]>(loadMessages(feedDataForm.topic.value)); // Load messages from localStorage
-  const [lastReadIndex, setLastReadIndex] = useState(messages.length || -1);
-  const lastReadIndexRef = useRef(lastReadIndex);
+  // const { chatBodyHeight } = useContext(LayoutContext);
+  const initialState: ChatState = {
+    messages: loadMessages(feedDataForm.topic.value),
+    readIndex: loadMessages(feedDataForm.topic.value).length,
+  };
+  const [state, dispatch] = useReducer(messagesReducer, initialState);
   const [initialized, setInitialized] = useState(false);
+  const [chatBodyHeight, setChatBodyHeight] = useState('680px');
   const [nickname, setNickname] = useState('tester'); // Our name
   const readInterval = 1000;
   const [isEditMode, setIsEditMode] = useState(false);
@@ -95,7 +98,12 @@ export function Chat({ feedDataForm }: ChatProps) {
   }
 
   return (
-    <LayoutContext.Provider value={{ chatBodyHeight, setChatBodyHeight }}>
+    <LayoutContext.Provider
+      value={{
+        chatBodyHeight,
+        setChatBodyHeight,
+      }}
+    >
       <div className="chat">
         <div>
           <div className="header">
@@ -114,8 +122,8 @@ export function Chat({ feedDataForm }: ChatProps) {
             </button>
           </div>
 
-          <div style={{ height: chatBodyHeight }} className="body">
-            {messages.map((m: MessageData, i: number) => (
+          <div style={{ maxHeight: chatBodyHeight }} className="body">
+            {state.messages.map((m: MessageData, i: number) => (
               <Message key={i} name={m.name} message={m.message} own={nickname == m.name} />
             ))}
           </div>
