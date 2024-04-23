@@ -187,9 +187,10 @@ export function Chat({ feedDataForm }: ChatProps) {
           </div>
 
           <div className="body">
-            {state.messages.map((m: MessageData, i: number) => (
-              <Message key={i} name={m.name} message={m.message} own={nickname == m.name} />
-            ))}
+            {state.messages.map((m: MessageData, i: number) => {
+              if (!m) return <Message key={i} name={"admin"} message={"loading"} own={false} />
+              else return <Message key={i} name={m.name} message={m.message} own={nickname == m.name} />
+            })}
           </div>
         </div>
 
