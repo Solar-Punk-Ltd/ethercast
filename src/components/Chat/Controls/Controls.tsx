@@ -29,7 +29,7 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
 
   async function handleSubmit() {
     if (newMessage === '') return;
-    setSendActive(false);
+    //setSendActive(false);
     const messageTimestamp = Date.now();  // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
     let result: Reference | number = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
     let success = false;
