@@ -9,14 +9,13 @@ interface ChatInputProps {
   placeholder?: string;
   className?: string;
   setValue?: any;
-  setControlHeight?: any;
   value: string;
   name: string;
   onChange?: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onKeyPress?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }
 
-export function ChatInput({ label, value, setValue, setControlHeight, ...props }: ChatInputProps) {
+export function ChatInput({ label, value, setValue, ...props }: ChatInputProps) {
   // const [height, setHeight] = useState('37px');
   const textFieldRef = useRef(null);
 
@@ -35,7 +34,7 @@ export function ChatInput({ label, value, setValue, setControlHeight, ...props }
   //   }
   // };
   return (
-    <div className={clsx('chat-textarea-container')}>
+    <>
       {label && <label className="textarea-label">{label}</label>}
 
       <TextField
@@ -43,8 +42,6 @@ export function ChatInput({ label, value, setValue, setControlHeight, ...props }
         multiline={true}
         value={value}
         sx={{
-          position: 'absolute',
-          bottom: '0',
           width: '100%',
           maxHeight: '120px',
           overflow: 'auto',
@@ -52,7 +49,7 @@ export function ChatInput({ label, value, setValue, setControlHeight, ...props }
           '& .MuiOutlinedInput-root': {
             borderRadius: '0px',
             padding: '7px',
-            paddingRight: '30px',
+            paddingRight: '35px',
             '&.Mui-focused fieldset': {
               border: '1px solid #1b0900',
             },
@@ -70,12 +67,8 @@ export function ChatInput({ label, value, setValue, setControlHeight, ...props }
         // {...props}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
           setValue(e.target.value);
-          if (textFieldRef.current) {
-            // const clientHeight = textFieldRef.current.offsetHeight;
-            setControlHeight('400px');
-          }
         }}
       />
-    </div>
+    </>
   );
 }
