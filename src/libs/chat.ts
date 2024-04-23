@@ -131,13 +131,14 @@ export async function sendMessage(message: string, name: string, roomId: RoomID,
 }
 
 export async function checkUploadResult(reference: Reference) {
-    try {
-        const result = await bee.downloadChunk(reference);
-        return result.length > 0;
-    } catch (error) {
-        console.error("There was an error while trying to check upload result: ", error);
-        return false;
-    }
+  try {
+    const result = await bee.downloadChunk(reference);
+    return result.length > 0;
+  } catch (error) {
+    // Don't spam the console
+    //console.error("There was an error while trying to check upload result: ", error);
+    return false;
+  }
 }
 
 export async function readSingleMessage(index: number, roomId: RoomID) {
@@ -152,8 +153,9 @@ export async function readSingleMessage(index: number, roomId: RoomID) {
     const data = await bee.downloadData(recordPointer.reference);
 
     return JSON.parse(new TextDecoder().decode(data));
-  } catch (e) {
-    console.error('There was an error, while reading single Message: ', e);
+  } catch (e: any) {
+    // Don't spam the console
+    if (e.status != 500) console.error('There was an error, while reading single Message: ', e);
     return false;
   }
 }

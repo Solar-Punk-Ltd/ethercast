@@ -72,8 +72,8 @@ export function Chat({ feedDataForm }: ChatProps) {
   }, [initialized]);
 
   useEffect(() => {
-    readMessage(state.readIndex);
-  }, [state.readIndex, time]);
+    readNextMessage();
+  }, [time]);
 
   // Init the chat application
   async function init() {
@@ -103,9 +103,11 @@ export function Chat({ feedDataForm }: ChatProps) {
 
     let feedIndex: number = Number(await getUpdateIndex(roomId));
     if (state.readIndex > feedIndex) {
-      console.error('Warning! lastReadIndex is higher then feedIndex, this should never happen!');
+      console.error('Warning! readIndex is higher then feedIndex, this should never happen!');
       console.info('Setting readIndex to 0');
-      dispatch({ type: 'resetReadIndex' });
+      console.log("feedIndex: ", feedIndex)
+      console.log("readIndex: ", state.readIndex)
+      //dispatch({ type: 'resetReadIndex' });
     }
 
     if (feedIndex === -1) {
@@ -118,41 +120,41 @@ export function Chat({ feedDataForm }: ChatProps) {
     if (feedIndex > state.readIndex) {
       console.log(`feedIndex > lastReadIndex | ${feedIndex} > ${state.readIndex}`);
       console.log('Time: ', time);
-      dispatch({ type: 'incrementReadIndex' });
       setTime(() => Date.now());
     }
   }
-
+  
   // Reads a single message, and will also save the messages to localStorage
-  async function readMessage(index: number) {
-    console.log('read with index ', index);
+  async function readNextMessage() {
+    console.log('read with index ', state.readIndex);
     const roomId: RoomID = generateRoomId(feedDataForm.topic.value);
     let message: MessageData | null = null;
-
+    
     do {
-      message = await readSingleMessage(index, roomId);
+      message = await readSingleMessage(state.readIndex, roomId);
       if (!message) {
         console.error('Error reading message! Retrying...');
-        sleep(1000);
-        continue;
+        //sleep(1000);
+        //continue;
+        return;
       }
-
+      
       if (message.message) {
         //setReadIndex(readIndex+1); Last                                 // Read was successful, but we don't know yet if it's duplicate or not
         const isDuplicate = state.messages.some((msg) => msg.timestamp === message!.timestamp);
         if (isDuplicate) {
           // We won't insert this message, but lastReadIndex was already incremented
           console.log('Duplicate!');
+          dispatch({ type: 'incrementReadIndex' });
           return;
         }
-
-        // theoretically, we don't need this. Messages are not inserted with Array.push(), and we are checking for duplicates above
-        // This might as well just mess up the state
+        
         dispatch({
           type: 'insertMessage',
           message: message,
-          index: index,
+          index: state.readIndex,
         });
+        dispatch({ type: 'incrementReadIndex' });
         setTime(() => Date.now());
         console.log('messages: ', state.messages);
 
