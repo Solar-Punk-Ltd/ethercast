@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState, createContext } from 'react';
+import { useEffect, useReducer, useState, createContext, useContext } from 'react';
 import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
 import { TextInput } from '../TextInput/TextInput';
@@ -7,6 +7,7 @@ import { loadMessages, saveMessages, generateRoomId } from '../../utils/chat';
 import EditIcon from '@mui/icons-material/Edit';
 import './Chat.scss';
 import { sleep } from '../../utils/common';
+import { MainContext } from '../../routes.tsx';
 
 export const LayoutContext = createContext({ chatBodyHeight: 'auto', setChatBodyHeight: (_: string) => {} });
 
@@ -46,6 +47,7 @@ function messagesReducer(state: { messages: MessageData[]; readIndex: number }, 
 }
 
 export function Chat({ feedDataForm }: ChatProps) {
+  const { mainNickName, setMainNickName } = useContext(MainContext);
   const initialState: ChatState = {
     messages: loadMessages(feedDataForm.topic.value),
     readIndex: loadMessages(feedDataForm.topic.value).length,
@@ -53,9 +55,10 @@ export function Chat({ feedDataForm }: ChatProps) {
   const [state, dispatch] = useReducer(messagesReducer, initialState);
   const [initialized, setInitialized] = useState(false);
   const [chatBodyHeight, setChatBodyHeight] = useState('auto');
-  const [nickname, setNickname] = useState('tester'); // Our name
+  const [nickname, setNickname] = useState(mainNickName); // Our name
   const readInterval = 3000;
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isNickNameSet, setIsNickNameSet] = useState(mainNickName !== '' ? true : false);
   const [time, setTime] = useState(Date.now());
 
   // Load the messages from Swarm
@@ -80,6 +83,27 @@ export function Chat({ feedDataForm }: ChatProps) {
     await readMessagesOnLoad();
     setInitialized(() => true);
   }
+
+  const handleClickOutside = (event: any) => {
+    if (event.target.className === 'layout') {
+      setIsEditMode(false);
+    }
+  };
+
+  const nicknameChoosed = () => {
+    if (nickname === '') {
+      return;
+    }
+    setIsNickNameSet(true);
+    setMainNickName(nickname);
+  };
+
+  useEffect(() => {
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [isEditMode]);
 
   // Reads those messags from Swarm, that does not exist in localStorage
   async function readMessagesOnLoad() {
@@ -170,21 +194,11 @@ export function Chat({ feedDataForm }: ChatProps) {
     <LayoutContext.Provider value={{ chatBodyHeight, setChatBodyHeight }}>
       <div className="chat">
         <div>
-          <div className="header">
-            {!isEditMode && <span>Nickname: {nickname}</span>}
-            {isEditMode && (
-              <TextInput
-                className="set-name"
-                value={nickname}
-                name={'Nickname'}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNickname(e.target.value)}
-                placeholder="Choose a nickname"
-              />
-            )}
-            <button onClick={() => setIsEditMode(!isEditMode)}>
-              <EditIcon />
-            </button>
-          </div>
+          {isNickNameSet ? (
+            <div className="actualNickName">
+              <span>Your Nickname: {nickname}</span>
+            </div>
+          ) : null}
 
           <div className="body">
             {state.messages.map((m: MessageData, i: number) => {
@@ -194,7 +208,36 @@ export function Chat({ feedDataForm }: ChatProps) {
           </div>
         </div>
 
-        <Controls topic={feedDataForm.topic.value} nickname={nickname} stamp={feedDataForm.stamp.value} />
+        {!isNickNameSet ? (
+          <div className="header">
+            {!isEditMode && <span style={{ fontSize: '13px' }}>Enter a Nickname to use chat</span>}
+            {isEditMode && (
+              <TextInput
+                className="set-name"
+                value={nickname}
+                name={'nickname'}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNickname(e.target.value)}
+                placeholder="Choose a nickname"
+              />
+            )}
+            {!isEditMode ? (
+              <button onClick={() => setIsEditMode(!isEditMode)}>
+                <EditIcon />
+              </button>
+            ) : (
+              <div className="editButtons">
+                <button onClick={() => nicknameChoosed()} className="okButton">
+                  OK
+                </button>
+                <button onClick={() => setIsEditMode(!isEditMode)} className="closeButton">
+                  X
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <Controls topic={feedDataForm.topic.value} nickname={nickname} stamp={feedDataForm.stamp.value} />
+        )}
       </div>
     </LayoutContext.Provider>
   );

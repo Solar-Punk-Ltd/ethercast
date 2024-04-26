@@ -33,5 +33,14 @@
       margin-left: auto;
       margin-right: auto;
     }
+    .account {
+      display: flex;
+      white-space: pre;
+    }
+    .accountText:hover {
+      background-color: #1b090055;
+      border-radius: 12px;
+      cursor: pointer;
+    }
   }
 }

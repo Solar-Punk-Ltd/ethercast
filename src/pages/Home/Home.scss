@@ -4,6 +4,7 @@
   min-height: calc(100vh - $sp-header-height);
 
   .browser-form {
+    position: relative;
     display: flex;
     flex-direction: column;
     // margin-top: 50px;
@@ -28,6 +29,13 @@
       min-width: 200px;
       margin-left: auto;
       margin-right: auto;
+    }
+    .pasteIcon {
+      position: absolute;
+      right: 28px;
+      top: 73px;
+      color: #00000080;
+      cursor: pointer;
     }
   }
 }

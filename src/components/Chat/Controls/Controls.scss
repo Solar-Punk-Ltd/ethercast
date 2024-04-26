@@ -17,6 +17,10 @@
     background-color: #1b0900;
     border: none;
   }
+
+  .sendButton:active {
+    box-shadow: inset 0 0 10px #704214;
+  }
   svg[data-testid='SendIcon'] {
     font-size: 19px;
   }

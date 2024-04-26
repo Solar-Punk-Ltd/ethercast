@@ -58,6 +58,7 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
     if (event.key === 'Enter') {
       event.preventDefault();
       handleSubmit();
+      setNewMessage('');
       // setHeight('37px');
       // setChatBodyHeight('auto');
     }
@@ -85,7 +86,7 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
         className="chat-input"
         value={newMessage}
         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange(e)}
-        onKeyPress={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyPress(e)}
+        onKeyPressed={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyPress(e)}
         setValue={setNewMessage}
         // setControlHeight={setControlHeight}
         name={nickname}

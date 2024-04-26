@@ -12,6 +12,7 @@ import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
 
 import './Stream.scss';
 import { initChatRoom } from '../../libs/chat';
+import Tooltip from '@mui/material/Tooltip';
 
 interface CommonForm {
   label: string;
@@ -25,6 +26,7 @@ export function Stream() {
   const [isLive, setIsLive] = useState(false);
   const [audio, setAudio] = useState<boolean>(true);
   const [video, setVideo] = useState<boolean>(true);
+  const [tooltipText, setTooltipText] = useState<string>('Click to copy');
   const [timeslice, setTimeslice] = useState<number>(2000); // [ms
   const [feedDataForm, setFeedDataForm] = useState<Record<string, CommonForm>>({
     key: {
@@ -105,13 +107,40 @@ export function Stream() {
       onChange(nextState);
     };
 
+  const copyToClipboard = async (account: string | undefined) => {
+    if (account) {
+      try {
+        await navigator.clipboard.writeText(account);
+        setTooltipText('Copied to clipboard!');
+      } catch (error) {
+        console.error('Failed to copy: ', error);
+      }
+    }
+  };
+
+  const handleTooltipClose = () => {
+    setTooltipText('Click to copy');
+  };
+
   return (
     <div className="stream">
       <FormContainer className="stream-form">
         {isLive ? (
           <>
             <LiveIndicator className="indicator" />
-            <p>Account: {account}</p>
+            <div className="account">
+              Account:{' '}
+              <Tooltip title={tooltipText} placement="top" onClose={handleTooltipClose}>
+                <div
+                  className="accountText"
+                  onClick={() => {
+                    copyToClipboard(account);
+                  }}
+                >
+                  {account}
+                </div>
+              </Tooltip>
+            </div>
             <p>Topic: {feedDataForm.topic.value}</p>
             <Button onClick={() => stop()}>Stop stream</Button>
           </>

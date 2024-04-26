@@ -45,4 +45,35 @@
     background-color: white;
     color: #1b0900;
   }
+  .editButtons {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .editButtons .closeButton {
+    border-radius: 50px;
+    background-color: #2a2828;
+    color: orange;
+  }
+
+  .editButtons .okButton {
+    border-radius: 12px;
+    background-color: #ebe3e3;
+    color: rgb(65, 42, 0);
+  }
+
+  input.set-name {
+    background-color: #1b0900;
+    border: 0px;
+    border-bottom: 1px solid orange;
+    caret-color: orange;
+    color: orange;
+  }
+  input.set-name::placeholder {
+    color: orange;
+  }
+  .actualNickName {
+    color: #ff7900;
+    background-color: #1b0900;
+  }
 }

@@ -12,27 +12,11 @@ interface ChatInputProps {
   value: string;
   name: string;
   onChange?: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  onKeyPress?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onKeyPressed: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }
 
-export function ChatInput({ label, value, setValue, ...props }: ChatInputProps) {
-  // const [height, setHeight] = useState('37px');
+export function ChatInput({ label, value, setValue, onKeyPressed, ...props }: ChatInputProps) {
   const textFieldRef = useRef(null);
-
-  // const handleInput = (e: any) => {
-  //   // alert(e.target.value.length);
-  //   const charsCount = e.target.value.length;
-  //   if (charsCount <= 27) {
-  //     setLineHeight('37px');
-  //     setHeight('37px');
-  //   } else if (charsCount > 27 && charsCount <= 54) {
-  //     setLineHeight('16px');
-  //     setHeight('37px');
-  //   } else if (charsCount > 54) {
-  //     setLineHeight('16px');
-  //     setHeight(`${Math.ceil(charsCount / 27) * 18}px`);
-  //   }
-  // };
   return (
     <>
       {label && <label className="textarea-label">{label}</label>}
@@ -67,6 +51,14 @@ export function ChatInput({ label, value, setValue, ...props }: ChatInputProps) 
         // {...props}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
           setValue(e.target.value);
+        }}
+        inputProps={{
+          onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              onKeyPressed(e);
+            }
+          },
         }}
       />
     </>

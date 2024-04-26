@@ -11,6 +11,8 @@ import { VideoPlayer } from '../../components/VideoPlayer/VideoPlayer';
 import { setFeedReader, setPlayerOptions } from '../../libs/player';
 
 import { ViewContainer } from './containers/ViewerContainer';
+import ContentPasteIcon from '@mui/icons-material/ContentPaste';
+import Tooltip from '@mui/material/Tooltip';
 
 import './Home.scss';
 
@@ -92,6 +94,17 @@ export function Home() {
     setShowPlayer(true);
   };
 
+  const pasteFromClipBoard = async () => {
+    const clipboardData = await navigator.clipboard.readText();
+    setFeedDataForm((prevState) => ({
+      ...prevState,
+      address: {
+        ...prevState.address,
+        value: clipboardData,
+      },
+    }));
+  };
+
   return (
     <div className="home">
       {showPlayer && (
@@ -107,6 +120,9 @@ export function Home() {
 
       {showForm && (
         <FormContainer className="browser-form">
+          <Tooltip title="Paste from clipboard" placement="top">
+            <ContentPasteIcon className="pasteIcon" onClick={pasteFromClipBoard} />
+          </Tooltip>
           {Object.entries(feedDataForm).map(([key, value]) => (
             <Fragment key={key}>
               <p>{value.label}</p>
