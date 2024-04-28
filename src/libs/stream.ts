@@ -66,7 +66,8 @@ export async function startStream(signer: Signer, topic: string, stamp: BatchId,
 
     mediaRecorder.start(options.timeslice);
   } catch (error) {
-    console.error('Error:', error);
+    stopStream();
+    throw error;
   }
 }
 

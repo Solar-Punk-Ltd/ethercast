@@ -16,6 +16,6 @@ export async function fetchWrapper(url: string, type: string, options = {}) {
     return await response.json();
   } catch (error: any) {
     console.error('Fetch error:', error.message);
-    return '';
+    throw error;
   }
 }
