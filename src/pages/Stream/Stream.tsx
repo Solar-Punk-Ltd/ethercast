@@ -11,7 +11,8 @@ import { TextInput } from '../../components/TextInput/TextInput';
 import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
 
 import './Stream.scss';
-import { initChatRoom } from '../../libs/chat';
+import { initChatRoom, registerUser, updateUserList } from '../../libs/chat';
+import { ethers } from 'ethers';
 
 interface CommonForm {
   label: string;
@@ -40,7 +41,7 @@ export function Stream() {
     stamp: {
       label: 'Please provide a valid stamp',
       placeholder: 'Stamp',
-      value: '4538724cdf15b2e8a7a135a4e43725fa766e9e21a84f9984c837c3e5eb622373',
+      value: '0059a5f54ffae3176fc28c582aa7852fee578cf3d91ff254f93080680068c612',
     },
   });
   const [streamDataForm, setStreamDataForm] = useState<Record<string, CommonForm>>({
@@ -113,6 +114,7 @@ export function Stream() {
             <LiveIndicator className="indicator" />
             <p>Account: {account}</p>
             <p>Topic: {feedDataForm.topic.value}</p>
+            <button onClick={() => updateUserList(feedDataForm.topic.value)}>DOWNLOAD USER LIST</button>
             <Button onClick={() => stop()}>Stop stream</Button>
           </>
         ) : (

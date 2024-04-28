@@ -15,17 +15,17 @@
     .indicator {
       margin: auto;
     }
-    p {
-      margin: 0;
-      margin-bottom: 8px;
-      font-size: 14px;
-    }
     .text-input-container {
       margin-top: 0;
       margin-left: 0;
       margin-right: 0;
       margin-bottom: 20px;
       padding: 0;
+    }
+    .stream-options {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
     }
     button {
       margin-top: 20px;

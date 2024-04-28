@@ -55,11 +55,11 @@ export function Chat({ feedDataForm }: ChatProps) {
   const [chatBodyHeight, setChatBodyHeight] = useState('auto');
   const [nickname, setNickname] = useState('tester'); // Our name
   const readInterval = 3000;
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(true);
   const [time, setTime] = useState(Date.now());
 
   // Load the messages from Swarm
-  if (!initialized) init();
+  //if (!initialized) init();
 
   // Set a timer, to check for new messages
   useEffect(() => {
@@ -84,10 +84,10 @@ export function Chat({ feedDataForm }: ChatProps) {
   // Reads those messags from Swarm, that does not exist in localStorage
   async function readMessagesOnLoad() {
     const roomId: RoomID = generateRoomId(feedDataForm.topic.value);
-    const feedIndex: number = Number(await getUpdateIndex(roomId));
+    const feedIndex: number = Number(await getGraffitiFeedIndex(roomId));
 
     for (let i = state.messages.length; i < feedIndex; i++) {
-      const message = await readSingleMessage(i, roomId);
+      const message = await readSingleMessage(i, roomId, feedDataForm.address.value);
       dispatch({
         type: 'insertMessage',
         message: message,
@@ -101,7 +101,7 @@ export function Chat({ feedDataForm }: ChatProps) {
   async function checkForMessages() {
     const roomId: RoomID = generateRoomId(feedDataForm.topic.value);
 
-    let feedIndex: number = Number(await getUpdateIndex(roomId));
+    let feedIndex: number = Number(await getGraffitiFeedIndex(roomId));
     if (state.readIndex > feedIndex) {
       console.error('Warning! readIndex is higher then feedIndex, this should never happen!');
       console.info('Setting readIndex to 0');
@@ -131,7 +131,7 @@ export function Chat({ feedDataForm }: ChatProps) {
     let message: MessageData | null = null;
     
     do {
-      message = await readSingleMessage(state.readIndex, roomId);
+      message = await readSingleMessage(state.readIndex, roomId, feedDataForm.address.value);
       if (!message) {
         console.error('Error reading message! Retrying...');
         //sleep(1000);

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { BatchId, Bee, FeedReader, FeedWriter, Reference, Signer, Utils } from '@solarpunk/bee-js';
 import {
   getConsensualPrivateKey,

@@ -1,5 +1,8 @@
-import React from 'react';
+import { ChangeEvent, ForwardedRef, forwardRef } from 'react';
+import { RefCallBack } from 'react-hook-form';
 import clsx from 'clsx';
+
+import { InputError } from '../InputError/InputError';
 
 import './TextInput.scss';
 
