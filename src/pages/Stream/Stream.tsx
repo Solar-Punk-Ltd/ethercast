@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useContext, useEffect, useState } from 'react';
 import { BatchId } from '@solarpunk/bee-js';
 import { useEthers } from '@usedapp/core';
 import { produce } from 'immer';
@@ -13,6 +13,7 @@ import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
 import './Stream.scss';
 import { initChatRoom } from '../../libs/chat';
 import Tooltip from '@mui/material/Tooltip';
+import { MainContext } from '../../routes';
 
 interface CommonForm {
   label: string;
@@ -22,7 +23,7 @@ interface CommonForm {
 
 export function Stream() {
   const { account, library } = useEthers();
-
+  const { setActualAccount } = useContext(MainContext);
   const [isLive, setIsLive] = useState(false);
   const [audio, setAudio] = useState<boolean>(true);
   const [video, setVideo] = useState<boolean>(true);
@@ -91,6 +92,7 @@ export function Stream() {
     initChatRoom(feedDataForm.topic.value, feedDataForm.stamp.value as BatchId);
 
     setIsLive(true);
+    setActualAccount(account!);
   };
 
   const stop = () => {

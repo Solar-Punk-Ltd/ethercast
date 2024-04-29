@@ -7,7 +7,7 @@ import { loadMessages, saveMessages, generateRoomId } from '../../utils/chat';
 import EditIcon from '@mui/icons-material/Edit';
 import './Chat.scss';
 import { sleep } from '../../utils/common';
-import { MainContext } from '../../routes.tsx';
+import { MainContext } from '../../routes';
 
 export const LayoutContext = createContext({ chatBodyHeight: 'auto', setChatBodyHeight: (_: string) => {} });
 
@@ -47,7 +47,9 @@ function messagesReducer(state: { messages: MessageData[]; readIndex: number }, 
 }
 
 export function Chat({ feedDataForm }: ChatProps) {
-  const { mainNickName, setMainNickName } = useContext(MainContext);
+  const { nickNames, setNickNames, actualAccount, actualTopic } = useContext(MainContext);
+  const nickName = nickNames[actualAccount] ? nickNames[actualAccount][actualTopic] : '';
+
   const initialState: ChatState = {
     messages: loadMessages(feedDataForm.topic.value),
     readIndex: loadMessages(feedDataForm.topic.value).length,
@@ -55,10 +57,10 @@ export function Chat({ feedDataForm }: ChatProps) {
   const [state, dispatch] = useReducer(messagesReducer, initialState);
   const [initialized, setInitialized] = useState(false);
   const [chatBodyHeight, setChatBodyHeight] = useState('auto');
-  const [nickname, setNickname] = useState(mainNickName); // Our name
+  const [nickname, setNickname] = useState(nickName); // Our name
   const readInterval = 3000;
   const [isEditMode, setIsEditMode] = useState(false);
-  const [isNickNameSet, setIsNickNameSet] = useState(mainNickName !== '' ? true : false);
+  const [isNickNameSet, setIsNickNameSet] = useState(nickname ? true : false);
   const [time, setTime] = useState(Date.now());
 
   // Load the messages from Swarm
@@ -95,15 +97,19 @@ export function Chat({ feedDataForm }: ChatProps) {
       return;
     }
     setIsNickNameSet(true);
-    setMainNickName(nickname);
+    setNickNames((prevState: any) => ({
+      ...prevState,
+      [actualAccount]: { ...prevState[actualAccount], [actualTopic]: nickname },
+    }));
   };
 
   useEffect(() => {
     document.addEventListener('click', handleClickOutside);
+    console.log(nickNames);
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
-  }, [isEditMode]);
+  }, [isEditMode, nickNames]);
 
   // Reads those messags from Swarm, that does not exist in localStorage
   async function readMessagesOnLoad() {

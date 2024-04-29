@@ -10,12 +10,22 @@ interface ChatInputProps {
   className?: string;
   setValue?: any;
   value: string;
+  disabled?: boolean;
   name: string;
+  textareaClassName: boolean;
   onChange?: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onKeyPressed: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }
 
-export function ChatInput({ label, value, setValue, onKeyPressed, ...props }: ChatInputProps) {
+export function ChatInput({
+  label,
+  value,
+  disabled,
+  setValue,
+  textareaClassName,
+  onKeyPressed,
+  ...props
+}: ChatInputProps) {
   const textFieldRef = useRef(null);
   return (
     <>
@@ -23,6 +33,7 @@ export function ChatInput({ label, value, setValue, onKeyPressed, ...props }: Ch
 
       <TextField
         ref={textFieldRef}
+        disabled={disabled}
         multiline={true}
         value={value}
         sx={{
@@ -44,6 +55,10 @@ export function ChatInput({ label, value, setValue, onKeyPressed, ...props }: Ch
           },
           '& .MuiInputBase-input::placeholder': {
             fontSize: '14px',
+          },
+          '& .MuiInputBase-root': {
+            backgroundColor: textareaClassName ? 'grey' : 'white',
+            pointer: 'not-allowed',
           },
         }}
         className="textarea-field"

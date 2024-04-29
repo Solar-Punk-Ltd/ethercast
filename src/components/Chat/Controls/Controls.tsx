@@ -8,6 +8,7 @@ import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt
 import { ChatInput } from './ChatInput/ChatInput';
 import { generateRoomId } from '../../../utils/chat';
 import { sleep } from '../../../utils/common';
+import CircularProgress from '@mui/material/CircularProgress';
 // import { LayoutContext } from '../Chat';
 
 interface ControlsProps {
@@ -18,11 +19,8 @@ interface ControlsProps {
 
 export function Controls({ topic, nickname, stamp }: ControlsProps) {
   const [showIcons, setShowIcons] = useState(false);
-  // const [height, setHeight] = useState('37px');
-  const [sendActive, setSendActive] = useState(true);
+  const [sendActive, setSendActive] = useState(false);
   const [newMessage, setNewMessage] = useState('');
-  // const [controlHeight, setControlHeight] = useState('37px');
-  // const { setChatBodyHeight } = useContext(LayoutContext);
   function handleSmileyClick() {
     setShowIcons(!showIcons);
   }
@@ -37,6 +35,7 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
     let counter = 0;
 
     while (!success) {
+      setSendActive(true);
       if (counter > 32) {
         counter = 0;
         result = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
@@ -51,7 +50,7 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
     }
 
     setNewMessage('');
-    setSendActive(true);
+    setSendActive(false);
   }
 
   function handleKeyPress(event: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -90,7 +89,10 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
         setValue={setNewMessage}
         // setControlHeight={setControlHeight}
         name={nickname}
+        disabled={sendActive}
+        // disabled={true}
         placeholder={'Type your message here'}
+        textareaClassName={sendActive}
       />
       {showIcons && (
         <div className="text-input-icons">
@@ -115,9 +117,10 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
       )}
 
       <SentimentSatisfiedAltIcon className="text-input-icon" onClick={handleSmileyClick} />
+
       <div className="controlButton">
         <button onClick={handleSubmit} className="sendButton">
-          <SendIcon />
+          {sendActive ? <CircularProgress size={20} /> : <SendIcon />}
         </button>
       </div>
     </div>
