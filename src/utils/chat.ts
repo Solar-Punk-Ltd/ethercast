@@ -73,7 +73,7 @@ export function validateUserObject(user: any): boolean {
 
 // Returns timesstamp ordered messages
 export function orderMessages(messages: MessageData[]) {
-    return messages.sort((a, b) => a.timestamp -b.timestamp);
+  return messages.sort((a, b) => a.timestamp - b.timestamp);
 }
 
 // Removes duplicates, also pays attention to same-timestamp unique messages
