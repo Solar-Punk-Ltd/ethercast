@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 import { Sidebar } from './Sidebar/Sidebar';
 import { Footer } from './Footer';
@@ -9,9 +9,11 @@ import './MainLayout.scss';
 interface MainLayoutProps {
   children: React.ReactNode;
 }
+// export const LayoutContext = React.createContext('auto');
 
 export function MainLayout({ children }: MainLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // const [chatBodyHeight, setChatBodyHeight] = useState('10px');
 
   const toggleSidebar = () => {
     setIsSidebarOpen((prop) => !prop);
@@ -19,6 +21,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <>
+      {/* <LayoutContext.Provider value={chatBodyHeight}> */}
       <div className="layout">
         {isSidebarOpen && <div className="overlay" onClick={toggleSidebar} />}
         <Header openSidebar={toggleSidebar} />
@@ -26,6 +29,7 @@ export function MainLayout({ children }: MainLayoutProps) {
         <main>{children}</main>
         <Footer />
       </div>
+      {/* </LayoutContext.Provider> */}
     </>
   );
 }

@@ -18,9 +18,10 @@ interface ControlsProps {
 
 export function Controls({ topic, nickname, stamp }: ControlsProps) {
   const [showIcons, setShowIcons] = useState(false);
-  const [height, setHeight] = useState('37px');
+  // const [height, setHeight] = useState('37px');
   const [sendActive, setSendActive] = useState(true);
   const [newMessage, setNewMessage] = useState('');
+  // const [controlHeight, setControlHeight] = useState('37px');
   // const { setChatBodyHeight } = useContext(LayoutContext);
   function handleSmileyClick() {
     setShowIcons(!showIcons);
@@ -30,7 +31,7 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
   async function handleSubmit() {
     if (newMessage === '') return;
     //setSendActive(false);
-    const messageTimestamp = Date.now();  // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
+    const messageTimestamp = Date.now(); // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
     let result: Reference | number = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
     let success = false;
     let counter = 0;
@@ -57,21 +58,22 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
     if (event.key === 'Enter') {
       event.preventDefault();
       handleSubmit();
-      setHeight('37px');
+      setNewMessage('');
+      // setHeight('37px');
       // setChatBodyHeight('auto');
     }
   }
 
   function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     // alert(e.target.value);
-    setNewMessage(e.target.value);
-    const charsCount = e.target.value.length;
-    if (charsCount <= 54) {
-      setHeight('37px');
-    } else if (charsCount > 54) {
-      setHeight(`${Math.ceil(charsCount / 27) * 18}px`);
-      // setChatBodyHeight('10px');
-    }
+    // setNewMessage(e.target.value);
+    // const charsCount = e.target.value.length;
+    // if (charsCount <= 54) {
+    //   setHeight('37px');
+    // } else if (charsCount > 54) {
+    //   setHeight(`${Math.ceil(charsCount / 27) * 18}px`);
+    //   // setChatBodyHeight('10px');
+    // }
   }
 
   function onEmojiClick(emojiData: EmojiClickData) {
@@ -79,12 +81,14 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
   }
 
   return (
-    <div style={{ height }} className="controls">
+    <div className="controls">
       <ChatInput
         className="chat-input"
         value={newMessage}
         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange(e)}
-        onKeyPress={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyPress(e)}
+        onKeyPressed={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyPress(e)}
+        setValue={setNewMessage}
+        // setControlHeight={setControlHeight}
         name={nickname}
         placeholder={'Type your message here'}
       />
@@ -109,10 +113,13 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
           />
         </div>
       )}
+
       <SentimentSatisfiedAltIcon className="text-input-icon" onClick={handleSmileyClick} />
-      <button onClick={handleSubmit} className="sendButton">
-        <SendIcon />
-      </button>
+      <div className="controlButton">
+        <button onClick={handleSubmit} className="sendButton">
+          <SendIcon />
+        </button>
+      </div>
     </div>
   );
 }

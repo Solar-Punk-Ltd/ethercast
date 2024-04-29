@@ -12,7 +12,6 @@ import { MainLayout } from './layout/MainLayout';
 import './App.scss';
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
-
 const config: Config = {
   networks: [Gnosis],
   readOnlyChainId: Gnosis.chainId,
