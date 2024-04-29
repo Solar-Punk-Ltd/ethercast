@@ -10,18 +10,23 @@ import './ProgressBar.scss';
 interface ProgressBarProps {
   onSeek: (index: number) => void;
   getDuration: () => Promise<VideoDuration>;
+  progress?: number;
+  onSetProgress?: (value: number) => void;
 }
 
-export function ProgressBar({ onSeek, getDuration }: ProgressBarProps) {
+export function ProgressBar({ onSeek, getDuration, progress: externalProgress, onSetProgress }: ProgressBarProps) {
   const progressBarRef = useRef<HTMLDivElement>(null);
   const markerRef = useRef<HTMLDivElement>(null);
 
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [progress, setProgress] = useState<number>(100);
+  const [internalProgress, setInternalProgress] = useState<number>(100);
   const [cursorPercent, setCursorPercent] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0); // [ms]
   const [index, setIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+
+  const progress = externalProgress || internalProgress;
+  const setProgress = onSetProgress || setInternalProgress;
 
   useEffect(() => {
     const calculateProgress = (clientX: number) => {
@@ -33,9 +38,9 @@ export function ProgressBar({ onSeek, getDuration }: ProgressBarProps) {
 
     const mouseDownOnProgressBarHandler = (e: MouseEvent) => {
       if (loading) return;
-      const progress = calculateProgress(e.clientX);
-      setProgress(progress);
-      onSeek(Math.ceil(index! * (progress / 100)));
+      const newProgress = calculateProgress(e.clientX);
+      setProgress(newProgress);
+      onSeek(Math.ceil(index! * (newProgress / 100)));
     };
 
     const mouseMoveOnProgressBarHandler = (e: MouseEvent) => {

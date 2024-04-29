@@ -15,6 +15,15 @@ interface FeedUpdateResponse {
   reference: string;
 }
 
+interface AttachOptions {
+  media: HTMLVideoElement;
+  address: string;
+  topic: string;
+  onEnd?: () => void;
+  onPlay?: () => void;
+  onPause?: () => void;
+}
+
 export interface VideoDuration {
   duration: number;
   index: number;
@@ -33,14 +42,15 @@ let mediaSource: MediaSource;
 let sourceBuffer: SourceBuffer;
 let streamTimer: NodeJS.Timeout | null;
 let reader: FeedReader;
+let queue: AsyncQueue;
 let currIndex = '';
 let seekIndex = '';
 
 const bee = new Bee('http://localhost:1633'); // Test address
 
-let TIMESLICE = 2000;
+let TIMESLICE = 500;
 let MIN_LIVE_TRHESHOLD = 1;
-let INIT_BUFFER_TIME = 5000;
+let INIT_BUFFER_TIME = 0;
 let BUFFER = 5;
 let DYNAMIC_BUFFER_INCREMENT = 0;
 
@@ -84,35 +94,66 @@ export async function play() {
 }
 
 export function pause() {
-  stopAppending();
+  mediaElement.pause();
 }
 
 export function restart() {
-  detach();
-  attach(mediaElement);
+  /*   detach();
+  attach(mediaElement); */
   play();
 }
 
 export function seek(index: number) {
-  detach();
-  attach(mediaElement);
+  /*   detach();
+  attach(mediaElement); */
   setSeekIndex(index);
   play();
 }
 
-export async function attach(video: HTMLVideoElement) {
+export function attach(options: AttachOptions) {
   mediaSource = new MediaSource();
-  mediaElement = video;
-  video.addEventListener('error', (_e) => {
+  mediaElement = options.media;
+  setFeedReader(options.topic, options.address);
+
+  mediaElement.addEventListener('error', (_e) => {
     console.error('Video error:', mediaElement?.error?.code, mediaElement?.error?.message);
+  });
+  mediaElement.addEventListener('play', () => {
+    if (options.onPlay) {
+      options.onPlay();
+    }
+    console.log('Play');
+  });
+  // mediaElement.addEventListener('playing', () => {
+  //   /*     if (options.onPlay) {
+  //     options.onPlay();
+  //   } */
+  //   console.log('Playing');
+  // });
+  mediaElement.addEventListener('pause', () => {
+    /*     if (options.onPause) {
+      options.onPause();
+    } */
+    pauseAppending();
+    console.log('Paused');
+  });
+  mediaElement.addEventListener('ended', () => {
+    /*     if (options.onEnd) {
+      options.onEnd();
+    } */
+    console.log('Ended');
   });
 }
 
 export function detach() {
-  stopAppending();
+  pauseAppending();
   mediaSource = null!;
   sourceBuffer = null!;
+  queue = null!;
+  mediaElement = null!;
+  reader = null!;
   currIndex = '';
+  seekIndex = '';
 }
 
 async function startAppending() {
@@ -122,16 +163,24 @@ async function startAppending() {
     await initStream(appendToSourceBuffer);
   }
 
-  const append = await appendBuffer(appendToSourceBuffer);
-  const queue = new AsyncQueue({ indexed: false });
+  const append = appendBuffer(appendToSourceBuffer);
+  queue = new AsyncQueue({ indexed: false });
   streamTimer = setInterval(() => queue.enqueue(append), TIMESLICE);
 
   await sleep(INIT_BUFFER_TIME);
   mediaElement.play();
 }
 
-function stopAppending() {
-  mediaElement.pause();
+async function continueAppending() {
+  const { appendToSourceBuffer } = initSourceBuffer();
+
+  const append = appendBuffer(appendToSourceBuffer);
+  streamTimer = setInterval(() => queue.enqueue(append), TIMESLICE);
+
+  mediaElement.play();
+}
+
+function pauseAppending() {
   if (streamTimer) {
     clearInterval(streamTimer);
     streamTimer = null;
@@ -146,12 +195,12 @@ async function initStream(appendToSourceBuffer: (data: Uint8Array) => void) {
   appendToSourceBuffer(initSegment);
 }
 
-async function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
+function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
   let feedUpdateRes: FeedUpdateResponse;
   let prevIndex = '';
 
   return async () => {
-    handleBuffering();
+    // handleBuffering();
 
     try {
       feedUpdateRes = (await reader.download({ index: currIndex })) as any;
@@ -178,14 +227,14 @@ function initSourceBuffer() {
   if (!sourceBuffer) {
     sourceBuffer = mediaSource.addSourceBuffer(mimeType);
     sourceBuffer.mode = 'segments';
-  }
 
-  sourceBuffer.addEventListener('updateend', () => {
-    if (bufferQueue.length > 0) {
-      const nextData = bufferQueue.shift()!;
-      sourceBuffer.appendBuffer(nextData);
-    }
-  });
+    sourceBuffer.addEventListener('updateend', () => {
+      if (bufferQueue.length > 0) {
+        const nextData = bufferQueue.shift()!;
+        sourceBuffer.appendBuffer(nextData);
+      }
+    });
+  }
 
   const appendToSourceBuffer = (data: Uint8Array) => {
     if (sourceBuffer.updating || bufferQueue.length > 0) {
@@ -211,13 +260,14 @@ async function createInitSegment(clusterStartIndex: number, segment: Data) {
 }
 
 async function findFirstCluster() {
-  const UNTIL_CLUSTER_IS_FOUND = true;
+  let UNTIL_CLUSTER_IS_FOUND = true;
   while (UNTIL_CLUSTER_IS_FOUND) {
     const feedUpdateRes = await reader.download(seekIndex ? { index: seekIndex } : undefined);
     const segment = await bee.downloadData(feedUpdateRes.reference);
     const clusterIdIndex = findHexInUint8Array(segment, CLUSTER_ID);
 
     if (clusterIdIndex !== -1) {
+      UNTIL_CLUSTER_IS_FOUND = false;
       seekIndex = '';
       return {
         feedIndex: feedUpdateRes.feedIndexNext || incrementHexString(feedUpdateRes.feedIndex as string),

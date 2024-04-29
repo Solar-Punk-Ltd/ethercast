@@ -19,9 +19,7 @@ interface FormData {
   streamTopic: string;
   stamp: string;
   timeslice: string;
-  width: string;
-  height: string;
-  frameRate: string;
+  videoBitsPerSecond: string;
 }
 
 const formFields = [
@@ -47,26 +45,14 @@ const formFields = [
   {
     name: 'timeslice',
     label: 'Set the timeslice',
-    defaultValue: '2000',
+    defaultValue: '1000',
     rules: { required: 'Timeslice is required', validate: assertPositiveInteger },
   },
   {
-    name: 'width',
-    label: 'Set the video width',
-    defaultValue: '640',
-    rules: { required: 'Width is required', validate: assertPositiveInteger },
-  },
-  {
-    name: 'height',
-    label: 'Set the video height',
-    defaultValue: '480',
-    rules: { required: 'Height is required', validate: assertPositiveInteger },
-  },
-  {
-    name: 'frameRate',
-    label: 'Set the video frame rate',
-    defaultValue: '30',
-    rules: { required: 'Frame rate is required', validate: assertPositiveInteger },
+    name: 'videoBitsPerSecond',
+    label: 'Set the video bits per second',
+    defaultValue: '2500000',
+    rules: { required: 'Video bits per second is required', validate: assertPositiveInteger },
   },
 ];
 
@@ -91,13 +77,7 @@ export function Stream() {
       audio: options.audio,
       video: options.video,
       timeslice: +data.timeslice,
-      videoDetails: options.video
-        ? {
-            width: +data.width,
-            height: +data.height,
-            frameRate: +data.frameRate,
-          }
-        : undefined,
+      videoBitsPerSecond: +data.videoBitsPerSecond,
     });
 
     setIsLive(true);

@@ -3,37 +3,48 @@ import clsx from 'clsx';
 
 import { WithAsyncErrorBoundary, WithErrorBoundary } from '../../hooks/WithErrorBoundary';
 import { attach, detach, getApproxDuration, pause, play, restart, seek, setVolumeControl } from '../../libs/player';
+import { remove0xPrefix } from '../../utils/common';
 
 import { Controls } from './Controls/Controls';
-import { StartOverlay } from './StartOverlay/StartOverlay';
+import { LoadingOverlay } from './LoadingOverlay/LoadingOverlay';
 
 import './VideoPlayer.scss';
 
-export function VideoPlayer() {
+interface VideoPlayerProps {
+  topic: string;
+  owner: string;
+}
+
+export function VideoPlayer({ topic, owner }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [initClick, setInitClick] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     if (videoRef.current) {
-      attach(videoRef.current);
+      const onPlay = () => {
+        setIsPlaying(true);
+        setLoading(false);
+      };
+      const onPause = () => {
+        setIsPlaying(false);
+        setLoading(false);
+      };
+
+      attach({ media: videoRef.current, address: remove0xPrefix(owner), topic, onPlay, onPause, onEnd: onPause });
+      // play();
     }
 
     return () => {
       detach();
     };
-  }, []);
+  }, [owner, topic]);
 
-  const playStream = async () => {
-    setInitClick(true);
-    await play();
-    setIsPlaying(true);
-  };
-
-  const pauseStream = () => {
-    pause();
-    setIsPlaying(false);
+  const handlePauseClick = () => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
   };
 
   const onMouseEnterVideo = () => {
@@ -46,18 +57,18 @@ export function VideoPlayer() {
 
   return (
     <div className="video-player" onMouseEnter={onMouseEnterVideo} onMouseLeave={onMouseLeaveVideo}>
-      {!initClick && <StartOverlay onStart={WithErrorBoundary(playStream)} />}
+      {loading && <LoadingOverlay />}
       <video ref={videoRef} controlsList="nodownload"></video>
       <Controls
-        onPlay={WithAsyncErrorBoundary(playStream)}
-        onPause={WithErrorBoundary(pauseStream)}
+        handlePlayClick={WithAsyncErrorBoundary(play)}
+        handlePauseClick={WithErrorBoundary(handlePauseClick)}
         onRestart={WithErrorBoundary(restart)}
         onSeek={WithErrorBoundary(seek)}
         getDuration={WithAsyncErrorBoundary(getApproxDuration)}
         setVolumeControl={WithErrorBoundary(setVolumeControl)}
         mediaElement={videoRef.current}
-        isStreamPlaying={isPlaying}
-        className={clsx(showControls && initClick ? 'controls-visible' : 'controls-hidden')}
+        isPaused={isPlaying}
+        className={clsx(showControls && !loading ? 'controls-visible' : 'controls-hidden')}
       />
     </div>
   );

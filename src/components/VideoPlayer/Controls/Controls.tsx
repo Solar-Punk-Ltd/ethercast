@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import clsx from 'clsx';
 
 import pauseIcon from '../../../assets/icons/pause-fill.svg';
@@ -14,10 +15,10 @@ import './Controls.scss';
 
 interface ControlsProps {
   className?: string;
-  isStreamPlaying: boolean;
+  isPaused: boolean;
   mediaElement: HTMLVideoElement | null;
-  onPlay: () => void;
-  onPause: () => void;
+  handlePlayClick: () => void;
+  handlePauseClick: () => void;
   onRestart: () => void;
   onSeek: (index: number) => void;
   getDuration: () => Promise<VideoDuration>;
@@ -26,35 +27,47 @@ interface ControlsProps {
 
 export function Controls({
   className,
-  isStreamPlaying,
-  onPlay,
-  onPause,
+  isPaused,
+  handlePlayClick,
+  handlePauseClick,
   onRestart,
   onSeek,
   getDuration,
   setVolumeControl,
   mediaElement,
 }: ControlsProps) {
+  const [progress, setProgress] = useState<number>(100);
+
+  const restart = () => {
+    onRestart();
+    setProgress(100);
+  };
+
   return (
     <div className={clsx('controls', className)}>
       <div className="gradient-highlighter" />
       <div className="controls-container">
         <div className="progress-container">
-          <ProgressBar onSeek={onSeek} getDuration={getDuration} />
+          <ProgressBar
+            onSeek={onSeek}
+            getDuration={getDuration}
+            progress={progress}
+            onSetProgress={(value: number) => setProgress(value)}
+          />
         </div>
         <div className="actions-container">
           <div className="left-actions">
-            {isStreamPlaying ? (
-              <Button onClick={onPause} variant={ButtonVariant.icon}>
+            {isPaused ? (
+              <Button onClick={handlePauseClick} variant={ButtonVariant.icon}>
                 <img alt="pause" src={pauseIcon}></img>
               </Button>
             ) : (
-              <Button onClick={onPlay} variant={ButtonVariant.icon}>
+              <Button onClick={handlePlayClick} variant={ButtonVariant.icon}>
                 <img alt="play" src={playIcon}></img>
               </Button>
             )}
             <VolumeControl initControl={setVolumeControl} />
-            <LiveIndicator className="indicator" onClick={onRestart} />
+            <LiveIndicator className="indicator" onClick={restart} />
           </div>
           <div className="right-actions">
             <FullscreenControl mediaElement={mediaElement} />
