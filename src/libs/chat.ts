@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { BatchId, Bee, FeedReader, FeedWriter, Reference, Signer, Utils } from '@solarpunk/bee-js';
-=======
 import { BatchId, Bee, FeedReader, FeedWriter, Reference, Signer, Topic, Utils } from '@solarpunk/bee-js';
->>>>>>> chat-reimplementation-aggregator-dirty
 import {
   getConsensualPrivateKey,
   getGraffitiWallet,
@@ -10,13 +6,9 @@ import {
   serializeGraffitiRecord,
   sleep,
 } from '../utils/graffitiUtils';
-<<<<<<< HEAD
-import { generateRoomId } from '../utils/chat';
-=======
 import { generateRoomId, generateUniqId, generateUserOwnedFeedId, generateUsersFeedId, removeDuplicate, validateUserObject } from '../utils/chat';
 import { Signature, Wallet, ethers } from 'ethers';
 import { HexString } from 'node_modules/@solarpunk/bee-js/dist/types/utils/hex';
->>>>>>> chat-reimplementation-aggregator-dirty
 
 export type RoomID = string;
 
@@ -24,14 +16,11 @@ export type Sha3Message = string | number[] | ArrayBuffer | Uint8Array;
 
 // Initialize the bee instance
 const bee = new Bee('http://localhost:1633');
-<<<<<<< HEAD
-=======
 //const chatWallet = ethers.Wallet.createRandom();
 let chatWriter: FeedWriter | null = null;                                       // global object, not sure to store it here or elsewhere
 
 const ETH_ADDRESS_LENGTH = 42;                                                  // Be careful not to use EthAddress from bee-js,
 export type EthAddress = HexString<typeof ETH_ADDRESS_LENGTH>;                  // because that is a byte array
->>>>>>> chat-reimplementation-aggregator-dirty
 
 export interface MessageData {
   message: string;
@@ -39,52 +28,6 @@ export interface MessageData {
   timestamp: number;
 }
 
-<<<<<<< HEAD
-const ConsensusID = 'SwarmStream';
-
-export async function initChatRoom(topic: string, stamp: BatchId): Promise<void> {
-  try {
-    const roomId = generateRoomId(topic); // For every video stream, we create a new chat room
-    const privateKey = getConsensualPrivateKey(roomId); // This is private key that every chat participant should have access to
-    const wallet = getGraffitiWallet(privateKey);
-
-    const graffitiSigner: Signer = {
-      address: Utils.hexToBytes(wallet.address.slice(2)), // convert hex string to Uint8Array
-      sign: async (data: string | Uint8Array) => {
-        return await wallet.signMessage(data);
-      },
-    };
-
-    const consensusHash = Utils.keccak256Hash(ConsensusID);
-    let isRetrievable = false;
-    try {
-      isRetrievable = await bee.isFeedRetrievable('sequence', graffitiSigner.address, consensusHash);
-    } catch (Error) {
-      console.log('feed does not exist');
-    }
-
-    console.log('chat room exist,no need to reinitialize', isRetrievable);
-    if (isRetrievable) {
-      //return true
-    }
-
-    const manifestResult = await bee.createFeedManifest(stamp, 'sequence', consensusHash, graffitiSigner.address);
-    console.log('createFeedManifest result', manifestResult.reference);
-    await sleep(2000);
-
-    const data: MessageData = {
-      message: `This is chat for topic '${topic}' Welcome!`,
-      name: 'admin',
-      timestamp: Date.now(),
-    };
-    const feedWriter = bee.makeFeedWriter('sequence', consensusHash, graffitiSigner);
-    const beeUploadRef = await bee.uploadData(stamp, serializeGraffitiRecord(data));
-    console.log('bee.uploadData result', beeUploadRef.reference);
-    const feedUploadRef = await feedWriter.upload(stamp, beeUploadRef.reference);
-    console.log('feedWriter.upload result', feedUploadRef);
-  } catch (e) {
-    console.error('There was an error while initalizing the feed: ', e);
-=======
 export interface UserWithMessages {
   user: UserWithIndex,
   messages: MessageData[]
@@ -343,7 +286,6 @@ export async function updateUserList(roomId: RoomID, index: number = 0, users: U
   } catch (error) {
     console.error("There was an error while trying to insert new users to users state: ", error);
     return null;
->>>>>>> chat-reimplementation-aggregator-dirty
   }
 }
 
@@ -363,10 +305,7 @@ export async function feedWriterFromRoomId(roomId: RoomID) {
   return bee.makeFeedWriter('sequence', consensusHash, graffitiSigner);
 }
 
-<<<<<<< HEAD
-=======
 // Graffiti feed reader from RoomID (can't be used for normal, non-Graffiti reader)
->>>>>>> chat-reimplementation-aggregator-dirty
 export async function feedReaderFromRoomId(roomId: RoomID) {
   const privateKey = getConsensualPrivateKey(roomId);
   const wallet = getGraffitiWallet(privateKey);
@@ -383,21 +322,10 @@ export async function feedReaderFromRoomId(roomId: RoomID) {
   return bee.makeFeedReader('sequence', consensusHash, graffitiSigner.address);
 }
 
-<<<<<<< HEAD
-export async function uploadMessageToBee(message: string, name: string, timestamp: number, stamp: BatchId) {
-  try {
-    const data = {
-      message: message,
-      name: name,
-      timestamp,
-    };
-    const result = await bee.uploadData(stamp as any, serializeGraffitiRecord(data));
-=======
 // Uploads any JavaScript object to Swarm, gives back reference if successful, null otherwise
 export async function uploadObjectToBee(jsObject: object, stamp: BatchId) {
   try {
     const result = await bee.uploadData(stamp as any, serializeGraffitiRecord(jsObject));
->>>>>>> chat-reimplementation-aggregator-dirty
 
     return result;
   } catch (error) {
@@ -406,10 +334,6 @@ export async function uploadObjectToBee(jsObject: object, stamp: BatchId) {
 }
 
 export async function sendMessage(message: string, name: string, roomId: RoomID, timestamp: number, stamp: BatchId) {
-<<<<<<< HEAD
-  try {
-    const reference = await uploadMessageToBee(message, name, timestamp, stamp);
-=======
   // TODO
   // REWRITE
 
@@ -421,7 +345,6 @@ export async function sendMessage(message: string, name: string, roomId: RoomID,
     };
 
     const reference = await uploadObjectToBee(messageObject, stamp);
->>>>>>> chat-reimplementation-aggregator-dirty
     if (reference === null) throw 'Reference is null!';
     console.log('uploaded message: ' + message, 'reference: ' + reference.reference);
 
@@ -445,20 +368,6 @@ export async function checkUploadResult(reference: Reference) {
   }
 }
 
-<<<<<<< HEAD
-export async function readSingleMessage(index: number, roomId: RoomID) {
-  try {
-    let opts = undefined;
-    if (index > -1) {
-      opts = { index: numberToFeedIndex(index) };
-    }
-
-    const feedReader: FeedReader = await feedReaderFromRoomId(roomId);
-    const recordPointer = await feedReader.download(opts);
-    const data = await bee.downloadData(recordPointer.reference);
-
-    return JSON.parse(new TextDecoder().decode(data));
-=======
 // Reads a message from AggregatedChat, this should be the same as Graffiti feed version, but input roomId is different
 export async function readSingleMessage(index: number, streamTopic: string, streamerAddress: EthAddress) {
   try {
@@ -475,7 +384,6 @@ export async function readSingleMessage(index: number, streamTopic: string, stre
     const data = await bee.downloadData(recordPointer.reference);       // Fetch data
 
     return JSON.parse(new TextDecoder().decode(data));                  // Return message object
->>>>>>> chat-reimplementation-aggregator-dirty
   } catch (e: any) {
     // Don't spam the console
     if (e.status != 500) console.error('There was an error, while reading single Message: ', e);
@@ -483,12 +391,8 @@ export async function readSingleMessage(index: number, streamTopic: string, stre
   }
 }
 
-<<<<<<< HEAD
-export async function getUpdateIndex(roomId: RoomID) {
-=======
 // Current index for Graffiti feed, used by createUserList
 export async function getGraffitiFeedIndex(roomId: RoomID) {
->>>>>>> chat-reimplementation-aggregator-dirty
   try {
     const feedReader: FeedReader = await feedReaderFromRoomId(roomId);
     const feedUpdate = await feedReader.download();
