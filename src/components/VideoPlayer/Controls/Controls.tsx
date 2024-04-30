@@ -15,7 +15,7 @@ import './Controls.scss';
 
 interface ControlsProps {
   className?: string;
-  isPaused: boolean;
+  isPlaying: boolean;
   mediaElement: HTMLVideoElement | null;
   handlePlayClick: () => void;
   handlePauseClick: () => void;
@@ -27,7 +27,7 @@ interface ControlsProps {
 
 export function Controls({
   className,
-  isPaused,
+  isPlaying,
   handlePlayClick,
   handlePauseClick,
   onRestart,
@@ -57,7 +57,7 @@ export function Controls({
         </div>
         <div className="actions-container">
           <div className="left-actions">
-            {isPaused ? (
+            {isPlaying ? (
               <Button onClick={handlePauseClick} variant={ButtonVariant.icon}>
                 <img alt="pause" src={pauseIcon}></img>
               </Button>

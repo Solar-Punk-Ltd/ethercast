@@ -134,9 +134,9 @@ export function attach(options: AttachOptions) {
   //   console.log('Playing');
   // });
   mediaElement.addEventListener('pause', () => {
-    /*     if (options.onPause) {
+    if (options.onPause) {
       options.onPause();
-    } */
+    }
     pauseAppending();
     console.log('Paused');
   });

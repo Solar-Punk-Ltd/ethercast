@@ -7,6 +7,7 @@ import { remove0xPrefix } from '../../utils/common';
 
 import { Controls } from './Controls/Controls';
 import { LoadingOverlay } from './LoadingOverlay/LoadingOverlay';
+import { StartOverlay } from './StartOverlay/StartOverlay';
 
 import './VideoPlayer.scss';
 
@@ -17,6 +18,7 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({ topic, owner }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [showStartOverlay, setShowStartOverlay] = useState(true);
   const [loading, setLoading] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -31,15 +33,18 @@ export function VideoPlayer({ topic, owner }: VideoPlayerProps) {
         setIsPlaying(false);
         setLoading(false);
       };
-
       attach({ media: videoRef.current, address: remove0xPrefix(owner), topic, onPlay, onPause, onEnd: onPause });
-      // play();
     }
 
     return () => {
       detach();
     };
   }, [owner, topic]);
+
+  const handlePlayClick = async () => {
+    setShowStartOverlay(false);
+    play();
+  };
 
   const handlePauseClick = () => {
     if (videoRef.current) {
@@ -48,15 +53,20 @@ export function VideoPlayer({ topic, owner }: VideoPlayerProps) {
   };
 
   const onMouseEnterVideo = () => {
-    setShowControls(true);
+    if (!showStartOverlay) {
+      setShowControls(true);
+    }
   };
 
   const onMouseLeaveVideo = () => {
-    setShowControls(false);
+    if (!showStartOverlay) {
+      setShowControls(false);
+    }
   };
 
   return (
     <div className="video-player" onMouseEnter={onMouseEnterVideo} onMouseLeave={onMouseLeaveVideo}>
+      {showStartOverlay && <StartOverlay handleStartClick={WithAsyncErrorBoundary(handlePlayClick)} />}
       {loading && <LoadingOverlay />}
       <video ref={videoRef} controlsList="nodownload"></video>
       <Controls
@@ -67,7 +77,7 @@ export function VideoPlayer({ topic, owner }: VideoPlayerProps) {
         getDuration={WithAsyncErrorBoundary(getApproxDuration)}
         setVolumeControl={WithErrorBoundary(setVolumeControl)}
         mediaElement={videoRef.current}
-        isPaused={isPlaying}
+        isPlaying={isPlaying}
         className={clsx(showControls && !loading ? 'controls-visible' : 'controls-hidden')}
       />
     </div>

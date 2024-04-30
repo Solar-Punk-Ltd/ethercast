@@ -1,0 +1,22 @@
+.start-overlay {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100000;
+
+  button {
+    display: flex;
+    justify-content: center;
+  }
+  img {
+    width: 80px;
+    height: 80px;
+  }
+}
