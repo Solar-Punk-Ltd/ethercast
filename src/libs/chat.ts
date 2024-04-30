@@ -18,6 +18,7 @@ export type Sha3Message = string | number[] | ArrayBuffer | Uint8Array;
 const bee = new Bee('http://localhost:1633');
 //const chatWallet = ethers.Wallet.createRandom();
 let chatWriter: FeedWriter | null = null;                                       // global object, not sure to store it here or elsewhere
+                                                                                // currently not used
 
 const ETH_ADDRESS_LENGTH = 42;                                                  // Be careful not to use EthAddress from bee-js,
 export type EthAddress = HexString<typeof ETH_ADDRESS_LENGTH>;                  // because that is a byte array
@@ -251,7 +252,7 @@ export async function writeAggregatedFeed(state: UserWithMessages[], chatWriter:
 
 // This is like createUserList, but will only do update
 // This is called on the side of the Streamer (aggregator)
-export async function updateUserList(roomId: RoomID, index: number = 0, users: User[] = []) {
+export async function updateUserList(roomId: RoomID, index: number = 0, users: UserWithIndex[] = []) {
   try {
     const lastIndex = await getGraffitiFeedIndex(roomId);
     const feedReader = await feedReaderFromRoomId(roomId);
@@ -272,7 +273,7 @@ export async function updateUserList(roomId: RoomID, index: number = 0, users: U
           if (userExists) {
             throw "Duplicate User entry";
           } else {
-            users.push(json);              // We add the User object to the list, if it's not duplicate
+            users.push({ address: json.address, index: 0 });              // We add the User object to the list, if it's not duplicate
           }
         }
       } catch (error) {
