@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 
 import { WithAsyncErrorBoundary, WithErrorBoundary } from '../../hooks/WithErrorBoundary';
-import { attach, detach, getApproxDuration, pause, play, restart, seek, setVolumeControl } from '../../libs/player';
+import { attach, detach, getApproxDuration, play, restart, seek, setVolumeControl } from '../../libs/player';
 import { remove0xPrefix } from '../../utils/common';
 
 import { Controls } from './Controls/Controls';

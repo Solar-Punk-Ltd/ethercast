@@ -1,7 +1,7 @@
 import { Bee, Data, FeedReader } from '@ethersphere/bee-js';
 
 import { sleep } from '../utils/common';
-import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX } from '../utils/constants';
+import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX, TIMESTAMP_SCALE } from '../utils/constants';
 import { decrementHexString, incrementHexString } from '../utils/operations';
 import { findHexInUint8Array, parseVint } from '../utils/webm';
 
@@ -48,28 +48,31 @@ let seekIndex = '';
 
 const bee = new Bee('http://localhost:1633'); // Test address
 
-let TIMESLICE = 500;
-let MIN_LIVE_TRHESHOLD = 1;
-let INIT_BUFFER_TIME = 0;
-let BUFFER = 5;
-let DYNAMIC_BUFFER_INCREMENT = 0;
+const settings: PlayerOptions = {
+  timeslice: 1000,
+  minLiveThreshold: 1,
+  initBufferTime: 0,
+  buffer: 5,
+  dynamicBufferIncrement: 0,
+};
 
 export async function getApproxDuration(): Promise<VideoDuration> {
   const metaFeedUpdateRes = await reader.download();
   const decimalIndex = parseInt(metaFeedUpdateRes.feedIndex as string, 16);
-  return { duration: decimalIndex * TIMESLICE, index: decimalIndex };
+  return { duration: decimalIndex * settings.timeslice, index: decimalIndex };
 }
 
 export function getMediaElement() {
   return mediaElement;
 }
 
-export function setPlayerOptions(options: PlayerOptions) {
-  TIMESLICE = options.timeslice;
-  MIN_LIVE_TRHESHOLD = options.minLiveThreshold;
-  INIT_BUFFER_TIME = options.initBufferTime;
-  BUFFER = options.buffer;
-  DYNAMIC_BUFFER_INCREMENT = options.dynamicBufferIncrement;
+export function setPlayerOptions(s: Partial<Record<keyof PlayerOptions, number>>) {
+  Object.keys(s).map((k) => {
+    const typedK = k as keyof PlayerOptions;
+    if (s[typedK] !== undefined && s[typedK] !== null) {
+      settings[typedK] = s[typedK]!;
+    }
+  });
 }
 
 export function setFeedReader(rawTopic: string, owner: string) {
@@ -165,9 +168,9 @@ async function startAppending() {
 
   const append = appendBuffer(appendToSourceBuffer);
   queue = new AsyncQueue({ indexed: false, waitable: true });
-  streamTimer = setInterval(() => queue.enqueue(append), TIMESLICE);
+  streamTimer = setInterval(() => queue.enqueue(append), settings.timeslice);
 
-  await sleep(INIT_BUFFER_TIME);
+  await sleep(settings.initBufferTime);
   mediaElement.play();
 }
 
@@ -175,7 +178,7 @@ async function continueAppending() {
   const { appendToSourceBuffer } = initSourceBuffer();
 
   const append = appendBuffer(appendToSourceBuffer);
-  streamTimer = setInterval(() => queue.enqueue(append), TIMESLICE);
+  streamTimer = setInterval(() => queue.enqueue(append), settings.timeslice);
 
   mediaElement.play();
 }
@@ -255,6 +258,8 @@ function setMediaCurrentTime(clusterSegment: Uint8Array) {
 async function createInitSegment(clusterStartIndex: number, segment: Data) {
   const metaFeedUpdateRes = await reader.download({ index: FIRST_SEGMENT_INDEX });
   const meta = await bee.downloadData(metaFeedUpdateRes.reference);
+  setPlayerOptions({ timeslice: getTimestampScaleInSeconds(meta) });
+
   const initSegment = addMetaToClusterStartSegment(clusterStartIndex, meta, segment);
   return initSegment;
 }
@@ -279,7 +284,7 @@ async function findFirstCluster() {
     if (seekIndex) {
       seekIndex = decrementHexString(seekIndex);
     }
-    await sleep(TIMESLICE);
+    await sleep(settings.timeslice);
   }
 }
 
@@ -293,7 +298,13 @@ function addMetaToClusterStartSegment(clusterStartIndex: number, meta: Data, seg
 
 function getClusterTimestampInSeconds(segment: Uint8Array) {
   const index = findHexInUint8Array(segment, CLUSTER_TIMESTAMP);
-  const vint = parseVint(segment, index + 1);
+  const vint = parseVint(segment, index + CLUSTER_TIMESTAMP.length / 2);
+  return vint.value / 1000;
+}
+
+function getTimestampScaleInSeconds(segment: Uint8Array) {
+  const index = findHexInUint8Array(segment, TIMESTAMP_SCALE);
+  const vint = parseVint(segment, index + TIMESTAMP_SCALE.length / 2);
   return vint.value / 1000;
 }
 
@@ -306,19 +317,18 @@ function handleBuffering() {
   const bufferEnd = bufferTimeRanges.end(bufferTimeRanges.length - 1);
   const diff = bufferEnd - mediaElement.currentTime;
 
-  if (BUFFER > 0) {
+  if (settings.buffer > 0) {
     return;
   }
 
-  if (diff <= MIN_LIVE_TRHESHOLD) {
+  if (diff <= settings.minLiveThreshold) {
     mediaElement.pause();
     console.log('Buffering...');
-    BUFFER = 5 + DYNAMIC_BUFFER_INCREMENT;
-    DYNAMIC_BUFFER_INCREMENT = BUFFER / 2;
-  } else if (mediaElement.paused && diff >= MIN_LIVE_TRHESHOLD) {
+    setPlayerOptions({ buffer: 5 + settings.dynamicBufferIncrement, dynamicBufferIncrement: settings.buffer / 2 });
+  } else if (mediaElement.paused && diff >= settings.minLiveThreshold) {
     mediaElement.play();
     console.log('Buffering complete');
   }
 
-  BUFFER -= 1;
+  setPlayerOptions({ buffer: settings.buffer - 1 });
 }
