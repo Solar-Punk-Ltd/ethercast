@@ -39,6 +39,7 @@ export function Stream() {
   const [timeslice, setTimeslice] = useState<number>(2000); // [ms]
   const [chatWriter, setChatWriter] = useState<FeedWriter | null>(null);
   const [chatState, dispatch] = useReducer(chatAggregatorReducer, initialStateForChatAggregator);
+  const [time, setTime] = useState(Date.now());
   const [feedDataForm, setFeedDataForm] = useState<Record<string, CommonForm>>({
     key: {
       label: 'Please provide your key for the feed',
@@ -53,7 +54,7 @@ export function Stream() {
     stamp: {
       label: 'Please provide a valid stamp',
       placeholder: 'Stamp',
-      value: '7d9c6e77d52b01380b9b60eab0a0739ec8876dc99b55bff657d44e7d207c1064',
+      value: '0d19fd147df22f5811f54edfeb6692560ebf6382905b4e0a188a9d737572cf4b',
     },
   });
   const [streamDataForm, setStreamDataForm] = useState<Record<string, CommonForm>>({
@@ -81,24 +82,23 @@ export function Stream() {
   // Periodical updates
   useEffect(() => {
     if (!chatWriter) return;
-return
     const fetchMessagesInterval = setInterval(() => {
-      doAggregationCycle(chatState, feedDataForm.topic.value, chatWriter, feedDataForm.stamp.value as BatchId, dispatch);
+      setTime(Date.now())
     }, FETCH_MESSAGES_INTERVAL);
-
-    const updateUserListInterval = setInterval(() => {
-      doUpdateUserList(feedDataForm.topic.value, chatState, dispatch);
-    }, UPDATE_USER_LIST_INTERVAL);
-
+    
     return () => {
       clearInterval(fetchMessagesInterval);
-      clearInterval(updateUserListInterval);
     };
   }, [chatWriter]);
+  
+  useEffect(() => {
+    if (!chatWriter) return;
+    doAggregationCycle(chatState, feedDataForm.topic.value, chatWriter, feedDataForm.stamp.value as BatchId, dispatch);
+    doUpdateUserList(feedDataForm.topic.value, chatState, dispatch);  
+  }, [time]);
 
   const start = async () => {
     if (!library) return;
-
     startStream(
       { address: account!, key: feedDataForm.key.value },
       feedDataForm.topic.value,
@@ -108,9 +108,9 @@ return
         video,
         timeslice,
         videoDetails: video
-          ? {
-              width: streamDataForm.width.value,
-              height: streamDataForm.height.value,
+        ? {
+          width: streamDataForm.width.value,
+          height: streamDataForm.height.value,
               frameRate: streamDataForm.frameRate.value,
             }
           : undefined,

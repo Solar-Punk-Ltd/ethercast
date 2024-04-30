@@ -1,8 +1,8 @@
 import { BatchId, FeedWriter } from "@solarpunk/bee-js";
 import { EthAddress, MessageData, RoomID, UserWithIndex, UserWithMessages, fetchAllMessages, updateUserList, writeAggregatedFeed } from "./chat";
 
-export const FETCH_MESSAGES_INTERVAL = 10 * 1000;
-export const UPDATE_USER_LIST_INTERVAL = 60 * 1000;
+export const FETCH_MESSAGES_INTERVAL = 5 * 1000;
+export const UPDATE_USER_LIST_INTERVAL = 10 * 1000;
 
 enum ChatAggregatorAction {
   ADD_MESSAGES = 'ADD_MESSAGES',
@@ -117,12 +117,13 @@ export async function doAggregationCycle(state: State, streamTopic: string, writ
 // Periodically called from Stream.tsx
 export async function doMessageFetch(state: State, streamTopic: string, dispatch: React.Dispatch<AggregatorAction>) {
   try {
-    const userList = state.userChatUpdates.map((user) => {
+    const userList = state.userChatUpdates.map((current) => {
       return {
-        address: user.user.address,
-        index: user.user.index,
+        address: current.user.address,
+        index: current.user.index,
       };
     });
+    console.log("userList in do: ", userList)
 
     const result = await fetchAllMessages(userList, streamTopic);
     if (!result) throw "fetchAllMessages gave back null";
@@ -163,9 +164,12 @@ export async function doUpdateUserList(topic: RoomID, state: State, dispatch: Re
     let result = await updateUserList(topic, state.userFeedIndex, users);
     if (!result) throw "updateUserList gave back null";
 
+    console.log("state: ", state)
+    console.log("result: ", result)
     const usersToAdd = result.users.filter((user) => {
-      return !state.userChatUpdates.some((chat) => chat.user.address === user.address);
+      return !state.userChatUpdates.some((chat) => chat.user.address == user.address);
     });
+    console.log("usersToAdd: ", usersToAdd)
 
     usersToAdd.map((user) => {
       const newUser: UserWithMessages = {
