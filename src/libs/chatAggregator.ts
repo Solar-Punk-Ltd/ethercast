@@ -68,15 +68,16 @@ export const initialStateForChatAggregator: State = {
 export const chatAggregatorReducer = (state: State = initialStateForChatAggregator, action: AggregatorAction): State => {
   switch (action.type) {
     case ChatAggregatorAction.ADD_MESSAGES:
+      console.log("Adding messages", action.payload);
       return {
         ...state,
-        userChatUpdates: state.userChatUpdates.map((userAndMessages, index) =>
-          userAndMessages.user.address === action.payload[index].userAddress
+        userChatUpdates: state.userChatUpdates.map((original, index) =>
+          action.payload[index] && original.user.address === action.payload[index].userAddress
             ? {
-                ...userAndMessages,
-                messages: [...userAndMessages.messages, ...action.payload[index].messages],
+                ...original,
+                messages: [...original.messages, ...action.payload[index].messages],
               }
-            : userAndMessages
+            : original
         ),
       };
     case ChatAggregatorAction.CLEAR_MESSAGES:
@@ -159,10 +160,14 @@ export async function doUpdateUserList(topic: RoomID, state: State, dispatch: Re
         index: user.messages.length,
       };
     });
-    const result = await updateUserList(topic, state.userFeedIndex, users);
+    let result = await updateUserList(topic, state.userFeedIndex, users);
     if (!result) throw "updateUserList gave back null";
 
-    result.users.map((user) => {
+    const usersToAdd = result.users.filter((user) => {
+      return !state.userChatUpdates.some((chat) => chat.user.address === user.address);
+    });
+
+    usersToAdd.map((user) => {
       const newUser: UserWithMessages = {
         user: {
           address: user.address,
