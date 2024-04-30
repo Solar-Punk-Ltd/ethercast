@@ -10,8 +10,6 @@ enum ChatAggregatorAction {
   UPDATE_AGGREGATED_INDEX = 'UPDATE_AGGREGATED_INDEX',
   UPDATE_USER_FEED_INDEX = 'UPDATE_USER_FEED_INDEX',
   ADD_USER = 'ADD_USER',
-  WRITE_AGGREGATED_FEED_SUCCESS = 'WRITE_AGGREGATED_FEED_SUCCESS',
-  WRITE_AGGREGATED_FEED_FAILURE = 'WRITE_AGGREGATED_FEED_FAILURE',
 }
 
 interface AddMessagesAction {
@@ -46,33 +44,14 @@ interface AddUserAction {
     user: UserWithMessages;
   };
 }
-  
-// interface WriteAggregatedFeedSuccessAction {
-//   // most likely not needed
-//   type: ChatAggregatorAction.WRITE_AGGREGATED_FEED_SUCCESS;
-//   payload: {
-//     chatIndex: number;
-//   };
-// }
-  
-// interface WriteAggregatedFeedFailureAction {
-//   // most likely not needed
-//   type: ChatAggregatorAction.WRITE_AGGREGATED_FEED_FAILURE;
-//   payload: {
-//     error: string;
-//   };
-// }
 
 type AggregatorAction =
   | AddMessagesAction
   | ClearMessagesAction
   | UpdateAggregatedIndexAction
   | UpdateUserFeedIndexAction
-  | AddUserAction
-  // | WriteAggregatedFeedSuccessAction
-  // | WriteAggregatedFeedFailureAction;
+  | AddUserAction;
 
-// Initial State
 interface State {
   userChatUpdates: UserWithMessages[];
   chatIndex: number;
@@ -91,13 +70,13 @@ export const chatAggregatorReducer = (state: State = initialStateForChatAggregat
     case ChatAggregatorAction.ADD_MESSAGES:
       return {
         ...state,
-        userChatUpdates: state.userChatUpdates.map((chat, index) =>
-          chat.user.address === action.payload[index].userAddress
+        userChatUpdates: state.userChatUpdates.map((userAndMessages, index) =>
+          userAndMessages.user.address === action.payload[index].userAddress
             ? {
-                ...chat,
-                messages: [...chat.messages, ...action.payload[index].messages],
+                ...userAndMessages,
+                messages: [...userAndMessages.messages, ...action.payload[index].messages],
               }
-            : chat
+            : userAndMessages
         ),
       };
     case ChatAggregatorAction.CLEAR_MESSAGES:
@@ -123,18 +102,16 @@ export const chatAggregatorReducer = (state: State = initialStateForChatAggregat
         ...state,
         userChatUpdates: [...state.userChatUpdates, action.payload.user],
       };
-    // case ChatAggregatorAction.WRITE_AGGREGATED_FEED_SUCCESS:
-    //   return {
-    //     ...state,
-    //     userChatUpdates: [],
-    //     // ...
-    //   };
-    // case ChatAggregatorAction.WRITE_AGGREGATED_FEED_FAILURE:
-    //   return state;
     default:
       return state;
   }
 };
+
+// Combines doMessageFetch and doMessageWriteOut
+export async function doAggregationCycle(state: State, streamTopic: string, writer: FeedWriter, stamp: BatchId, dispatch: React.Dispatch<AggregatorAction>) {
+  await doMessageFetch(state, streamTopic, dispatch);
+  await doMessageWriteOut(state, writer, stamp, dispatch);
+}
 
 // Periodically called from Stream.tsx
 export async function doMessageFetch(state: State, streamTopic: string, dispatch: React.Dispatch<AggregatorAction>) {
@@ -167,13 +144,14 @@ export async function doMessageWriteOut(state: State, writer: FeedWriter, stamp:
 
     dispatch({ type: ChatAggregatorAction.CLEAR_MESSAGES });
     dispatch({ type: ChatAggregatorAction.UPDATE_AGGREGATED_INDEX, payload: { chatIndex: result } });
+
   } catch (error) {
     console.error("Error writing aggregated feed:", error);
   }
 }
 
 // Periodically called from Stream.tsx
-export async function doUpdateUserList(roomId: RoomID, state: State, dispatch: React.Dispatch<AggregatorAction>) {
+export async function doUpdateUserList(topic: RoomID, state: State, dispatch: React.Dispatch<AggregatorAction>) {
   try {
     const users: UserWithIndex[] = state.userChatUpdates.map((user) => {
       return {
@@ -181,7 +159,7 @@ export async function doUpdateUserList(roomId: RoomID, state: State, dispatch: R
         index: user.messages.length,
       };
     });
-    const result = await updateUserList(roomId, state.userFeedIndex, users);
+    const result = await updateUserList(topic, state.userFeedIndex, users);
     if (!result) throw "updateUserList gave back null";
 
     result.users.map((user) => {
@@ -196,6 +174,7 @@ export async function doUpdateUserList(roomId: RoomID, state: State, dispatch: R
     });
 
     dispatch({ type: ChatAggregatorAction.UPDATE_USER_FEED_INDEX, payload: { userFeedIndex: result.lastReadIndex } });
+    
   } catch (error) {
     console.error("Error updating user list:", error);
   }

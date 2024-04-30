@@ -1,6 +1,6 @@
-import { useState, useContext, useEffect } from 'react';
+import { useState } from 'react';
 import './Controls.scss';
-import { RoomID, checkUploadResult, readSingleMessage, sendMessage } from '../../../libs/chat';
+import { EthAddress, MessageData, RoomID, checkUploadResult, writeToOwnFeed } from '../../../libs/chat';
 import { BatchId, Reference } from '@solarpunk/bee-js';
 import SendIcon from '@mui/icons-material/Send';
 import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
@@ -8,15 +8,19 @@ import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt
 import { ChatInput } from './ChatInput/ChatInput';
 import { generateRoomId } from '../../../utils/chat';
 import { sleep } from '../../../utils/common';
+import { ChatAction, ChatActions, State } from '../../../libs/chatUserSide';
 // import { LayoutContext } from '../Chat';
 
 interface ControlsProps {
   topic: string;
+  streamerAddress: EthAddress;
   nickname: string;
   stamp: BatchId;
+  state: State;
+  dispatch: React.Dispatch<ChatAction>;
 }
 
-export function Controls({ topic, nickname, stamp }: ControlsProps) {
+export function Controls({ topic, streamerAddress, nickname, stamp, state, dispatch }: ControlsProps) {
   const [showIcons, setShowIcons] = useState(false);
   // const [height, setHeight] = useState('37px');
   const [sendActive, setSendActive] = useState(true);
@@ -30,25 +34,19 @@ export function Controls({ topic, nickname, stamp }: ControlsProps) {
 
   async function handleSubmit() {
     if (newMessage === '') return;
-    //setSendActive(false);
+    setSendActive(false);
     const messageTimestamp = Date.now(); // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
-    let result: Reference | number = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
-    let success = false;
-    let counter = 0;
+    
+    const messageObj: MessageData = {
+      message: newMessage,
+      timestamp: messageTimestamp,
+      name: nickname,
+    };
+    
+    const result = writeToOwnFeed(topic, streamerAddress, state.ownFeedIndex, messageObj, stamp);
+    if (!result) throw 'Could not send message!';
+    dispatch({ type: ChatActions.UPDATE_OWN_FEED_INDEX, payload: { ownFeedIndex: state.ownFeedIndex + 1 } });
 
-    while (!success) {
-      if (counter > 32) {
-        counter = 0;
-        result = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
-      }
-
-      if (result != -1) {
-        success = await checkUploadResult(result as Reference);
-      }
-
-      counter++;
-      await sleep(2000);
-    }
 
     setNewMessage('');
     setSendActive(true);

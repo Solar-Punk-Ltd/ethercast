@@ -85,6 +85,7 @@ async function createUsersFeed(topic: string, stamp: BatchId) {
         return await wallet.signMessage(data)
       }
     };
+    console.log("Graffiti address: (INIT)", graffitiSigner.address )
 
     const consensusHash = Utils.keccak256Hash(ConsensusID);               // Not sure if this should be secret or not
     let exist = await bee.isFeedRetrievable('sequence', graffitiSigner.address, consensusHash);
@@ -144,6 +145,14 @@ export async function registerUser(topic: string, streamerAddress: EthAddress, u
     const feedWriter: FeedWriter = await feedWriterFromRoomId(roomId);
     const feedReference = await feedWriter.upload(stamp, userRef.reference);
     
+    // possibly do error handling here later
+    // const x = feedReaderFromRoomId(roomId);
+    // const readBack = await x.download();
+    // console.log("Read back: ", readBack);
+    // const data = await bee.downloadData(readBack.reference);
+    // console.log("Data: ", data);
+
+
     return feedReference;
 
  
@@ -156,7 +165,7 @@ export async function registerUser(topic: string, streamerAddress: EthAddress, u
 // Write a new message to the feed of the user. Every user has a feed.
 // Index is stored in React state (we are not fetching the feed index from Swarm)
 // This is called client side
-export async function writeToOwnFeed(topic: Topic, streamerAddress: EthAddress, index: number, messageObj: MessageData, stamp: BatchId) {
+export async function writeToOwnFeed(topic: string, streamerAddress: EthAddress, index: number, messageObj: MessageData, stamp: BatchId) {
   try {
     const address: EthAddress | null = localStorage.getItem(generateUniqId(topic, streamerAddress)) as EthAddress;
     if (!address) throw "Could not get address from local storage!"                       // This suggests that the user haven't registered yet for this chat
@@ -252,14 +261,16 @@ export async function writeAggregatedFeed(state: UserWithMessages[], chatWriter:
 
 // This is like createUserList, but will only do update
 // This is called on the side of the Streamer (aggregator)
-export async function updateUserList(roomId: RoomID, index: number = 0, users: UserWithIndex[] = []) {
+export async function updateUserList(topic: RoomID, index: number = 0, users: UserWithIndex[] = []) {
   try {
+    const roomId: RoomID = generateUsersFeedId(topic);
     const lastIndex = await getGraffitiFeedIndex(roomId);
-    const feedReader = await feedReaderFromRoomId(roomId);
+    console.log("Last index: ", lastIndex);
+    const feedReader = feedReaderFromRoomId(roomId);
 
-    if (index < 0 || index >= lastIndex) throw `Invalid index: ${index}`;
+    if (index < 0 || index > lastIndex) throw `Invalid index: ${index}`;
 
-    for (let i = index; i < lastIndex; i++) {
+    for (let i = index; i <= lastIndex; i++) {
       try {
         const feedEntry = await feedReader.download({ index: i });
         const data = await bee.downloadData(feedEntry.reference);
@@ -281,6 +292,7 @@ export async function updateUserList(roomId: RoomID, index: number = 0, users: U
         continue;
       }
     }
+    console.log("Users: ", users);
 
     return { users, lastReadIndex: lastIndex };
 
@@ -290,7 +302,7 @@ export async function updateUserList(roomId: RoomID, index: number = 0, users: U
   }
 }
 
-export async function feedWriterFromRoomId(roomId: RoomID) {
+export function feedWriterFromRoomId(roomId: RoomID) {
   const privateKey = getConsensualPrivateKey(roomId);
   const wallet = getGraffitiWallet(privateKey);
 
@@ -307,7 +319,7 @@ export async function feedWriterFromRoomId(roomId: RoomID) {
 }
 
 // Graffiti feed reader from RoomID (can't be used for normal, non-Graffiti reader)
-export async function feedReaderFromRoomId(roomId: RoomID) {
+export function feedReaderFromRoomId(roomId: RoomID) {
   const privateKey = getConsensualPrivateKey(roomId);
   const wallet = getGraffitiWallet(privateKey);
 
@@ -334,29 +346,29 @@ export async function uploadObjectToBee(jsObject: object, stamp: BatchId) {
   }
 }
 
-export async function sendMessage(message: string, name: string, roomId: RoomID, timestamp: number, stamp: BatchId) {
-  // TODO
-  // REWRITE
+// export async function sendMessage(message: string, name: string, roomId: RoomID, timestamp: number, stamp: BatchId) {
+//   // TODO
+//   // REWRITE
 
-  try {
-    const messageObject: MessageData = {
-      message: message,
-      name: name,
-      timestamp,
-    };
+//   try {
+//     const messageObject: MessageData = {
+//       message: message,
+//       name: name,
+//       timestamp,
+//     };
 
-    const reference = await uploadObjectToBee(messageObject, stamp);
-    if (reference === null) throw 'Reference is null!';
-    console.log('uploaded message: ' + message, 'reference: ' + reference.reference);
+//     const reference = await uploadObjectToBee(messageObject, stamp);
+//     if (reference === null) throw 'Reference is null!';
+//     console.log('uploaded message: ' + message, 'reference: ' + reference.reference);
 
-    const feedWriter: FeedWriter = await feedWriterFromRoomId(roomId);
-    const feedReference = await feedWriter.upload(stamp, reference.reference);
-    return feedReference;
-  } catch (error) {
-    console.error('There was an error while trying to send message: ', error);
-    return -1;
-  }
-}
+//     const feedWriter: FeedWriter = await feedWriterFromRoomId(roomId);
+//     const feedReference = await feedWriter.upload(stamp, reference.reference);
+//     return feedReference;
+//   } catch (error) {
+//     console.error('There was an error while trying to send message: ', error);
+//     return -1;
+//   }
+// }
 
 export async function checkUploadResult(reference: Reference) {
   try {
@@ -378,7 +390,7 @@ export async function readSingleMessage(index: number, streamTopic: string, stre
     }
 
     const aggregatedChatID = generateRoomId(streamTopic);               // Human readable topic name, for the aggregated chat
-    const topic = bee.makeFeedTopic(aggregatedChatID)
+    const topic = bee.makeFeedTopic(aggregatedChatID);
 
     const feedReader: FeedReader = bee.makeFeedReader('sequence', topic, streamerAddress);
     const recordPointer = await feedReader.download(opts);              // Fetch reference to data

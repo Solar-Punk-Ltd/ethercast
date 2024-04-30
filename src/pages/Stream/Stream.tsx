@@ -19,7 +19,8 @@ import {
   chatAggregatorReducer, 
   doMessageFetch, 
   initialStateForChatAggregator, 
-  doUpdateUserList 
+  doUpdateUserList, 
+  doAggregationCycle
 } from '../../libs/chatAggregator';
 
 interface CommonForm {
@@ -52,7 +53,7 @@ export function Stream() {
     stamp: {
       label: 'Please provide a valid stamp',
       placeholder: 'Stamp',
-      value: '',
+      value: '7d9c6e77d52b01380b9b60eab0a0739ec8876dc99b55bff657d44e7d207c1064',
     },
   });
   const [streamDataForm, setStreamDataForm] = useState<Record<string, CommonForm>>({
@@ -77,22 +78,24 @@ export function Stream() {
     setIsLive(isStreamOngoing());
   }, []);
 
+  // Periodical updates
   useEffect(() => {
+    if (!chatWriter) return;
+
     const fetchMessagesInterval = setInterval(() => {
       doMessageFetch(chatState, feedDataForm.topic.value, dispatch);
+      doAggregationCycle(chatState, feedDataForm.topic.value, chatWriter, feedDataForm.stamp.value as BatchId, dispatch);
     }, FETCH_MESSAGES_INTERVAL);
 
-    // Start updating the user list periodically
     const updateUserListInterval = setInterval(() => {
       doUpdateUserList(feedDataForm.topic.value, chatState, dispatch);
     }, UPDATE_USER_LIST_INTERVAL);
 
-    // Cleanup function to clear intervals when component unmounts
     return () => {
       clearInterval(fetchMessagesInterval);
       clearInterval(updateUserListInterval);
     };
-  }, [feedDataForm.topic.value]);
+  }, [chatWriter]);
 
   const start = async () => {
     if (!library) return;
@@ -172,7 +175,7 @@ export function Stream() {
               </Tooltip>
             </div>
             <p>Topic: {feedDataForm.topic.value}</p>
-            <button onClick={() => updateUserList(feedDataForm.topic.value)}>DOWNLOAD USER LIST</button>
+            <button onClick={() => doUpdateUserList(feedDataForm.topic.value, chatState, dispatch)}>DOWNLOAD USER LIST</button>
             <Button onClick={() => stop()}>Stop stream</Button>
           </>
         ) : (
