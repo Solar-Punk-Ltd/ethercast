@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useState } from 'react';
-import { BatchId } from '@solarpunk/bee-js';
+import { Fragment, useEffect, useReducer, useState } from 'react';
+import { BatchId, FeedWriter } from '@solarpunk/bee-js';
 import { useEthers } from '@usedapp/core';
 import { produce } from 'immer';
 
@@ -11,8 +11,16 @@ import { TextInput } from '../../components/TextInput/TextInput';
 import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
 
 import './Stream.scss';
-import { initChatRoom } from '../../libs/chat';
+import { initChatRoom, updateUserList } from '../../libs/chat';
 import Tooltip from '@mui/material/Tooltip';
+import { 
+  FETCH_MESSAGES_INTERVAL, 
+  UPDATE_USER_LIST_INTERVAL, 
+  chatAggregatorReducer, 
+  doMessageFetch, 
+  initialStateForChatAggregator, 
+  doUpdateUserList 
+} from '../../libs/chatAggregator';
 
 interface CommonForm {
   label: string;
@@ -27,7 +35,9 @@ export function Stream() {
   const [audio, setAudio] = useState<boolean>(true);
   const [video, setVideo] = useState<boolean>(true);
   const [tooltipText, setTooltipText] = useState<string>('Click to copy');
-  const [timeslice, setTimeslice] = useState<number>(2000); // [ms
+  const [timeslice, setTimeslice] = useState<number>(2000); // [ms]
+  const [chatWriter, setChatWriter] = useState<FeedWriter | null>(null);
+  const [chatState, dispatch] = useReducer(chatAggregatorReducer, initialStateForChatAggregator);
   const [feedDataForm, setFeedDataForm] = useState<Record<string, CommonForm>>({
     key: {
       label: 'Please provide your key for the feed',
@@ -67,6 +77,23 @@ export function Stream() {
     setIsLive(isStreamOngoing());
   }, []);
 
+  useEffect(() => {
+    const fetchMessagesInterval = setInterval(() => {
+      doMessageFetch(chatState, feedDataForm.topic.value, dispatch);
+    }, FETCH_MESSAGES_INTERVAL);
+
+    // Start updating the user list periodically
+    const updateUserListInterval = setInterval(() => {
+      doUpdateUserList(feedDataForm.topic.value, chatState, dispatch);
+    }, UPDATE_USER_LIST_INTERVAL);
+
+    // Cleanup function to clear intervals when component unmounts
+    return () => {
+      clearInterval(fetchMessagesInterval);
+      clearInterval(updateUserListInterval);
+    };
+  }, [feedDataForm.topic.value]);
+
   const start = async () => {
     if (!library) return;
 
@@ -88,7 +115,10 @@ export function Stream() {
       },
     );
 
-    initChatRoom(feedDataForm.topic.value, feedDataForm.stamp.value as BatchId);
+    const result = await initChatRoom(feedDataForm.topic.value, feedDataForm.stamp.value as BatchId);
+    if (!result) throw 'initChatRoom gave back null';
+    setChatWriter(result.chatWriter);
+    
 
     setIsLive(true);
   };
