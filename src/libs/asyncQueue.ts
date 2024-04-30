@@ -6,11 +6,13 @@ export class AsyncQueue {
   private indexed = false;
   private isProcessing = false;
   private index = FIRST_SEGMENT_INDEX;
+  private waitable = true;
 
-  constructor({ indexed }: { indexed: boolean }) {
+  constructor({ indexed, waitable }: { indexed: boolean; waitable: boolean }) {
     this.queue = [];
     this.isProcessing = false;
     this.indexed = indexed;
+    this.waitable = waitable;
   }
 
   private async processQueue() {
@@ -21,10 +23,10 @@ export class AsyncQueue {
       const promise = this.queue.shift()!;
       try {
         if (this.indexed) {
-          await promise(this.index);
+          this.waitable ? await promise(this.index) : promise(this.index);
           this.index = incrementHexString(this.index);
         } else {
-          await promise();
+          this.waitable ? await promise() : promise();
         }
       } catch (error) {
         console.error('Error processing promise:', error);

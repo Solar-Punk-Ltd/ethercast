@@ -1,4 +1,4 @@
-import { Bee, Data, FeedReader } from '@solarpunk/bee-js';
+import { Bee, Data, FeedReader } from '@ethersphere/bee-js';
 
 import { sleep } from '../utils/common';
 import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX } from '../utils/constants';
@@ -164,7 +164,7 @@ async function startAppending() {
   }
 
   const append = appendBuffer(appendToSourceBuffer);
-  queue = new AsyncQueue({ indexed: false });
+  queue = new AsyncQueue({ indexed: false, waitable: true });
   streamTimer = setInterval(() => queue.enqueue(append), TIMESLICE);
 
   await sleep(INIT_BUFFER_TIME);

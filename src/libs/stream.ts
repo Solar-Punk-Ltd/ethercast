@@ -1,4 +1,4 @@
-import { BatchId, Bee, FeedWriter } from '@solarpunk/bee-js';
+import { BatchId, Bee, FeedWriter } from '@ethersphere/bee-js';
 
 import { CLUSTER_ID } from '../utils/constants';
 import { findHexInUint8Array } from '../utils/webm';
@@ -35,7 +35,7 @@ export async function startStream(signer: Signer, topic: string, stamp: BatchId,
     });
 
     await initFeed(signer, topic, stamp);
-    const queue = new AsyncQueue({ indexed: true });
+    const queue = new AsyncQueue({ indexed: true, waitable: true });
 
     let firstChunk = true;
     mediaRecorder.ondataavailable = async (event) => {
@@ -68,7 +68,6 @@ export function isStreamOngoing() {
 }
 
 async function uploadChunk(stamp: BatchId, chunk: Uint8Array, index: string) {
-  console.log(chunk.length);
   const chunkResult = await bee.uploadData(stamp, chunk);
   await feedWriter.upload(stamp, chunkResult.reference, { index });
 }

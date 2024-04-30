@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { BatchId } from '@solarpunk/bee-js';
+import { BatchId } from '@ethersphere/bee-js';
 import { useEthers } from '@usedapp/core';
 
 import { assertAtLeastFourChars, assertBatchId, assertPositiveInteger } from '../..//utils/formValidation';
