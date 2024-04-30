@@ -52,7 +52,8 @@ const ConsensusID = 'SwarmStream';
 // This will be called on the side of the Streamer (aggregator)
 export async function initChatRoom(topic: string, privKey: string, stamp: BatchId): Promise<{usersRef: Reference, chatWriter: FeedWriter} | null> {
   try {
-    const wallet = new ethers.Wallet(privKey)
+    const wallet = new ethers.Wallet(privKey);
+    console.log("wallet: ", wallet)
 
     // Create the Users feed, that is used to register to the chat
     const usersFeedResult = await createUsersFeed(topic, stamp);
@@ -193,6 +194,7 @@ export async function writeToOwnFeed(topic: string, streamerAddress: EthAddress,
 // This is called on the side of the Streamer (aggregator)
 export async function fetchAllMessages(userList: UserWithIndex[], streamTopic: string) {
   try {
+    console.log("USEr LIST: ", userList)
     const promiseList: Promise<UserWithMessages>[] = userList.map(async (user) => {
       const messages: MessageData[] = [];
       const feedID = generateUserOwnedFeedId(streamTopic, user.address);
@@ -201,6 +203,7 @@ export async function fetchAllMessages(userList: UserWithIndex[], streamTopic: s
       const max = user.index + 10;
       let i = 0;
 
+      console.log("user.index: ", user.index)
       for (i = user.index; i < max; i++) {        // Looping through new messages for single user, but only read max
         try {
           const feedUpdate = await feedReader.download({ index: i });
@@ -208,6 +211,7 @@ export async function fetchAllMessages(userList: UserWithIndex[], streamTopic: s
           const json: MessageData = data.json() as unknown as MessageData;
 
           messages.push(json);
+          console.log("MESSAGES: ", messages)
 
         } catch (error) {
           break;                                  // We quit the loop, if no new messages
@@ -235,17 +239,20 @@ export async function fetchAllMessages(userList: UserWithIndex[], streamTopic: s
 
 // Write the messages of all users to an aggregated feed, in chronological order.
 // This is called on the side of the Streamer (aggregator)
-export async function writeAggregatedFeed(state: UserWithMessages[], chatWriter: FeedWriter, chatIndex: number, stamp: BatchId) {
+export async function writeAggregatedFeed(state: UserWithMessages[], chatWriter: FeedWriter, chatIndex: number, stamp: BatchId): Promise<number|null> {
   try {
     let newMessages: MessageData[] = [];
     let index = chatIndex;
 
     for (let i = 0; i < state.length; i++) {                                        // Add messages to aggregated array, that are not duplicates
-      const uniqMessages = removeDuplicate(state[i].messages)
+      const uniqMessages = removeDuplicate(state[i].messages);
+      console.log("uniqMessages: ", uniqMessages)
       newMessages = [...newMessages, ...uniqMessages];
+      console.log("newMessages: ", newMessages)
     }
 
     newMessages = newMessages.sort((a, b) => b.timestamp - a.timestamp);            // Order the messages by timestamp
+    console.log("sorted: ", newMessages);
 
     for (index = chatIndex; index < newMessages.length; index++) {
       const uploadRes = await uploadObjectToBee(newMessages[index], stamp);         // Indeed this data should already exist on Swarm, we just don't know the reference
@@ -257,6 +264,7 @@ export async function writeAggregatedFeed(state: UserWithMessages[], chatWriter:
     
   } catch (error) {
     console.error("There was an error while trying to write aggregated feed for the chat: ", error);
+    return null;
   }
 }
 
