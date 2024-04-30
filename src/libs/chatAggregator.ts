@@ -120,7 +120,7 @@ export async function doMessageFetch(state: State, streamTopic: string, dispatch
     const userList = state.userChatUpdates.map((user) => {
       return {
         address: user.user.address,
-        index: user.messages.length,
+        index: user.user.index,
       };
     });
 

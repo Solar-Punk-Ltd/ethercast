@@ -50,9 +50,9 @@ const ConsensusID = 'SwarmStream';
 
 // This function will create 2 feeds: a Users feed, and an AggregatedChat
 // This will be called on the side of the Streamer (aggregator)
-export async function initChatRoom(topic: string, stamp: BatchId): Promise<{usersRef: Reference, chatWriter: FeedWriter} | null> {
+export async function initChatRoom(topic: string, privKey: string, stamp: BatchId): Promise<{usersRef: Reference, chatWriter: FeedWriter} | null> {
   try {
-    const wallet = ethers.Wallet.createRandom();
+    const wallet = new ethers.Wallet(privKey)
 
     // Create the Users feed, that is used to register to the chat
     const usersFeedResult = await createUsersFeed(topic, stamp);
@@ -85,7 +85,6 @@ async function createUsersFeed(topic: string, stamp: BatchId) {
         return await wallet.signMessage(data)
       }
     };
-    console.log("Graffiti address: (INIT)", graffitiSigner.address )
 
     const consensusHash = Utils.keccak256Hash(ConsensusID);               // Not sure if this should be secret or not
     let exist = await bee.isFeedRetrievable('sequence', graffitiSigner.address, consensusHash);
@@ -108,6 +107,7 @@ async function createAggregatedFeedWriter(streamTopic: string, wallet: Wallet): 
     const humanReadableTopic = generateRoomId(streamTopic);
     const topic = bee.makeFeedTopic(humanReadableTopic) ;
     const feedWriter = bee.makeFeedWriter('sequence', topic, wallet.privateKey);
+    console.log("addr: ", feedWriter.owner)
     
     return feedWriter;
 
@@ -195,7 +195,8 @@ export async function fetchAllMessages(userList: UserWithIndex[], streamTopic: s
   try {
     const promiseList: Promise<UserWithMessages>[] = userList.map(async (user) => {
       const messages: MessageData[] = [];
-      const topic = generateUserOwnedFeedId(streamTopic, user.address);
+      const feedID = generateUserOwnedFeedId(streamTopic, user.address);
+      const topic = bee.makeFeedTopic(feedID);
       const feedReader = bee.makeFeedReader('sequence', topic, user.address);
       const max = user.index + 10;
       let i = 0;
@@ -390,8 +391,10 @@ export async function readSingleMessage(index: number, streamTopic: string, stre
     }
 
     const aggregatedChatID = generateRoomId(streamTopic);               // Human readable topic name, for the aggregated chat
+    console.log("Aggregated chat ID: ", aggregatedChatID);
     const topic = bee.makeFeedTopic(aggregatedChatID);
 
+    console.log("Streamer addr: ", streamerAddress);
     const feedReader: FeedReader = bee.makeFeedReader('sequence', topic, streamerAddress);
     const recordPointer = await feedReader.download(opts);              // Fetch reference to data
     const data = await bee.downloadData(recordPointer.reference);       // Fetch data

@@ -81,9 +81,8 @@ export function Stream() {
   // Periodical updates
   useEffect(() => {
     if (!chatWriter) return;
-
+return
     const fetchMessagesInterval = setInterval(() => {
-      doMessageFetch(chatState, feedDataForm.topic.value, dispatch);
       doAggregationCycle(chatState, feedDataForm.topic.value, chatWriter, feedDataForm.stamp.value as BatchId, dispatch);
     }, FETCH_MESSAGES_INTERVAL);
 
@@ -118,7 +117,7 @@ export function Stream() {
       },
     );
 
-    const result = await initChatRoom(feedDataForm.topic.value, feedDataForm.stamp.value as BatchId);
+    const result = await initChatRoom(feedDataForm.topic.value, feedDataForm.key.value, feedDataForm.stamp.value as BatchId);
     if (!result) throw 'initChatRoom gave back null';
     setChatWriter(result.chatWriter);
     
@@ -175,6 +174,7 @@ export function Stream() {
               </Tooltip>
             </div>
             <p>Topic: {feedDataForm.topic.value}</p>
+            <button onClick={() => doAggregationCycle(chatState, feedDataForm.topic.value, chatWriter!, feedDataForm.stamp.value, dispatch)}>AGGREGATE MESSAGES</button>
             <button onClick={() => doUpdateUserList(feedDataForm.topic.value, chatState, dispatch)}>DOWNLOAD USER LIST</button>
             <Button onClick={() => stop()}>Stop stream</Button>
           </>
