@@ -123,7 +123,6 @@ export async function doMessageFetch(state: State, streamTopic: string, dispatch
         index: current.user.index,
       };
     });
-    console.log("userList in do: ", userList)
 
     const result = await fetchAllMessages(userList, streamTopic);
     if (!result) throw "fetchAllMessages gave back null";
@@ -133,6 +132,7 @@ export async function doMessageFetch(state: State, streamTopic: string, dispatch
     }));
 
     dispatch({ type: ChatAggregatorAction.ADD_MESSAGES, payload: newMessages });
+    console.info("Messages length in state: ", state.userChatUpdates[0].messages.length)
   } catch (error) {
     console.error("Error fetching messages:", error);
   }
@@ -141,11 +141,17 @@ export async function doMessageFetch(state: State, streamTopic: string, dispatch
 // Write temporary messages into aggregated feed, then clear the temporary messages
 export async function doMessageWriteOut(state: State, writer: FeedWriter, stamp: BatchId, dispatch: React.Dispatch<AggregatorAction>) {
   try {
+    const origIndex = state.chatIndex;
     const result = await writeAggregatedFeed(state.userChatUpdates, writer, state.chatIndex, stamp);
-    if (!result) throw "writeAggregatedFeed gave back null";
+    if (result === null) throw "writeAggregatedFeed gave back null";
 
-    dispatch({ type: ChatAggregatorAction.CLEAR_MESSAGES });
-    dispatch({ type: ChatAggregatorAction.UPDATE_AGGREGATED_INDEX, payload: { chatIndex: result } });
+    if (origIndex !== result) {
+      // we only clear messages if write happened, but even this might not be good enough for not skipping messages,
+      // there are some problems here
+      console.info("Clearing messages after aggregation...");
+      dispatch({ type: ChatAggregatorAction.CLEAR_MESSAGES });
+      dispatch({ type: ChatAggregatorAction.UPDATE_AGGREGATED_INDEX, payload: { chatIndex: result } });
+    }
 
   } catch (error) {
     console.error("Error writing aggregated feed:", error);
