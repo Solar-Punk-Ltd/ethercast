@@ -43,7 +43,9 @@ export function Controls({ topic, streamerAddress, nickname, stamp, state, dispa
       name: nickname,
     };
     
-    const result = writeToOwnFeed(topic, streamerAddress, state.ownFeedIndex, messageObj, stamp);
+    const result = await writeToOwnFeed(topic, streamerAddress, state.ownFeedIndex, messageObj, stamp);
+    console.log("Own feed index: ", state.ownFeedIndex)
+    console.log("Reference: ", result)
     if (!result) throw 'Could not send message!';
     dispatch({ type: ChatActions.UPDATE_OWN_FEED_INDEX, payload: { ownFeedIndex: state.ownFeedIndex + 1 } });
 

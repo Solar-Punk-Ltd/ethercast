@@ -33,15 +33,15 @@ export function Chat({ feedDataForm }: ChatProps) {
   useEffect(() => {
     if (initialized) {
       const messageChecker = setInterval(async () => {
-        await readNextMessage(state, feedDataForm.topic.value, feedDataForm.address.value, dispatch);
+        setTime(Date.now());
       }, readInterval);
       return () => clearInterval(messageChecker);
     }
   }, [initialized]);
 
-  // useEffect(() => {
-  //   readNextMessage();
-  // }, [time]);
+  useEffect(() => {
+    readNextMessage(state, feedDataForm.topic.value, feedDataForm.address.value, dispatch);
+  }, [time]);
 
   // Init the chat application
   async function init() {

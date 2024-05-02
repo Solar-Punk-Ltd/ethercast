@@ -65,14 +65,14 @@ export function chatUserSideReducer(state: State, action: ChatAction): State {
 
 export async function readNextMessage(state: State, streamTopic: string, streamerAddress: EthAddress, dispatch: React.Dispatch<ChatAction>) {
     try {
-        const result = await readSingleMessage(state.ownFeedIndex, streamTopic, streamerAddress);
+        const result = await readSingleMessage(state.chatIndex, streamTopic, streamerAddress);
         if (!result) throw 'Error reading message!';
 
         dispatch({ type: ChatActions.ADD_MESSAGE, payload: { message: result } });
         dispatch({ type: ChatActions.UPDATE_CHAT_INDEX, payload: { chatIndex: state.chatIndex + 1 } });
 
     } catch (error) {
-        // don't spam the console
+        console.info("No new messages this time."); //we can't distinguish this from error
         return null;
     }
 }
