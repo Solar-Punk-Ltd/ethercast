@@ -1,29 +1,28 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ColorRing } from 'react-loader-spinner';
 
-import { VideoDuration } from '../../../../libs/player';
 import { convertMillisecondsToTime } from '../../../../utils/date';
-import { debounce } from '../../../../utils/debounce';
+import { SeekData } from '../Controls';
 
 import './ProgressBar.scss';
 
 interface ProgressBarProps {
-  onSeek: (index: number) => void;
-  getDuration: () => Promise<VideoDuration>;
-  progress?: number;
+  seekData: SeekData;
   onSetProgress?: (value: number) => void;
+  progress?: number;
 }
 
-export function ProgressBar({ onSeek, getDuration, progress: externalProgress, onSetProgress }: ProgressBarProps) {
+export function ProgressBar({
+  seekData: { loading, index, duration, seek },
+  progress: externalProgress,
+  onSetProgress,
+}: ProgressBarProps) {
   const progressBarRef = useRef<HTMLDivElement>(null);
   const markerRef = useRef<HTMLDivElement>(null);
 
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [internalProgress, setInternalProgress] = useState<number>(100);
   const [cursorPercent, setCursorPercent] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(0); // [ms]
-  const [index, setIndex] = useState<number | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
 
   const progress = externalProgress || internalProgress;
   const setProgress = onSetProgress || setInternalProgress;
@@ -40,7 +39,7 @@ export function ProgressBar({ onSeek, getDuration, progress: externalProgress, o
       if (loading) return;
       const newProgress = calculateProgress(e.clientX);
       setProgress(newProgress);
-      onSeek(Math.ceil(index! * (newProgress / 100)));
+      seek(Math.ceil(index! * (newProgress / 100)));
     };
 
     const mouseMoveOnProgressBarHandler = (e: MouseEvent) => {
@@ -90,27 +89,13 @@ export function ProgressBar({ onSeek, getDuration, progress: externalProgress, o
     setIsDragging(true);
   };
 
-  const onMouseEnterToProgressBar = useCallback(
-    debounce(async () => {
-      try {
-        setLoading(true);
-        const { duration, index } = await getDuration();
-        setDuration(duration);
-        setIndex(index);
-      } finally {
-        setLoading(false);
-      }
-    }, 500),
-    [],
-  );
-
   const calculateTimeAtCursor = () => {
     const msAtCursor = (duration * cursorPercent) / 100;
     return convertMillisecondsToTime(msAtCursor);
   };
 
   return (
-    <div ref={progressBarRef} className="progress-bar" onMouseEnter={onMouseEnterToProgressBar}>
+    <div ref={progressBarRef} className="progress-bar">
       <div ref={markerRef} className="marker">
         <div className="marker-info-container">
           {loading ? (

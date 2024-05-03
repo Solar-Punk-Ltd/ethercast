@@ -2,7 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 
 import { WithAsyncErrorBoundary, WithErrorBoundary } from '../../hooks/WithErrorBoundary';
-import { attach, detach, getApproxDuration, play, restart, seek, setVolumeControl } from '../../libs/player';
+import {
+  attach,
+  continueStream,
+  detach,
+  getApproxDuration,
+  play,
+  restart,
+  seek,
+  setVolumeControl,
+} from '../../libs/player';
 import { remove0xPrefix } from '../../utils/common';
 
 import { Controls } from './Controls/Controls';
@@ -19,7 +28,7 @@ interface VideoPlayerProps {
 export function VideoPlayer({ topic, owner }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [showStartOverlay, setShowStartOverlay] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showControls, setShowControls] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -41,9 +50,13 @@ export function VideoPlayer({ topic, owner }: VideoPlayerProps) {
     };
   }, [owner, topic]);
 
+  const handleContinueClick = () => {
+    continueStream();
+  };
+
   const handlePlayClick = async () => {
     setShowStartOverlay(false);
-    play();
+    await play();
   };
 
   const handlePauseClick = () => {
@@ -67,10 +80,10 @@ export function VideoPlayer({ topic, owner }: VideoPlayerProps) {
   return (
     <div className="video-player" onMouseEnter={onMouseEnterVideo} onMouseLeave={onMouseLeaveVideo}>
       {showStartOverlay && <StartOverlay handleStartClick={WithAsyncErrorBoundary(handlePlayClick)} />}
-      {loading && <LoadingOverlay />}
+      {loading && !showStartOverlay && <LoadingOverlay />}
       <video ref={videoRef} controlsList="nodownload"></video>
       <Controls
-        handlePlayClick={WithAsyncErrorBoundary(play)}
+        handlePlayClick={WithErrorBoundary(handleContinueClick)}
         handlePauseClick={WithErrorBoundary(handlePauseClick)}
         onRestart={WithErrorBoundary(restart)}
         onSeek={WithErrorBoundary(seek)}

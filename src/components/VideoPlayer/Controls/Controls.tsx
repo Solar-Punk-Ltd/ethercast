@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import clsx from 'clsx';
 
 import pauseIcon from '../../../assets/icons/pause-fill.svg';
 import playIcon from '../../../assets/icons/play-fill.svg';
 import { VideoDuration } from '../../../libs/player';
+import { debounce } from '../../../utils/debounce';
 import { Button, ButtonVariant } from '../../Button/Button';
 import { LiveIndicator } from '../../LiveIndicator/LiveIndicator';
 
@@ -25,6 +26,13 @@ interface ControlsProps {
   setVolumeControl: (element: HTMLInputElement) => void;
 }
 
+export interface SeekData {
+  loading: boolean;
+  duration: number;
+  index: number;
+  seek: (index: number) => void;
+}
+
 export function Controls({
   className,
   isPlaying,
@@ -37,23 +45,41 @@ export function Controls({
   mediaElement,
 }: ControlsProps) {
   const [progress, setProgress] = useState<number>(100);
+  const [seekData, setSeekData] = useState<SeekData>({
+    seek: onSeek,
+    loading: false,
+    index: 0,
+    duration: 0,
+  });
 
   const restart = () => {
     onRestart();
     setProgress(100);
   };
 
+  const onMouseEnterControl = useCallback(
+    debounce(
+      async () => {
+        try {
+          setSeekData((currentData) => ({ ...currentData, loading: true }));
+          const { duration, index } = await getDuration();
+          setSeekData((currentData) => ({ ...currentData, index, duration }));
+        } finally {
+          setSeekData((currentData) => ({ ...currentData, loading: false }));
+        }
+      },
+      2500,
+      true,
+    ),
+    [],
+  );
+
   return (
     <div className={clsx('controls', className)}>
       <div className="gradient-highlighter" />
-      <div className="controls-container">
+      <div className="controls-container" onMouseEnter={onMouseEnterControl}>
         <div className="progress-container">
-          <ProgressBar
-            onSeek={onSeek}
-            getDuration={getDuration}
-            progress={progress}
-            onSetProgress={(value: number) => setProgress(value)}
-          />
+          <ProgressBar seekData={seekData} progress={progress} onSetProgress={(value: number) => setProgress(value)} />
         </div>
         <div className="actions-container">
           <div className="left-actions">
