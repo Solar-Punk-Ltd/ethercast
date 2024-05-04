@@ -35,7 +35,7 @@ export function ProgressBar({
       return Math.max(0, Math.min(newProgress, 100));
     };
 
-    const mouseDownOnProgressBarHandler = (e: MouseEvent) => {
+    const mouseDownOnProgressBarHandler = async (e: MouseEvent) => {
       if (loading) return;
       const newProgress = calculateProgress(e.clientX);
       setProgress(newProgress);

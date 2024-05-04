@@ -28,9 +28,9 @@ export interface VideoDuration {
 }
 
 export interface Controls {
-  play: () => void;
-  seek: (index: number) => void;
-  restart: () => void;
+  play: () => Promise<void>;
+  seek: (index: number) => Promise<void>;
+  restart: () => Promise<void>;
   setVolumeControl: (volumeControl: HTMLInputElement) => void;
   pause: () => void;
   continueStream: () => void;
@@ -111,12 +111,16 @@ function setVolumeControl(volumeControl: HTMLInputElement) {
   });
 }
 
-async function play() {
+async function play(settings?: { shouldCleanSourceBuffer: boolean }) {
   if (eventStates.loadingPlaying) {
     return;
   }
 
   emitEvent(EVENTS.LOADING_PLAYING_CHANGE, true);
+
+  if (settings?.shouldCleanSourceBuffer) {
+    await cleanSourceBuffer();
+  }
 
   if (!sourceBuffer) {
     mediaElement.src = URL.createObjectURL(mediaSource);
@@ -137,15 +141,13 @@ function pause() {
   emitEvent(EVENTS.IS_PLAYING_CHANGE, false);
 }
 
-function restart() {
-  cleanSourceBuffer();
-  play();
+async function restart() {
+  play({ shouldCleanSourceBuffer: true });
 }
 
-function seek(index: number) {
-  cleanSourceBuffer();
+async function seek(index: number) {
   setSeekIndex(index);
-  play();
+  play({ shouldCleanSourceBuffer: true });
 }
 
 export function attach(options: AttachOptions): Controls {
@@ -342,8 +344,9 @@ function setSeekIndex(index: number) {
   seekIndex = index.toString(16).padStart(16, '0');
 }
 
-function cleanSourceBuffer() {
+async function cleanSourceBuffer() {
   pauseAppending();
+  await queue.clearQueueAndWait();
   sourceBuffer = null!;
   currIndex = '';
 }

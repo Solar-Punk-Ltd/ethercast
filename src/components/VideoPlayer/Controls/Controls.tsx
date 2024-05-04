@@ -20,8 +20,8 @@ interface ControlsProps {
   mediaElement: HTMLVideoElement | null;
   handlePlayClick: () => void;
   handlePauseClick: () => void;
-  handleRestartClick: () => void;
-  handleSeekClick: (index: number) => void;
+  handleRestartClick: () => Promise<void>;
+  handleSeekClick: (index: number) => Promise<void>;
   handleSetVolumeControlClick: (element: HTMLInputElement) => void;
   getDuration: () => Promise<VideoDuration | undefined>;
 }
@@ -30,7 +30,7 @@ export interface SeekData {
   loading: boolean;
   duration: number;
   index: number;
-  seek: (index: number) => void;
+  seek: (index: number) => Promise<void>;
 }
 
 export function Controls({
@@ -52,8 +52,8 @@ export function Controls({
     duration: 0,
   });
 
-  const restart = () => {
-    handleRestartClick();
+  const restart = async () => {
+    await handleRestartClick();
     setProgress(100);
   };
 

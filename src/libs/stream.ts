@@ -1,5 +1,7 @@
-import { BatchId, Bee, FeedWriter } from '@ethersphere/bee-js';
+import { BatchId, Bee, FeedWriter, Reference } from '@ethersphere/bee-js';
+import { makeChunkedFile } from '@fairdatasociety/bmt-js';
 
+import { bytesToHex } from '../utils/beeJs/hex';
 import { CLUSTER_ID } from '../utils/constants';
 import { findHexInUint8Array } from '../utils/webm';
 
@@ -68,8 +70,11 @@ export function isStreamOngoing() {
 }
 
 async function uploadChunk(stamp: BatchId, chunk: Uint8Array, index: string) {
-  const chunkResult = await bee.uploadData(stamp, chunk);
-  await feedWriter.upload(stamp, chunkResult.reference, { index });
+  bee.uploadData(stamp, chunk);
+
+  const newChunk = makeChunkedFile(chunk);
+  const newChunkRef = bytesToHex(newChunk.address()) as Reference;
+  feedWriter.upload(stamp, newChunkRef, { index });
 }
 
 async function initFeed(signer: Signer, rawTopic: string, stamp: BatchId) {

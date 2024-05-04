@@ -52,11 +52,11 @@ export function VideoPlayer({ topic, owner }: VideoPlayerProps) {
     controlsRef.current?.pause();
   });
 
-  const handleRestartClick = WithErrorBoundary(() => {
+  const handleRestartClick = WithAsyncErrorBoundary(async () => {
     controlsRef.current?.restart();
   });
 
-  const handleSeekClick = WithErrorBoundary((index: number) => {
+  const handleSeekClick = WithAsyncErrorBoundary(async (index: number) => {
     controlsRef.current?.seek(index);
   });
 
