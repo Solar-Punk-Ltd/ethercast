@@ -1,3 +1,4 @@
+import { sleep } from '../utils/common';
 import { FIRST_SEGMENT_INDEX } from '../utils/constants';
 import { incrementHexString } from '../utils/operations';
 
@@ -5,6 +6,7 @@ export class AsyncQueue {
   private queue: ((index?: string) => Promise<void>)[] = [];
   private indexed = false;
   private isProcessing = false;
+  private currentPromiseProcessing = false;
   private index = FIRST_SEGMENT_INDEX;
   private waitable = true;
 
@@ -20,17 +22,31 @@ export class AsyncQueue {
     this.isProcessing = true;
 
     while (this.queue.length > 0) {
+      this.currentPromiseProcessing = true;
       const promise = this.queue.shift()!;
-      try {
-        if (this.indexed) {
-          this.waitable ? await promise(this.index) : promise(this.index);
+      const action = this.indexed ? () => promise(this.index) : () => promise();
+
+      if (this.waitable) {
+        try {
+          await action();
           this.index = incrementHexString(this.index);
-        } else {
-          this.waitable ? await promise() : promise();
+        } catch (error) {
+          console.error('Error processing promise:', error);
+          throw error;
+        } finally {
+          this.currentPromiseProcessing = false;
         }
-      } catch (error) {
-        console.error('Error processing promise:', error);
-        throw error;
+      } else {
+        action()
+          .then(() => {
+            this.index = incrementHexString(this.index);
+          })
+          .catch((error) => {
+            console.error('Error processing promise:', error);
+          })
+          .finally(() => {
+            this.currentPromiseProcessing = false;
+          });
       }
     }
 
@@ -40,5 +56,12 @@ export class AsyncQueue {
   enqueue(promiseFunction: (index?: string) => Promise<any>) {
     this.queue.push(promiseFunction);
     this.processQueue();
+  }
+
+  async clearQueueAndWait() {
+    while (this.isProcessing || this.currentPromiseProcessing) {
+      await sleep(100);
+    }
+    this.queue = [];
   }
 }
