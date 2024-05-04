@@ -59,9 +59,9 @@ export class AsyncQueue {
   }
 
   async clearQueueAndWait() {
+    this.queue = [];
     while (this.isProcessing || this.currentPromiseProcessing) {
       await sleep(100);
     }
-    this.queue = [];
   }
 }

@@ -72,6 +72,7 @@ export function isStreamOngoing() {
 async function uploadChunk(stamp: BatchId, chunk: Uint8Array, index: string) {
   bee.uploadData(stamp, chunk);
 
+  // precalculate the reference
   const newChunk = makeChunkedFile(chunk);
   const newChunkRef = bytesToHex(newChunk.address()) as Reference;
   feedWriter.upload(stamp, newChunkRef, { index });
