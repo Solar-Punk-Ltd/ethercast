@@ -2,6 +2,7 @@ import { Bee, Data, FeedReader } from '@ethersphere/bee-js';
 
 import { sleep } from '../utils/common';
 import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX, TIMESTAMP_SCALE } from '../utils/constants';
+import { EventEmitter } from '../utils/eventEmitter';
 import { decrementHexString, incrementHexString } from '../utils/operations';
 import { findHexInUint8Array, parseVint } from '../utils/webm';
 
@@ -19,14 +20,23 @@ interface AttachOptions {
   media: HTMLVideoElement;
   address: string;
   topic: string;
-  onEnd?: () => void;
-  onPlay?: () => void;
-  onPause?: () => void;
 }
 
 export interface VideoDuration {
   duration: number;
   index: number;
+}
+
+export interface Controls {
+  play: () => void;
+  seek: (index: number) => void;
+  restart: () => void;
+  setVolumeControl: (volumeControl: HTMLInputElement) => void;
+  pause: () => void;
+  continueStream: () => void;
+  getDuration: () => Promise<VideoDuration>;
+  on: EventEmitter['on'];
+  off: EventEmitter['off'];
 }
 
 export interface PlayerOptions {
@@ -37,6 +47,11 @@ export interface PlayerOptions {
   dynamicBufferIncrement: number;
 }
 
+// External libs
+const bee = new Bee('http://localhost:1633'); // Test address
+const emitter = new EventEmitter();
+
+// Functional vars
 let mediaElement: HTMLVideoElement;
 let mediaSource: MediaSource;
 let sourceBuffer: SourceBuffer;
@@ -46,8 +61,6 @@ let queue: AsyncQueue;
 let currIndex = '';
 let seekIndex = '';
 
-const bee = new Bee('http://localhost:1633'); // Test address
-
 const settings: PlayerOptions = {
   timeslice: 1000,
   minLiveThreshold: 1,
@@ -56,17 +69,29 @@ const settings: PlayerOptions = {
   dynamicBufferIncrement: 0,
 };
 
-export async function getApproxDuration(): Promise<VideoDuration> {
-  const metaFeedUpdateRes = await reader.download();
-  const decimalIndex = parseInt(metaFeedUpdateRes.feedIndex as string, 16);
-  return { duration: decimalIndex * settings.timeslice, index: decimalIndex };
-}
+const eventStates: Record<string, boolean> = {
+  loadingPlaying: false,
+  loadingDuration: false,
+  isPlaying: false,
+};
+
+export const EVENTS = {
+  LOADING_PLAYING_CHANGE: 'loadingPlaying',
+  LOADING_DURATION_CHANGE: 'loadingPlaying',
+  IS_PLAYING_CHANGE: 'isPlaying',
+};
 
 export function getMediaElement() {
   return mediaElement;
 }
 
-export function setPlayerOptions(s: Partial<Record<keyof PlayerOptions, number>>) {
+async function getApproxDuration(): Promise<VideoDuration> {
+  const metaFeedUpdateRes = await reader.download();
+  const decimalIndex = parseInt(metaFeedUpdateRes.feedIndex as string, 16);
+  return { duration: decimalIndex * settings.timeslice, index: decimalIndex };
+}
+
+function setPlayerOptions(s: Partial<Record<keyof PlayerOptions, number>>) {
   Object.keys(s).map((k) => {
     const typedK = k as keyof PlayerOptions;
     if (s[typedK] !== undefined && s[typedK] !== null) {
@@ -75,81 +100,81 @@ export function setPlayerOptions(s: Partial<Record<keyof PlayerOptions, number>>
   });
 }
 
-export function setFeedReader(rawTopic: string, owner: string) {
+function setFeedReader(rawTopic: string, owner: string) {
   const topic = bee.makeFeedTopic(rawTopic);
   reader = bee.makeFeedReader('sequence', topic, owner);
 }
 
-export function setVolumeControl(volumeControl: HTMLInputElement) {
+function setVolumeControl(volumeControl: HTMLInputElement) {
   volumeControl.addEventListener('input', () => {
     mediaElement.volume = +volumeControl.value / 100;
   });
 }
 
-export async function play() {
+async function play() {
+  if (eventStates.loadingPlaying) {
+    return;
+  }
+
+  emitEvent(EVENTS.LOADING_PLAYING_CHANGE, true);
+
   if (!sourceBuffer) {
     mediaElement.src = URL.createObjectURL(mediaSource);
   }
   while (mediaSource.readyState !== 'open') {
     await sleep(100);
   }
-  await startAppending();
+  startAppending();
 }
 
-export function pause() {
+function continueStream() {
+  continueAppending();
+}
+
+function pause() {
+  pauseAppending();
   mediaElement.pause();
+  emitEvent(EVENTS.IS_PLAYING_CHANGE, false);
 }
 
-export function restart() {
-  /*   detach();
-  attach(mediaElement); */
+function restart() {
+  cleanSourceBuffer();
   play();
 }
 
-export function seek(index: number) {
-  /*   detach();
-  attach(mediaElement); */
+function seek(index: number) {
+  cleanSourceBuffer();
   setSeekIndex(index);
   play();
 }
 
-export function attach(options: AttachOptions) {
+export function attach(options: AttachOptions): Controls {
   mediaSource = new MediaSource();
   mediaElement = options.media;
   setFeedReader(options.topic, options.address);
 
+  // TODO handle these errors
   mediaElement.addEventListener('error', (_e) => {
     console.error('Video error:', mediaElement?.error?.code, mediaElement?.error?.message);
   });
-  mediaElement.addEventListener('play', () => {
-    if (options.onPlay) {
-      options.onPlay();
-    }
-    console.log('Play');
-  });
-  // mediaElement.addEventListener('playing', () => {
-  //   /*     if (options.onPlay) {
-  //     options.onPlay();
-  //   } */
-  //   console.log('Playing');
-  // });
-  mediaElement.addEventListener('pause', () => {
-    if (options.onPause) {
-      options.onPause();
-    }
-    pauseAppending();
-    console.log('Paused');
-  });
-  mediaElement.addEventListener('ended', () => {
-    /*     if (options.onEnd) {
-      options.onEnd();
-    } */
-    console.log('Ended');
-  });
+
+  return {
+    play,
+    seek,
+    restart,
+    setVolumeControl,
+    pause,
+    continueStream,
+    getDuration: getApproxDuration,
+    on: emitter.on,
+    off: emitter.off,
+  };
 }
 
 export function detach() {
   pauseAppending();
+  setDefaultEventStates();
+  emitter.cleanAll();
   mediaSource = null!;
   sourceBuffer = null!;
   queue = null!;
@@ -172,15 +197,20 @@ async function startAppending() {
 
   await sleep(settings.initBufferTime);
   mediaElement.play();
+
+  emitEvent(EVENTS.IS_PLAYING_CHANGE, true);
+  emitEvent(EVENTS.LOADING_PLAYING_CHANGE, false);
 }
 
-async function continueAppending() {
+function continueAppending() {
   const { appendToSourceBuffer } = initSourceBuffer();
 
   const append = appendBuffer(appendToSourceBuffer);
   streamTimer = setInterval(() => queue.enqueue(append), settings.timeslice);
 
   mediaElement.play();
+
+  emitEvent(EVENTS.IS_PLAYING_CHANGE, true);
 }
 
 function pauseAppending() {
@@ -310,6 +340,25 @@ function getTimestampScaleInSeconds(segment: Uint8Array) {
 
 function setSeekIndex(index: number) {
   seekIndex = index.toString(16).padStart(16, '0');
+}
+
+function cleanSourceBuffer() {
+  pauseAppending();
+  sourceBuffer = null!;
+  currIndex = '';
+}
+
+function emitEvent(event: string, value: boolean) {
+  if (eventStates[event] !== value) {
+    eventStates[event] = value;
+    emitter.emit(event, value);
+  }
+}
+
+function setDefaultEventStates() {
+  Object.keys(eventStates).map((k) => {
+    eventStates[k] = false;
+  });
 }
 
 function handleBuffering() {

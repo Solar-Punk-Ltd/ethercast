@@ -2,16 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 
 import { WithAsyncErrorBoundary, WithErrorBoundary } from '../../hooks/WithErrorBoundary';
-import {
-  attach,
-  continueStream,
-  detach,
-  getApproxDuration,
-  play,
-  restart,
-  seek,
-  setVolumeControl,
-} from '../../libs/player';
+import { attach, Controls as IControls, detach, EVENTS } from '../../libs/player';
 import { remove0xPrefix } from '../../utils/common';
 
 import { Controls } from './Controls/Controls';
@@ -27,6 +18,8 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({ topic, owner }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const controlsRef = useRef<IControls | null>(null);
+
   const [showStartOverlay, setShowStartOverlay] = useState(true);
   const [loading, setLoading] = useState(true);
   const [showControls, setShowControls] = useState(false);
@@ -34,36 +27,46 @@ export function VideoPlayer({ topic, owner }: VideoPlayerProps) {
 
   useEffect(() => {
     if (videoRef.current) {
-      const onPlay = () => {
-        setIsPlaying(true);
-        setLoading(false);
-      };
-      const onPause = () => {
-        setIsPlaying(false);
-        setLoading(false);
-      };
-      attach({ media: videoRef.current, address: remove0xPrefix(owner), topic, onPlay, onPause, onEnd: onPause });
+      const controls = attach({ media: videoRef.current, address: remove0xPrefix(owner), topic });
+      controlsRef.current = controls;
+
+      controls.on(EVENTS.LOADING_PLAYING_CHANGE, (isLoading: boolean) => setLoading(isLoading));
+      controls.on(EVENTS.IS_PLAYING_CHANGE, (isPlaying: boolean) => setIsPlaying(isPlaying));
     }
 
     return () => {
-      detach();
+      detach(); // subsribes off for the controls as well
     };
   }, [owner, topic]);
 
-  const handleContinueClick = () => {
-    continueStream();
-  };
+  const handleContinueClick = WithErrorBoundary(() => {
+    controlsRef.current?.continueStream();
+  });
 
-  const handlePlayClick = async () => {
+  const handlePlayClick = WithAsyncErrorBoundary(async () => {
     setShowStartOverlay(false);
-    await play();
-  };
+    await controlsRef.current?.play();
+  });
 
-  const handlePauseClick = () => {
-    if (videoRef.current) {
-      videoRef.current.pause();
-    }
-  };
+  const handlePauseClick = WithErrorBoundary(() => {
+    controlsRef.current?.pause();
+  });
+
+  const handleRestartClick = WithErrorBoundary(() => {
+    controlsRef.current?.restart();
+  });
+
+  const handleSeekClick = WithErrorBoundary((index: number) => {
+    controlsRef.current?.seek(index);
+  });
+
+  const handleSetVolumeControlClick = WithErrorBoundary((volumeControl: HTMLInputElement) => {
+    controlsRef.current?.setVolumeControl(volumeControl);
+  });
+
+  const handleGetDuration = WithAsyncErrorBoundary(async () => {
+    return await controlsRef.current?.getDuration();
+  });
 
   const onMouseEnterVideo = () => {
     if (!showStartOverlay) {
@@ -79,16 +82,16 @@ export function VideoPlayer({ topic, owner }: VideoPlayerProps) {
 
   return (
     <div className="video-player" onMouseEnter={onMouseEnterVideo} onMouseLeave={onMouseLeaveVideo}>
-      {showStartOverlay && <StartOverlay handleStartClick={WithAsyncErrorBoundary(handlePlayClick)} />}
-      {loading && !showStartOverlay && <LoadingOverlay />}
       <video ref={videoRef} controlsList="nodownload"></video>
+      {showStartOverlay && <StartOverlay handleStartClick={handlePlayClick} />}
+      {loading && !showStartOverlay && <LoadingOverlay />}
       <Controls
-        handlePlayClick={WithErrorBoundary(handleContinueClick)}
-        handlePauseClick={WithErrorBoundary(handlePauseClick)}
-        onRestart={WithErrorBoundary(restart)}
-        onSeek={WithErrorBoundary(seek)}
-        getDuration={WithAsyncErrorBoundary(getApproxDuration)}
-        setVolumeControl={WithErrorBoundary(setVolumeControl)}
+        handlePlayClick={handleContinueClick}
+        handlePauseClick={handlePauseClick}
+        handleRestartClick={handleRestartClick}
+        handleSeekClick={handleSeekClick}
+        handleSetVolumeControlClick={handleSetVolumeControlClick}
+        getDuration={handleGetDuration}
         mediaElement={videoRef.current}
         isPlaying={isPlaying}
         className={clsx(showControls && !loading ? 'controls-visible' : 'controls-hidden')}

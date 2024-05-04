@@ -20,10 +20,10 @@ interface ControlsProps {
   mediaElement: HTMLVideoElement | null;
   handlePlayClick: () => void;
   handlePauseClick: () => void;
-  onRestart: () => void;
-  onSeek: (index: number) => void;
-  getDuration: () => Promise<VideoDuration>;
-  setVolumeControl: (element: HTMLInputElement) => void;
+  handleRestartClick: () => void;
+  handleSeekClick: (index: number) => void;
+  handleSetVolumeControlClick: (element: HTMLInputElement) => void;
+  getDuration: () => Promise<VideoDuration | undefined>;
 }
 
 export interface SeekData {
@@ -38,22 +38,22 @@ export function Controls({
   isPlaying,
   handlePlayClick,
   handlePauseClick,
-  onRestart,
-  onSeek,
+  handleRestartClick,
+  handleSeekClick,
+  handleSetVolumeControlClick,
   getDuration,
-  setVolumeControl,
   mediaElement,
 }: ControlsProps) {
   const [progress, setProgress] = useState<number>(100);
   const [seekData, setSeekData] = useState<SeekData>({
-    seek: onSeek,
+    seek: handleSeekClick,
     loading: false,
     index: 0,
     duration: 0,
   });
 
   const restart = () => {
-    onRestart();
+    handleRestartClick();
     setProgress(100);
   };
 
@@ -62,8 +62,11 @@ export function Controls({
       async () => {
         try {
           setSeekData((currentData) => ({ ...currentData, loading: true }));
-          const { duration, index } = await getDuration();
-          setSeekData((currentData) => ({ ...currentData, index, duration }));
+
+          const data = await getDuration();
+          if (!data) return;
+
+          setSeekData((currentData) => ({ ...currentData, index: data.index, duration: data.duration }));
         } finally {
           setSeekData((currentData) => ({ ...currentData, loading: false }));
         }
@@ -92,7 +95,7 @@ export function Controls({
                 <img alt="play" src={playIcon}></img>
               </Button>
             )}
-            <VolumeControl initControl={setVolumeControl} />
+            <VolumeControl initControl={handleSetVolumeControlClick} />
             <LiveIndicator className="indicator" onClick={restart} />
           </div>
           <div className="right-actions">
