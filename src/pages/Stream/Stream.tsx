@@ -91,7 +91,7 @@ export function Stream() {
   
   useEffect(() => {
     if (!chatWriter) return;
-    doAggregationCycle(chatState, feedDataForm.topic.value, chatWriter, feedDataForm.stamp.value as BatchId, dispatch);
+    if (!chatState.locked) doAggregationCycle(chatState, feedDataForm.topic.value, chatWriter, feedDataForm.stamp.value as BatchId, dispatch);
     doUpdateUserList(feedDataForm.topic.value, chatState, dispatch);  
   }, [time]);
 
@@ -172,8 +172,6 @@ export function Stream() {
               </Tooltip>
             </div>
             <p>Topic: {feedDataForm.topic.value}</p>
-            <button onClick={() => doAggregationCycle(chatState, feedDataForm.topic.value, chatWriter!, feedDataForm.stamp.value, dispatch)}>AGGREGATE MESSAGES</button>
-            <button onClick={() => doUpdateUserList(feedDataForm.topic.value, chatState, dispatch)}>DOWNLOAD USER LIST</button>
             <Button onClick={() => stop()}>Stop stream</Button>
           </>
         ) : (

@@ -4,7 +4,7 @@ import {
   getGraffitiWallet,
   serializeGraffitiRecord,
 } from '../utils/graffitiUtils';
-import { generateRoomId, generateUniqId, generateUserOwnedFeedId, generateUsersFeedId, removeDuplicate, validateUserObject } from '../utils/chat';
+import { generateRoomId, generateUniqId, generateUserOwnedFeedId, generateUsersFeedId, validateUserObject } from '../utils/chat';
 import { Signature, Wallet, ethers } from 'ethers';
 import { HexString } from 'node_modules/@solarpunk/bee-js/dist/types/utils/hex';
 
@@ -38,8 +38,7 @@ export interface User {
   signature: Signature
 }
 
-export interface UserWithIndex {
-  address: EthAddress,
+export interface UserWithIndex extends User {
   index: number
 }
 
@@ -193,10 +192,11 @@ export async function writeToOwnFeed(topic: string, streamerAddress: EthAddress,
 // Reads all new messages from Swarm, each user has a feed, input userList will include the last read index
 // Will return the new messages, for each user
 // This is called on the side of the Streamer (aggregator)
-export async function fetchAllMessages(userList: UserWithIndex[], streamTopic: string) {
+export async function fetchAllMessages(userList: UserWithIndex[], streamTopic: string): Promise<{ user: UserWithIndex; messages: MessageData[]; }[] | null> {
   try {
     console.info("Fetching messages for these users: ", userList)
-    const promiseList: Promise<UserWithMessages>[] = userList.map(async (user) => {
+    // List of promises, that will give back { user, messages }, if successful
+    const promiseList: Promise<{user: UserWithIndex, messages: MessageData[]}>[] = userList.map(async (user) => {
       console.info("Fetching messages for user ", user.address)
       const messages: MessageData[] = [];
       const feedID = generateUserOwnedFeedId(streamTopic, user.address);
@@ -220,15 +220,15 @@ export async function fetchAllMessages(userList: UserWithIndex[], streamTopic: s
         }
       }
 
-      const messageAndUser: UserWithMessages = {
-        user: {                                   // We give back a new UserWithIndex object, and the messages
-          address: user.address,                  // A UserWithIndex object that looks like this, will be input for next run
-          index: i
-        },
-        messages
+      const userWithIndex: UserWithIndex = {
+        ...user,
+        index: i
       };
 
-      return messageAndUser;
+      return {
+        user: userWithIndex,
+        messages: messages
+      };
     });
 
     return Promise.all(promiseList);
@@ -241,26 +241,14 @@ export async function fetchAllMessages(userList: UserWithIndex[], streamTopic: s
 
 // Write the messages of all users to an aggregated feed, in chronological order.
 // This is called on the side of the Streamer (aggregator)
-export async function writeAggregatedFeed(state: UserWithMessages[], chatWriter: FeedWriter, chatIndex: number, stamp: BatchId): Promise<number|null> {
+export async function writeOneMessageToAggregatedFeed(message: MessageData, chatWriter: FeedWriter, chatIndex: number, stamp: BatchId): Promise<number|null> {
   try {
-    console.info("Writing aggregated feed, state: ", state)
-    let newMessages: MessageData[] = [];
-    let index = chatIndex;
+    const uploadRes = await uploadObjectToBee(message, stamp);                    // Indeed this data should already exist on Swarm, we just don't know the reference
+    if (!uploadRes) throw "Error uploading message to Swarm!";                    // but it's probably good that we give it more time-to-live
+    chatWriter.upload(stamp, uploadRes.reference, { index: chatIndex });
+    console.info(`Wrote message to index ${chatIndex}, address: ${chatWriter.owner}, topic: ${chatWriter.topic}`)
 
-    for (let i = 0; i < state.length; i++) {                                        // Add messages to aggregated array, that are not duplicates
-      const uniqMessages = removeDuplicate(state[i].messages);
-      newMessages = [...newMessages, ...uniqMessages];
-    }
-    newMessages = newMessages.sort((a, b) => a.timestamp - b.timestamp);            // Order the messages by timestamp
-
-    for (index = chatIndex; index < newMessages.length; index++) {
-      const uploadRes = await uploadObjectToBee(newMessages[index], stamp);         // Indeed this data should already exist on Swarm, we just don't know the reference
-      if (!uploadRes) throw "Error uploading message to Swarm!";                    // but it's probably good that we give it more time-to-live
-      chatWriter.upload(stamp, uploadRes.reference, { index });
-      console.info(`Wrote message to index ${index}, address: ${chatWriter.owner}, topic: ${chatWriter.topic}`)
-    }
-
-    return index;                                                                   // The new chatIndex. All messages can be removed from user temporary arrays
+    return chatIndex+1;                                                           // The new chatIndex. All messages can be removed from user temporary arrays
     
   } catch (error) {
     console.error("There was an error while trying to write aggregated feed for the chat: ", error);
@@ -293,7 +281,7 @@ export async function updateUserList(topic: RoomID, index: number = 0, users: Us
           if (userExists) {
             throw "Duplicate User entry";
           } else {
-            users.push({ address: json.address, index: 0 });              // We add the User object to the list, if it's not duplicate
+            users.push({ ...json, index: 0 });              // We add the User object to the list, if it's not duplicate
           }
         }
       } catch (error) {
