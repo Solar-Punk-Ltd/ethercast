@@ -36,8 +36,8 @@ let reader: FeedReader;
 let currIndex = '';
 let seekIndex = '';
 
-const bee = new Bee('http://localhost:1633'); // Test address
-//const bee = new Bee("http://161.97.125.121:1933");
+//const bee = new Bee('http://localhost:1633'); // Test address
+const bee = new Bee("http://161.97.125.121:1933");
 
 let TIMESLICE = 2000;
 let MIN_LIVE_TRHESHOLD = 1;
