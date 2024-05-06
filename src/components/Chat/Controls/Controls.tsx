@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import './Controls.scss';
-import { EthAddress, MessageData, RoomID, checkUploadResult, writeToOwnFeed } from '../../../libs/chat';
-import { BatchId, Reference } from '@solarpunk/bee-js';
+import { EthAddress, MessageData, writeToOwnFeed } from '../../../libs/chat';
+import { BatchId } from '@solarpunk/bee-js';
 import SendIcon from '@mui/icons-material/Send';
 import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
 import { ChatInput } from './ChatInput/ChatInput';
-import { generateRoomId } from '../../../utils/chat';
-import { sleep } from '../../../utils/common';
 import { ChatAction, ChatActions, State } from '../../../libs/chatUserSide';
+import { generateUniqId } from '../../../utils/chat';
 // import { LayoutContext } from '../Chat';
 
 interface ControlsProps {
@@ -30,17 +29,20 @@ export function Controls({ topic, streamerAddress, nickname, stamp, state, dispa
   function handleSmileyClick() {
     setShowIcons(!showIcons);
   }
-  const roomId: RoomID = generateRoomId(topic);
 
   async function handleSubmit() {
-    if (newMessage === '') return;
+    if (newMessage === '' || !sendActive) return;
     setSendActive(false);
     const messageTimestamp = Date.now(); // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
+
+    const userAddress: EthAddress | null = localStorage.getItem(generateUniqId(topic, streamerAddress)) as EthAddress;
+    if (!userAddress) throw "Could not get address from local storage!"                       // This suggests that the user haven't registered yet for this chat
     
     const messageObj: MessageData = {
       message: newMessage,
+      username: nickname,
+      address: userAddress,
       timestamp: messageTimestamp,
-      name: nickname,
     };
     
     const result = await writeToOwnFeed(topic, streamerAddress, state.ownFeedIndex, messageObj, stamp);

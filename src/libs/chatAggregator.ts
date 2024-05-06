@@ -1,5 +1,7 @@
 import { BatchId, FeedWriter } from "@solarpunk/bee-js";
 import { EthAddress, MessageData, RoomID, UserWithIndex, UserWithMessages, fetchAllMessages, updateUserList, writeAggregatedFeed } from "./chat";
+import _ from "lodash";
+
 
 export const FETCH_MESSAGES_INTERVAL = 5 * 1000;
 export const UPDATE_USER_LIST_INTERVAL = 10 * 1000;
@@ -141,17 +143,24 @@ export async function doMessageFetch(state: State, streamTopic: string, dispatch
 // Write temporary messages into aggregated feed, then clear the temporary messages
 export async function doMessageWriteOut(state: State, writer: FeedWriter, stamp: BatchId, dispatch: React.Dispatch<AggregatorAction>) {
   try {
-    const origIndex = state.chatIndex;
-    const result = await writeAggregatedFeed(state.userChatUpdates, writer, state.chatIndex, stamp);
-    if (result === null) throw "writeAggregatedFeed gave back null";
-
-    if (origIndex !== result) {
-      // we only clear messages if write happened, but even this might not be good enough for not skipping messages,
-      // there are some problems here
-      console.info("Clearing messages after aggregation...");
-      dispatch({ type: ChatAggregatorAction.CLEAR_MESSAGES });
-      dispatch({ type: ChatAggregatorAction.UPDATE_AGGREGATED_INDEX, payload: { chatIndex: result } });
+    const writePromise = writeAggregatedFeed(state.userChatUpdates, writer, state.chatIndex, stamp);
+    
+    console.info("Clearing messages from state, that will be written to aggregated feed...");
+    dispatch({ type: ChatAggregatorAction.CLEAR_MESSAGES });
+    
+    const result = await writePromise;
+    
+    if (result === null) {
+      const oldMessages = state.userChatUpdates.map(({ user, messages }) => ({
+        userAddress: user.address,
+        messages,
+      }));
+      dispatch({ type: ChatAggregatorAction.ADD_MESSAGES, payload: oldMessages });
+      throw "writeAggregatedFeed gave back null. We load back the messages to temporary array.";
     }
+
+    dispatch({ type: ChatAggregatorAction.UPDATE_AGGREGATED_INDEX, payload: { chatIndex: result } });
+    
 
   } catch (error) {
     console.error("Error writing aggregated feed:", error);

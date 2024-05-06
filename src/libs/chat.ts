@@ -2,7 +2,6 @@ import { BatchId, Bee, FeedReader, FeedWriter, Reference, Signer, Utils } from '
 import {
   getConsensualPrivateKey,
   getGraffitiWallet,
-  numberToFeedIndex,
   serializeGraffitiRecord,
 } from '../utils/graffitiUtils';
 import { generateRoomId, generateUniqId, generateUserOwnedFeedId, generateUsersFeedId, removeDuplicate, validateUserObject } from '../utils/chat';
@@ -15,16 +14,14 @@ export type Sha3Message = string | number[] | ArrayBuffer | Uint8Array;
 
 // Initialize the bee instance
 const bee = new Bee('http://localhost:1633');
-//const chatWallet = ethers.Wallet.createRandom();
-let chatWriter: FeedWriter | null = null;                                       // global object, not sure to store it here or elsewhere
-                                                                                // currently not used
 
 const ETH_ADDRESS_LENGTH = 42;                                                  // Be careful not to use EthAddress from bee-js,
 export type EthAddress = HexString<typeof ETH_ADDRESS_LENGTH>;                  // because that is a byte array
 
 export interface MessageData {
   message: string;
-  name: string;
+  username: string;
+  address: EthAddress;
   timestamp: number;
 }
 
@@ -52,14 +49,13 @@ const ConsensusID = 'SwarmStream';
 export async function initChatRoom(topic: string, privKey: string, stamp: BatchId): Promise<{usersRef: Reference, chatWriter: FeedWriter} | null> {
   try {
     const wallet = new ethers.Wallet(privKey);
-    console.log("wallet: ", wallet)
 
     // Create the Users feed, that is used to register to the chat
     const usersFeedResult = await createUsersFeed(topic, stamp);
     if (!usersFeedResult) throw "Could not create Users feed!";
 
     // Create the AggregatedChat feed, that is the real chat feed
-    chatWriter = await createAggregatedFeedWriter(topic, wallet);
+    let chatWriter = await createAggregatedFeedWriter(topic, wallet);
     if (!chatWriter) throw "Could not create FeedWriter for the aggregated chat!";
 
     return {
