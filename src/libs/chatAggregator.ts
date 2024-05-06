@@ -1,6 +1,5 @@
 import { BatchId, FeedWriter } from "@solarpunk/bee-js";
 import { EthAddress, MessageData, RoomID, UserWithIndex, UserWithMessages, fetchAllMessages, updateUserList, writeAggregatedFeed } from "./chat";
-import _ from "lodash";
 
 
 export const FETCH_MESSAGES_INTERVAL = 5 * 1000;
@@ -50,9 +49,9 @@ interface AddUserAction {
 type AggregatorAction =
   | AddMessagesAction
   | ClearMessagesAction
-  | UpdateAggregatedIndexAction
-  | UpdateUserFeedIndexAction
-  | AddUserAction;
+    | UpdateAggregatedIndexAction
+    | UpdateUserFeedIndexAction
+    | AddUserAction;
 
 interface State {
   userChatUpdates: UserWithMessages[];
@@ -146,7 +145,7 @@ export async function doMessageWriteOut(state: State, writer: FeedWriter, stamp:
     const writePromise = writeAggregatedFeed(state.userChatUpdates, writer, state.chatIndex, stamp);
     
     console.info("Clearing messages from state, that will be written to aggregated feed...");
-    dispatch({ type: ChatAggregatorAction.CLEAR_MESSAGES });
+    //dispatch({ type: ChatAggregatorAction.CLEAR_MESSAGES });
     
     const result = await writePromise;
     
