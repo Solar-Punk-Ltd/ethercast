@@ -1,28 +1,33 @@
 import { BatchId, FeedWriter } from "@solarpunk/bee-js";
-import { EthAddress, MessageData, RoomID, UserWithIndex, UserWithMessages, fetchAllMessages, updateUserList, writeAggregatedFeed } from "./chat";
+import { EthAddress, MessageData, RoomID, UserWithIndex, fetchAllMessages, updateUserList, writeOneMessageToAggregatedFeed } from "./chat";
+import { orderMessages, removeDuplicate } from "../utils/chat";
 
 
-export const FETCH_MESSAGES_INTERVAL = 5 * 1000;
+export const FETCH_MESSAGES_INTERVAL = 2 * 1000;
 export const UPDATE_USER_LIST_INTERVAL = 10 * 1000;
 
 enum ChatAggregatorAction {
   ADD_MESSAGES = 'ADD_MESSAGES',
-  CLEAR_MESSAGES = 'CLEAR_MESSAGES',
+  DELETE_MESSAGE = 'DELETE_MESSAGE',
   UPDATE_AGGREGATED_INDEX = 'UPDATE_AGGREGATED_INDEX',
   UPDATE_USER_FEED_INDEX = 'UPDATE_USER_FEED_INDEX',
+  UPDATE_INDEX_FOR_USER = 'UPDATE_INDEX_FOR_USER',
   ADD_USER = 'ADD_USER',
+  LOCK_MESSAGE_WRITE = 'LOCK_MESSAGE_WRITE',
 }
 
 interface AddMessagesAction {
   type: ChatAggregatorAction.ADD_MESSAGES;
   payload: {
-    userAddress: EthAddress;
     messages: MessageData[];
-  }[];
+  };
 }
   
-interface ClearMessagesAction {
-  type: ChatAggregatorAction.CLEAR_MESSAGES;
+interface DeleteMessageAction {
+  type: ChatAggregatorAction.DELETE_MESSAGE;
+  payload: {
+    index: number;
+  };
 }
 
 interface UpdateAggregatedIndexAction { 
@@ -42,52 +47,67 @@ interface UpdateUserFeedIndexAction {
 interface AddUserAction {
   type: ChatAggregatorAction.ADD_USER;
   payload: {
-    user: UserWithMessages;
+    user: UserWithIndex;
+  };
+}
+
+interface UpdateIndexForUserAction {
+  type: ChatAggregatorAction.UPDATE_INDEX_FOR_USER;
+  payload: {
+    userAddress: EthAddress;
+    index: number;
+  };
+}
+
+interface LockMessageWriteAction {
+  type: ChatAggregatorAction.LOCK_MESSAGE_WRITE;
+  payload: {
+    lock: boolean;
   };
 }
 
 type AggregatorAction =
   | AddMessagesAction
-  | ClearMessagesAction
-    | UpdateAggregatedIndexAction
-    | UpdateUserFeedIndexAction
-    | AddUserAction;
+  | DeleteMessageAction
+  | UpdateAggregatedIndexAction
+  | UpdateUserFeedIndexAction
+  | UpdateIndexForUserAction
+  | LockMessageWriteAction
+  | AddUserAction;
 
 interface State {
-  userChatUpdates: UserWithMessages[];
+  users: UserWithIndex[];
   chatIndex: number;
   userFeedIndex: number;
+  messages: MessageData[];
+  locked: boolean;
 }
 
 export const initialStateForChatAggregator: State = {
-  userChatUpdates: [],
+  users: [],
   chatIndex: 0,
-  userFeedIndex: 0
+  userFeedIndex: 0,
+  messages: [],
+  locked: false,
 };
 
 // Reducer that handles all the chat aggregation related actions
 export const chatAggregatorReducer = (state: State = initialStateForChatAggregator, action: AggregatorAction): State => {
   switch (action.type) {
     case ChatAggregatorAction.ADD_MESSAGES:
-      console.log("Adding messages", action.payload);
+      let newMessageArray = [...state.messages, ...action.payload.messages];
+      newMessageArray = removeDuplicate(newMessageArray);
+      newMessageArray = orderMessages(newMessageArray);
       return {
         ...state,
-        userChatUpdates: state.userChatUpdates.map((original, index) =>
-          action.payload[index] && original.user.address === action.payload[index].userAddress
-            ? {
-                ...original,
-                messages: [...original.messages, ...action.payload[index].messages],
-              }
-            : original
-        ),
+        messages: newMessageArray,
       };
-    case ChatAggregatorAction.CLEAR_MESSAGES:
+    case ChatAggregatorAction.DELETE_MESSAGE:
+      let newArray = state.messages;
+      newArray.splice(action.payload.index, 1);
       return {
         ...state,
-        userChatUpdates: state.userChatUpdates.map((chat) => ({
-          ...chat,
-          messages: [],
-        })),
+        messages: newArray,
       };
     case ChatAggregatorAction.UPDATE_AGGREGATED_INDEX:
       return {
@@ -99,11 +119,25 @@ export const chatAggregatorReducer = (state: State = initialStateForChatAggregat
           ...state,
           userFeedIndex: action.payload.userFeedIndex,
       };
+    case ChatAggregatorAction.UPDATE_INDEX_FOR_USER:
+      const i = state.users.findIndex((user) => user.address === action.payload.userAddress);
+      if (i === -1) return state;
+      let newUsersArray = state.users;
+      newUsersArray[i].index = action.payload.index;
+      return {
+        ...state,
+        users: newUsersArray,
+      };
     case ChatAggregatorAction.ADD_USER:
       return {
         ...state,
-        userChatUpdates: [...state.userChatUpdates, action.payload.user],
+        users: [...state.users, action.payload.user],
       };
+    case ChatAggregatorAction.LOCK_MESSAGE_WRITE:
+      return {
+        ...state,
+        locked: action.payload.lock,
+      }  
     default:
       return state;
   }
@@ -111,6 +145,8 @@ export const chatAggregatorReducer = (state: State = initialStateForChatAggregat
 
 // Combines doMessageFetch and doMessageWriteOut
 export async function doAggregationCycle(state: State, streamTopic: string, writer: FeedWriter, stamp: BatchId, dispatch: React.Dispatch<AggregatorAction>) {
+  if (state.locked) return;
+  dispatch({ type: ChatAggregatorAction.LOCK_MESSAGE_WRITE, payload: { lock: true } });               // Lock message write and fetch as well
   await doMessageFetch(state, streamTopic, dispatch);
   await doMessageWriteOut(state, writer, stamp, dispatch);
 }
@@ -118,22 +154,17 @@ export async function doAggregationCycle(state: State, streamTopic: string, writ
 // Periodically called from Stream.tsx
 export async function doMessageFetch(state: State, streamTopic: string, dispatch: React.Dispatch<AggregatorAction>) {
   try {
-    const userList = state.userChatUpdates.map((current) => {
-      return {
-        address: current.user.address,
-        index: current.user.index,
-      };
+    // Result will be array of messages, and UserWithIndex list, which is used to update the index
+    const result = await fetchAllMessages(state.users, streamTopic);
+    if (!result) throw "fetchAllMessages gave back null";
+
+    let newMessages: MessageData[] = [];
+    result.map(({ user, messages }) => {
+      dispatch({ type: ChatAggregatorAction.UPDATE_INDEX_FOR_USER, payload: { index: user.index, userAddress: user.address } });
+      newMessages = [...newMessages, ...messages];
     });
 
-    const result = await fetchAllMessages(userList, streamTopic);
-    if (!result) throw "fetchAllMessages gave back null";
-    const newMessages = result.map(({ user, messages }) => ({
-      userAddress: user.address,
-      messages,
-    }));
-
-    dispatch({ type: ChatAggregatorAction.ADD_MESSAGES, payload: newMessages });
-    console.info("Messages length in state: ", state.userChatUpdates[0].messages.length)
+    dispatch({ type: ChatAggregatorAction.ADD_MESSAGES, payload: { messages: newMessages } });
   } catch (error) {
     console.error("Error fetching messages:", error);
   }
@@ -142,58 +173,44 @@ export async function doMessageFetch(state: State, streamTopic: string, dispatch
 // Write temporary messages into aggregated feed, then clear the temporary messages
 export async function doMessageWriteOut(state: State, writer: FeedWriter, stamp: BatchId, dispatch: React.Dispatch<AggregatorAction>) {
   try {
-    const writePromise = writeAggregatedFeed(state.userChatUpdates, writer, state.chatIndex, stamp);
-    
-    console.info("Clearing messages from state, that will be written to aggregated feed...");
-    //dispatch({ type: ChatAggregatorAction.CLEAR_MESSAGES });
-    
-    const result = await writePromise;
-    
-    if (result === null) {
-      const oldMessages = state.userChatUpdates.map(({ user, messages }) => ({
-        userAddress: user.address,
-        messages,
-      }));
-      dispatch({ type: ChatAggregatorAction.ADD_MESSAGES, payload: oldMessages });
-      throw "writeAggregatedFeed gave back null. We load back the messages to temporary array.";
+    let promises = [];
+    // We write all messages from the temporary buffer to the aggregated feed
+    for (let i = 0; i < state.messages.length; i++) {
+      const promise = writeOneMessageToAggregatedFeed(state.messages[i], writer, (state.chatIndex + i), stamp);
+      promises.push(promise);
     }
-
-    dispatch({ type: ChatAggregatorAction.UPDATE_AGGREGATED_INDEX, payload: { chatIndex: result } });
     
+    const results = await Promise.all(promises);
 
+    for (let i = results.length-1; i >= 0; i--) {
+      if (results[i] === null) {
+        console.warn("Could not write message with index ", i);
+        continue;
+      }
+      console.log(`Dispatching DELETE_MESSAGE with index ${i}, state.messages.length: ${state.messages.length}`)
+      dispatch({ type: ChatAggregatorAction.DELETE_MESSAGE, payload: { index: i } });
+    }
+    
+    dispatch({ type: ChatAggregatorAction.UPDATE_AGGREGATED_INDEX, payload: { chatIndex: state.chatIndex + results.length } });
+    dispatch({ type: ChatAggregatorAction.LOCK_MESSAGE_WRITE, payload: { lock: false } });              // Release message write
   } catch (error) {
     console.error("Error writing aggregated feed:", error);
+    dispatch({ type: ChatAggregatorAction.LOCK_MESSAGE_WRITE, payload: { lock: false } });
   }
 }
 
 // Periodically called from Stream.tsx
 export async function doUpdateUserList(topic: RoomID, state: State, dispatch: React.Dispatch<AggregatorAction>) {
   try {
-    const users: UserWithIndex[] = state.userChatUpdates.map((user) => {
-      return {
-        address: user.user.address,
-        index: user.messages.length,
-      };
-    });
-    let result = await updateUserList(topic, state.userFeedIndex, users);
+    let result = await updateUserList(topic, state.userFeedIndex, state.users);
     if (!result) throw "updateUserList gave back null";
 
-    console.log("state: ", state)
-    console.log("result: ", result)
     const usersToAdd = result.users.filter((user) => {
-      return !state.userChatUpdates.some((chat) => chat.user.address == user.address);
+      return !state.users.some((savedUser) => savedUser.address == user.address);
     });
-    console.log("usersToAdd: ", usersToAdd)
 
     usersToAdd.map((user) => {
-      const newUser: UserWithMessages = {
-        user: {
-          address: user.address,
-          index: 0
-        },
-        messages: [],
-      }; 
-      dispatch({ type: ChatAggregatorAction.ADD_USER, payload: { user: newUser} });
+      dispatch({ type: ChatAggregatorAction.ADD_USER, payload: { user } });
     });
 
     dispatch({ type: ChatAggregatorAction.UPDATE_USER_FEED_INDEX, payload: { userFeedIndex: result.lastReadIndex } });
