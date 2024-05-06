@@ -2,8 +2,7 @@ import { useEffect, useReducer, useState, createContext, useContext } from 'reac
 import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
 import { TextInput } from '../TextInput/TextInput';
-import { MessageData, RoomID, getGraffitiFeedIndex, readSingleMessage, registerUser } from '../../libs/chat';
-import { loadMessages, saveMessages, generateRoomId } from '../../utils/chat';
+import { MessageData, registerUser } from '../../libs/chat';
 import EditIcon from '@mui/icons-material/Edit';
 import './Chat.scss';
 import { MainContext } from '../../routes.tsx';
@@ -60,6 +59,7 @@ export function Chat({ feedDataForm }: ChatProps) {
       return;
     }
     const result = await registerUser(feedDataForm.topic.value, feedDataForm.address.value, nickname, feedDataForm.stamp.value);
+    if (!result) throw "Error registering user!";
         
     setIsNickNameSet(true);
     setMainNickName(nickname);
@@ -102,7 +102,7 @@ export function Chat({ feedDataForm }: ChatProps) {
           <div className="body">
             {state.messages.map((m: MessageData, i: number) => {
               if (!m) return <Message key={i} name={'admin'} message={'loading'} own={false} />;
-              else return <Message key={i} name={m.name} message={m.message} own={nickname == m.name} />;
+              else return <Message key={i} name={m.username} message={m.message} own={nickname == m.username} />;
             })}
           </div>
         </div>

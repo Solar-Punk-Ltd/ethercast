@@ -11,13 +11,11 @@ import { TextInput } from '../../components/TextInput/TextInput';
 import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
 
 import './Stream.scss';
-import { initChatRoom, updateUserList } from '../../libs/chat';
+import { initChatRoom } from '../../libs/chat';
 import Tooltip from '@mui/material/Tooltip';
 import { 
   FETCH_MESSAGES_INTERVAL, 
-  UPDATE_USER_LIST_INTERVAL, 
   chatAggregatorReducer, 
-  doMessageFetch, 
   initialStateForChatAggregator, 
   doUpdateUserList, 
   doAggregationCycle
@@ -54,7 +52,7 @@ export function Stream() {
     stamp: {
       label: 'Please provide a valid stamp',
       placeholder: 'Stamp',
-      value: '6f3620fea619345adca73912a760571b577e4167bac4ed3bbb37e8448cd93061',
+      value: '985293f9cfac603ea92bf53d35d7bffaf72addc06c928700051c25563b744853',
     },
   });
   const [streamDataForm, setStreamDataForm] = useState<Record<string, CommonForm>>({
