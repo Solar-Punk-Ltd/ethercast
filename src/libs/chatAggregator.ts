@@ -3,8 +3,7 @@ import { EthAddress, MessageData, RoomID, UserWithIndex, fetchAllMessages, updat
 import { orderMessages, removeDuplicate } from "../utils/chat";
 
 
-export const FETCH_MESSAGES_INTERVAL = 2 * 1000;
-export const UPDATE_USER_LIST_INTERVAL = 10 * 1000;
+export const AGGREGATION_CYCLE_INTERVAL = 2 * 1000;
 
 enum ChatAggregatorAction {
   ADD_MESSAGES = 'ADD_MESSAGES',
@@ -67,13 +66,13 @@ interface LockMessageWriteAction {
 }
 
 type AggregatorAction =
-  | AddMessagesAction
-  | DeleteMessageAction
-  | UpdateAggregatedIndexAction
-  | UpdateUserFeedIndexAction
-  | UpdateIndexForUserAction
-  | LockMessageWriteAction
-  | AddUserAction;
+  | AddMessagesAction                  // Adds array of messages to temporary store, duplicates will be removed before add, and messages will be sorted by timestamp
+  | DeleteMessageAction                // After a message was written to the aggregated feed, we delete it (one-by-one)
+  | UpdateAggregatedIndexAction        // This is the feed index of the chat feed, that will be read at the viewers side
+  | UpdateUserFeedIndexAction          // This is the feed index for the Graffiti feed, that is used for registering users
+  | UpdateIndexForUserAction           // Every user has an own feed, this is the index for those feeds (one index for every registered user)
+  | LockMessageWriteAction             // Try to avoid running more than one aggregation cycles in parallel
+  | AddUserAction;                     // Adds a new user to the state
 
 interface State {
   users: UserWithIndex[];
@@ -94,6 +93,7 @@ export const initialStateForChatAggregator: State = {
 // Reducer that handles all the chat aggregation related actions
 export const chatAggregatorReducer = (state: State = initialStateForChatAggregator, action: AggregatorAction): State => {
   switch (action.type) {
+
     case ChatAggregatorAction.ADD_MESSAGES:
       let newMessageArray = [...state.messages, ...action.payload.messages];
       newMessageArray = removeDuplicate(newMessageArray);
@@ -102,6 +102,7 @@ export const chatAggregatorReducer = (state: State = initialStateForChatAggregat
         ...state,
         messages: newMessageArray,
       };
+
     case ChatAggregatorAction.DELETE_MESSAGE:
       let newArray = state.messages;
       newArray.splice(action.payload.index, 1);
@@ -109,16 +110,19 @@ export const chatAggregatorReducer = (state: State = initialStateForChatAggregat
         ...state,
         messages: newArray,
       };
+
     case ChatAggregatorAction.UPDATE_AGGREGATED_INDEX:
       return {
           ...state,
           chatIndex: action.payload.chatIndex,
       };
+
     case ChatAggregatorAction.UPDATE_USER_FEED_INDEX:
       return {
           ...state,
           userFeedIndex: action.payload.userFeedIndex,
       };
+
     case ChatAggregatorAction.UPDATE_INDEX_FOR_USER:
       const i = state.users.findIndex((user) => user.address === action.payload.userAddress);
       if (i === -1) return state;
@@ -128,16 +132,22 @@ export const chatAggregatorReducer = (state: State = initialStateForChatAggregat
         ...state,
         users: newUsersArray,
       };
+
     case ChatAggregatorAction.ADD_USER:
       return {
         ...state,
-        users: [...state.users, action.payload.user],
+        users: [
+          ...state.users, 
+          action.payload.user
+        ],
       };
+
     case ChatAggregatorAction.LOCK_MESSAGE_WRITE:
       return {
         ...state,
         locked: action.payload.lock,
       }  
+
     default:
       return state;
   }
@@ -146,12 +156,14 @@ export const chatAggregatorReducer = (state: State = initialStateForChatAggregat
 // Combines doMessageFetch and doMessageWriteOut
 export async function doAggregationCycle(state: State, streamTopic: string, writer: FeedWriter, stamp: BatchId, dispatch: React.Dispatch<AggregatorAction>) {
   if (state.locked) return;
+
   dispatch({ type: ChatAggregatorAction.LOCK_MESSAGE_WRITE, payload: { lock: true } });               // Lock message write and fetch as well
   await doMessageFetch(state, streamTopic, dispatch);
   await doMessageWriteOut(state, writer, stamp, dispatch);
 }
 
 // Periodically called from Stream.tsx
+// Fetches the messages, inserts them into state, and updates the read indexes for the users whose messages were read
 export async function doMessageFetch(state: State, streamTopic: string, dispatch: React.Dispatch<AggregatorAction>) {
   try {
     // Result will be array of messages, and UserWithIndex list, which is used to update the index
@@ -171,6 +183,7 @@ export async function doMessageFetch(state: State, streamTopic: string, dispatch
 }
 
 // Write temporary messages into aggregated feed, then clear the temporary messages
+// Both write-out and deleting of messages happens one-by-one, not in batch actions
 export async function doMessageWriteOut(state: State, writer: FeedWriter, stamp: BatchId, dispatch: React.Dispatch<AggregatorAction>) {
   try {
     let promises = [];
@@ -180,8 +193,10 @@ export async function doMessageWriteOut(state: State, writer: FeedWriter, stamp:
       promises.push(promise);
     }
     
+    // We wait for the promises here (write operations don't need to wait for each other, order does not matter)
     const results = await Promise.all(promises);
 
+    // Those messages are deleted from state, which were successfully written to aggregated chat feed
     for (let i = results.length-1; i >= 0; i--) {
       if (results[i] === null) {
         console.warn("Could not write message with index ", i);
@@ -192,14 +207,15 @@ export async function doMessageWriteOut(state: State, writer: FeedWriter, stamp:
     }
     
     dispatch({ type: ChatAggregatorAction.UPDATE_AGGREGATED_INDEX, payload: { chatIndex: state.chatIndex + results.length } });
-    dispatch({ type: ChatAggregatorAction.LOCK_MESSAGE_WRITE, payload: { lock: false } });              // Release message write
+    dispatch({ type: ChatAggregatorAction.LOCK_MESSAGE_WRITE, payload: { lock: false } });              // Release message write lock
   } catch (error) {
     console.error("Error writing aggregated feed:", error);
-    dispatch({ type: ChatAggregatorAction.LOCK_MESSAGE_WRITE, payload: { lock: false } });
+    dispatch({ type: ChatAggregatorAction.LOCK_MESSAGE_WRITE, payload: { lock: false } });              // Release message write lock on error as well
   }
 }
 
-// Periodically called from Stream.tsx
+// Will save new users to state. Periodically called from Stream.tsx
+// The function will remove duplicates before saving to state
 export async function doUpdateUserList(topic: RoomID, state: State, dispatch: React.Dispatch<AggregatorAction>) {
   try {
     let result = await updateUserList(topic, state.userFeedIndex, state.users);

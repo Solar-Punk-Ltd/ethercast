@@ -17,36 +17,26 @@ interface ChatProps {
 export function Chat({ feedDataForm }: ChatProps) {
   const { mainNickName, setMainNickName } = useContext(MainContext);
   const [state, dispatch] = useReducer(chatUserSideReducer, initialStateForChatUserSide);
-  const [initialized, setInitialized] = useState(false);
   const [chatBodyHeight, setChatBodyHeight] = useState('auto');
-  const [nickname, setNickname] = useState(mainNickName); // Our name
+  const [nickname, setNickname] = useState(mainNickName);
   const readInterval = 3000;
   const [isEditMode, setIsEditMode] = useState(false);
   const [isNickNameSet, setIsNickNameSet] = useState(mainNickName !== '' ? true : false);
   const [time, setTime] = useState(Date.now());
 
-  // Load the messages from Swarm
-  if (!initialized) init();
-
   // Set a timer, to check for new messages
   useEffect(() => {
-    if (initialized) {
+    if (true) {
       const messageChecker = setInterval(async () => {
         setTime(Date.now());
       }, readInterval);
       return () => clearInterval(messageChecker);
     }
-  }, [initialized]);
+  }, []);
 
   useEffect(() => {
     readNextMessage(state, feedDataForm.topic.value, feedDataForm.address.value, dispatch);
   }, [time]);
-
-  // Init the chat application
-  async function init() {
-    // await readMessagesOnLoad();
-    setInitialized(() => true);
-  }
 
   const handleClickOutside = (event: any) => {
     if (event.target.className === 'layout') {
@@ -71,22 +61,6 @@ export function Chat({ feedDataForm }: ChatProps) {
       document.removeEventListener('click', handleClickOutside);
     };
   }, [isEditMode]);
-
-  // Reads those messags from Swarm, that does not exist in localStorage
-  // async function readMessagesOnLoad() {
-  //   const roomId: RoomID = generateRoomId(feedDataForm.topic.value);
-  //   const feedIndex: number = Number(await getGraffitiFeedIndex(roomId));
-
-  //   for (let i = state.messages.length; i < feedIndex; i++) {
-  //     const message = await readSingleMessage(i, roomId, feedDataForm.address.value);
-  //     dispatch({
-  //       type: 'insertMessage',
-  //       message: message,
-  //       index: i,
-  //     });
-  //     saveMessages(feedDataForm.topic.value, state.messages);
-  //   }
-  // }
 
 
   return (

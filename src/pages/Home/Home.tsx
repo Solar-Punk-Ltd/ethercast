@@ -40,7 +40,7 @@ export function Home() {
     stamp: {
       label: 'Please provide a valid stamp',
       placeholder: 'Stamp',
-      value: '5d03898ad71d675805b051aa9ff5c60c091a768ad2810b4e93b6cb75a6328f72',
+      value: 'e27ebaf0f47a39319a76c160fb323fc1c2ca2cf034f4c42418e22427f930be4e',
     },
   });
   const [playerOptionsForm, setPlayerOptionsForm] = useState<Record<string, CommonForm>>({

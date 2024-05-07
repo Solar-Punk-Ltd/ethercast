@@ -14,7 +14,7 @@ import './Stream.scss';
 import { initChatRoom } from '../../libs/chat';
 import Tooltip from '@mui/material/Tooltip';
 import { 
-  FETCH_MESSAGES_INTERVAL, 
+  AGGREGATION_CYCLE_INTERVAL, 
   chatAggregatorReducer, 
   initialStateForChatAggregator, 
   doUpdateUserList, 
@@ -35,8 +35,8 @@ export function Stream() {
   const [video, setVideo] = useState<boolean>(true);
   const [tooltipText, setTooltipText] = useState<string>('Click to copy');
   const [timeslice, setTimeslice] = useState<number>(2000); // [ms]
-  const [chatWriter, setChatWriter] = useState<FeedWriter | null>(null);
-  const [chatState, dispatch] = useReducer(chatAggregatorReducer, initialStateForChatAggregator);
+  const [chatWriter, setChatWriter] = useState<FeedWriter | null>(null);                              // This is the FeedWriter for the AggregatedFeed
+  const [chatState, dispatch] = useReducer(chatAggregatorReducer, initialStateForChatAggregator);     // State related to Chat aggregation
   const [time, setTime] = useState(Date.now());
   const [feedDataForm, setFeedDataForm] = useState<Record<string, CommonForm>>({
     key: {
@@ -52,7 +52,7 @@ export function Stream() {
     stamp: {
       label: 'Please provide a valid stamp',
       placeholder: 'Stamp',
-      value: '5d03898ad71d675805b051aa9ff5c60c091a768ad2810b4e93b6cb75a6328f72',
+      value: 'e27ebaf0f47a39319a76c160fb323fc1c2ca2cf034f4c42418e22427f930be4e',
     },
   });
   const [streamDataForm, setStreamDataForm] = useState<Record<string, CommonForm>>({
@@ -77,21 +77,24 @@ export function Stream() {
     setIsLive(isStreamOngoing());
   }, []);
 
-  // Periodical updates
+  // `doAggregationCycle` will trigger for the change of `time`, we update time here periodically
+  // Directly we couldn't put `doAggregationCycle` into setInterval, because state wouldn't update
   useEffect(() => {
     if (!chatWriter) return;
-    const fetchMessagesInterval = setInterval(() => {
+    const aggregationInterval = setInterval(() => {
       setTime(Date.now())
-    }, FETCH_MESSAGES_INTERVAL);
+    }, AGGREGATION_CYCLE_INTERVAL);
     
     return () => {
-      clearInterval(fetchMessagesInterval);
+      clearInterval(aggregationInterval);
     };
   }, [chatWriter]);
   
+  // This useEffect does the actual chat aggregation, will receive fresh state always
   useEffect(() => {
     if (!chatWriter) return;
-    if (!chatState.locked) doAggregationCycle(chatState, feedDataForm.topic.value, chatWriter, feedDataForm.stamp.value as BatchId, dispatch);
+    if (!chatState.locked)                                          // Only one aggregation cycle should run at at time
+      doAggregationCycle(chatState, feedDataForm.topic.value, chatWriter, feedDataForm.stamp.value as BatchId, dispatch);
     doUpdateUserList(feedDataForm.topic.value, chatState, dispatch);  
   }, [time]);
 
@@ -115,6 +118,7 @@ export function Stream() {
       },
     );
 
+    // We save chatWriter to state, Graffiti-feed connector will be re-generated every time it is used (nothing needs to be saved)
     const result = await initChatRoom(feedDataForm.topic.value, feedDataForm.key.value, feedDataForm.stamp.value as BatchId);
     if (!result) throw 'initChatRoom gave back null';
     setChatWriter(result.chatWriter);
