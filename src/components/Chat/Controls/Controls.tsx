@@ -8,7 +8,6 @@ import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt
 import { ChatInput } from './ChatInput/ChatInput';
 import { ChatAction, ChatActions, State } from '../../../libs/chatUserSide';
 import { generateUniqId } from '../../../utils/chat';
-// import { LayoutContext } from '../Chat';
 
 interface ControlsProps {
   topic: string;
@@ -46,8 +45,6 @@ export function Controls({ topic, streamerAddress, nickname, stamp, state, dispa
     };
     
     const result = await writeToOwnFeed(topic, streamerAddress, state.ownFeedIndex, messageObj, stamp);
-    console.log("Own feed index: ", state.ownFeedIndex)
-    console.log("Reference: ", result)
     if (!result) throw 'Could not send message!';
     dispatch({ type: ChatActions.UPDATE_OWN_FEED_INDEX, payload: { ownFeedIndex: state.ownFeedIndex + 1 } });
 
