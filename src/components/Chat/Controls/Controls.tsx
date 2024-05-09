@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './Controls.scss';
 import { EthAddress, MessageData, writeToOwnFeed } from '../../../libs/chat';
-import { BatchId } from '@solarpunk/bee-js';
+import { BatchId } from '@ethersphere/bee-js';
 import SendIcon from '@mui/icons-material/Send';
 import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';

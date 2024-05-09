@@ -15,9 +15,10 @@
   "dependencies": {
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
+    "@ethersphere/bee-js": "^6.9.1",
+    "@fairdatasociety/bmt-js": "^2.1.0",
     "@mui/icons-material": "^5.15.15",
     "@rollup/rollup-linux-x64-gnu": "^4.16.3",
-    "@solarpunk/bee-js": "^6.9.0",
     "@usedapp/core": "^1.2.13",
     "clsx": "^2.1.0",
     "emoji-picker-react": "^4.9.2",

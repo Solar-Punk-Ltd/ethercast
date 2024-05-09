@@ -1,9 +1,11 @@
+import { orderMessages, removeDuplicate } from "../utils/chat";
 import { EthAddress, MessageData, readSingleMessage } from "./chat";
 
 export enum ChatActions {
   UPDATE_OWN_FEED_INDEX = 'UPDATE_OWN_FEED_INDEX',
   UPDATE_CHAT_INDEX = 'UPDATE_CHAT_INDEX',
-  ADD_MESSAGE = 'ADD_MESSAGE'
+  ADD_MESSAGE = 'ADD_MESSAGE',
+  ARRANGE = 'ARRANGE'
 }
 
 interface AddMessageAction {
@@ -27,10 +29,15 @@ interface UpdateChatIndexAction {
   };
 }
 
+interface ArrangeMessagesAction {
+  type: ChatActions.ARRANGE;
+}
+
 export type ChatAction = 
   | AddMessageAction                                // Add a message to the array, that holds the aggregated chat. These messages will be displayed
   | UpdateOwnFeedIndexAction                        // Next index to write to
-  | UpdateChatIndexAction;                          // Next index to read from (AggregatedChat)
+  | UpdateChatIndexAction                           // Next index to read from (AggregatedChat)
+  | ArrangeMessagesAction;                          // Order messages by timestamp, and remove duplicates
 
 export interface State {
   messages: MessageData[];
@@ -67,6 +74,14 @@ export function chatUserSideReducer(state: State, action: ChatAction): State {
         ...state,
         chatIndex: action.payload.chatIndex
       };
+
+    case ChatActions.ARRANGE:
+      let orderedMessages = removeDuplicate(state.messages);
+      orderedMessages = orderMessages(orderedMessages);
+      return {
+        ...state,
+        messages: orderedMessages
+      };
         
     default:
       return state;
@@ -79,6 +94,7 @@ export async function readNextMessage(state: State, streamTopic: string, streame
     if (!result) throw 'Error reading message!';
 
     dispatch({ type: ChatActions.ADD_MESSAGE, payload: { message: result } });
+    dispatch({ type: ChatActions.ARRANGE });
     dispatch({ type: ChatActions.UPDATE_CHAT_INDEX, payload: { chatIndex: state.chatIndex + 1 } });
 
   } catch (error) {

@@ -1,4 +1,4 @@
-import { BatchId, FeedWriter } from "@solarpunk/bee-js";
+import { BatchId, FeedWriter } from "@ethersphere/bee-js";
 import { EthAddress, MessageData, RoomID, UserWithIndex, fetchAllMessages, updateUserList, writeOneMessageToAggregatedFeed } from "./chat";
 import { orderMessages, removeDuplicate } from "../utils/chat";
 
