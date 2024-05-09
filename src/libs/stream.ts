@@ -1,4 +1,4 @@
-import { BatchId, Bee, FeedWriter } from '@solarpunk/bee-js';
+import { BatchId, Bee, FeedWriter } from '@ethersphere/bee-js';
 
 import { CLUSTER_ID } from '../utils/constants';
 import { findHexInUint8Array } from '../utils/webm';

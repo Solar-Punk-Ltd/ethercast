@@ -1,4 +1,4 @@
-import { BatchId, Bee, FeedReader, FeedWriter, Reference, Signer, UploadResult, Utils } from '@solarpunk/bee-js';
+import { BatchId, Bee, FeedReader, FeedWriter, Reference, Signer, UploadResult, Utils } from '@ethersphere/bee-js';
 import {
   getConsensualPrivateKey,
   getGraffitiWallet,
@@ -6,7 +6,10 @@ import {
 } from '../utils/graffitiUtils';
 import { generateRoomId, generateUniqId, generateUserOwnedFeedId, generateUsersFeedId, validateUserObject } from '../utils/chat';
 import { Signature, Wallet, ethers } from 'ethers';
-import { HexString } from 'node_modules/@solarpunk/bee-js/dist/types/utils/hex';
+import { HexString } from 'node_modules/@ethersphere/bee-js/dist/types/utils/hex';
+import { sleep } from '../utils/common';
+import { makeChunkedFile } from '@fairdatasociety/bmt-js';
+import { bytesToHex } from '../utils/beeJs/hex';
 
 export type RoomID = string;
 
@@ -145,7 +148,8 @@ export async function registerUser(topic: string, streamerAddress: EthAddress, u
     const feedWriter: FeedWriter = feedWriterFromRoomId(roomId);
     let feedReference: Reference | null = null;
     let uploadSuccess = false;
-    
+    const MAX_TRY_ATTEMPT = 10;
+
     do {                                                                                     // Try to upload User object, if not successful, try again
       try {
         let index: string | number = "";
@@ -156,19 +160,31 @@ export async function registerUser(topic: string, streamerAddress: EthAddress, u
           console.log("res", res)
         } catch (error) {
           index = 0;
-          console.log("0")
+          console.log("DOWNLOADING INDEX FAILED")
         }
+        console.debug("Uploading to feed...")
         feedReference = await feedWriter.upload(stamp, userRef.reference, { index });   
-        const readBackRef = await feedWriter.download({ index });
-        readBackRef.reference
-        const readBack = await bee.downloadData(readBackRef.reference);
-        const json = readBack.json() as unknown as User;
-        console.warn("validateUserObject(json): ", validateUserObject(json));
-        console.warn("json.username == user.username: ", json.username == user.username);
-        uploadSuccess = validateUserObject(json) && json.username == user.username;
-        console.warn("&&: ", uploadSuccess)
+
+        for (let i = 0; i < MAX_TRY_ATTEMPT; i++) {
+          try {
+            console.debug("Read back...")
+            const readBackRef = await feedWriter.download({ index });
+            readBackRef.reference
+            console.debug("Download actual data...")
+            const readBack = await bee.downloadData(readBackRef.reference);
+            const json = readBack.json() as unknown as User;
+            console.warn("validateUserObject(json): ", validateUserObject(json));
+            console.warn("json.username == user.username: ", json.username == user.username);
+            uploadSuccess = validateUserObject(json) && json.username == user.username;
+            console.warn("&&: ", uploadSuccess)
+            if (uploadSuccess) break;
+          } catch (error) {
+            console.error(`Readback failed. Attempt count: ${i}`);
+            await sleep(10 * 1000);
+          }
+        }
       } catch (error) {
-        console.error(`Error registering User ${user.username}, retrying...`);
+        console.error(`Error registering User ${user.username}, retrying...`, error);
       }
     } while (!uploadSuccess);
 
@@ -199,11 +215,14 @@ export async function writeToOwnFeed(
     const feedTopicHex = bee.makeFeedTopic(feedID);
     if (!privateKey) throw "Could not get private key from local storage!";
 
-    const uploadRes = await uploadObjectToBee(messageObj, stamp);                         // We first upload the message object to Swarm
-    if (!uploadRes) throw "Could not upload message object to Swarm!";
+    /*const uploadRes = await*/ uploadObjectToBee(messageObj, stamp);                         // We first upload the message object to Swarm
+    /*if (!uploadRes) throw "Could not upload message object to Swarm!";*/
+    const uint8 = serializeGraffitiRecord(messageObj)
+    const newChunk = makeChunkedFile(uint8)
+    const newRef = bytesToHex(newChunk.address()) as Reference
 
     const feedWriter = bee.makeFeedWriter('sequence', feedTopicHex, privateKey);
-    const ref = await feedWriter.upload(stamp, uploadRes.reference, { index });           // We write to specific index, index is stored in React state
+    const ref = await feedWriter.upload(stamp, newRef, { index });           // We write to specific index, index is stored in React state
     console.info("Wrote message to own feed with ref ", ref)
 
     return ref;
@@ -273,9 +292,14 @@ export async function writeOneMessageToAggregatedFeed(
   stamp: BatchId
 ): Promise<number|null> {
   try {
-    const uploadRes = await uploadObjectToBee(message, stamp);                    // This data should already exist on Swarm, we just don't know the reference
-    if (!uploadRes) throw "Error uploading message to Swarm!";                    // but it's probably good that we give it more time-to-live
-    chatWriter.upload(stamp, uploadRes.reference, { index: chatIndex });
+    //const uploadRes = await uploadObjectToBee(message, stamp);                    // This data should already exist on Swarm, we just don't know the reference
+    //if (!uploadRes) throw "Error uploading message to Swarm!";                    // but it's probably good that we give it more time-to-live
+    
+    const uint8 = serializeGraffitiRecord(message)                                // don't upload the chunk, just calculate ref
+    const newChunk = makeChunkedFile(uint8)
+    const newRef = bytesToHex(newChunk.address()) as Reference
+
+    chatWriter.upload(stamp, newRef, { index: chatIndex });
     console.info(`Wrote message to index ${chatIndex}, address: ${chatWriter.owner}, topic: ${chatWriter.topic}`)
 
     return chatIndex+1;
@@ -373,7 +397,7 @@ export async function uploadObjectToBee(
   stamp: BatchId
 ): Promise<UploadResult | null> {
   try {
-    const result = await bee.uploadData(stamp as any, serializeGraffitiRecord(jsObject));
+    const result = await bee.uploadData(stamp as any, serializeGraffitiRecord(jsObject), { redundancyLevel: 4 });
     
     return result;
 
