@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState, createContext, useContext } from 'react';
+import { useEffect, useReducer, useState, createContext, useContext, useRef } from 'react';
 import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
 import { TextInput } from '../TextInput/TextInput';
@@ -8,6 +8,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import './Chat.scss';
 import { sleep } from '../../utils/common';
 import { MainContext } from '../../routes';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 
 export const LayoutContext = createContext({ chatBodyHeight: 'auto', setChatBodyHeight: (_: string) => {} });
 
@@ -47,9 +48,10 @@ function messagesReducer(state: { messages: MessageData[]; readIndex: number }, 
 }
 
 export function Chat({ feedDataForm }: ChatProps) {
+  const chatBodyRef = useRef<HTMLDivElement | null>(null);
   const { nickNames, setNickNames, actualAccount, actualTopic } = useContext(MainContext);
   const nickName = nickNames[actualAccount] ? nickNames[actualAccount][actualTopic] : '';
-
+  const programScrolling = useRef(false);
   const initialState: ChatState = {
     messages: loadMessages(feedDataForm.topic.value),
     readIndex: loadMessages(feedDataForm.topic.value).length,
@@ -62,9 +64,34 @@ export function Chat({ feedDataForm }: ChatProps) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isNickNameSet, setIsNickNameSet] = useState(nickname ? true : false);
   const [time, setTime] = useState(Date.now());
+  const [newUnseenMessages, setNewUnseenMessages] = useState(false);
 
   // Load the messages from Swarm
   if (!initialized) init();
+  const scrollToBottom = () => {
+    if (programScrolling.current && chatBodyRef.current) {
+      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+    }
+  };
+  const handleScroll = () => {
+    if (chatBodyRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = chatBodyRef.current;
+
+      programScrolling.current = scrollTop + clientHeight + 1 >= scrollHeight;
+      if (programScrolling.current) setNewUnseenMessages(false);
+    }
+  };
+  useEffect(() => {
+    if (chatBodyRef.current) {
+      chatBodyRef.current.addEventListener('scroll', handleScroll);
+    }
+
+    return () => {
+      if (chatBodyRef.current) {
+        chatBodyRef.current.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, []);
 
   // Set a timer, to check for new messages
   useEffect(() => {
@@ -79,6 +106,18 @@ export function Chat({ feedDataForm }: ChatProps) {
   useEffect(() => {
     readNextMessage();
   }, [time]);
+  useEffect(() => {
+    if (chatBodyRef.current) {
+      programScrolling.current = true;
+      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+    }
+  }, []);
+  useEffect(() => {
+    scrollToBottom();
+    if (!programScrolling.current) {
+      setNewUnseenMessages(true);
+    }
+  }, [state.messages]);
 
   // Init the chat application
   async function init() {
@@ -206,7 +245,7 @@ export function Chat({ feedDataForm }: ChatProps) {
             </div>
           ) : null}
 
-          <div className="body">
+          <div className="body" ref={chatBodyRef}>
             {state.messages.map((m: MessageData, i: number) => {
               if (!m) return <Message key={i} name={'admin'} message={'loading'} own={false} />;
               else return <Message key={i} name={m.name} message={m.message} own={nickname == m.name} />;
@@ -214,6 +253,19 @@ export function Chat({ feedDataForm }: ChatProps) {
           </div>
         </div>
 
+        {newUnseenMessages ? (
+          <button
+            className="unseenMessages"
+            onClick={() => {
+              if (chatBodyRef.current) {
+                chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+              }
+              setNewUnseenMessages(false);
+            }}
+          >
+            New messages <ArrowDownwardIcon style={{ fontSize: '15px', marginLeft: '10px' }} />
+          </button>
+        ) : null}
         {!isNickNameSet ? (
           <div className="header">
             {!isEditMode && <span style={{ fontSize: '13px' }}>Enter a Nickname to use chat</span>}
@@ -227,8 +279,8 @@ export function Chat({ feedDataForm }: ChatProps) {
               />
             )}
             {!isEditMode ? (
-              <button onClick={() => setIsEditMode(!isEditMode)}>
-                <EditIcon />
+              <button className="nickNameEditButton" onClick={() => setIsEditMode(!isEditMode)}>
+                <EditIcon style={{ fontSize: 16 }} />
               </button>
             ) : (
               <div className="editButtons">
@@ -242,7 +294,12 @@ export function Chat({ feedDataForm }: ChatProps) {
             )}
           </div>
         ) : (
-          <Controls topic={feedDataForm.topic.value} nickname={nickname} stamp={feedDataForm.stamp.value} />
+          <Controls
+            topic={feedDataForm.topic.value}
+            nickname={nickname}
+            stamp={feedDataForm.stamp.value}
+            newUnseenMessages={newUnseenMessages}
+          />
         )}
       </div>
     </LayoutContext.Provider>

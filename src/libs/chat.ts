@@ -54,7 +54,7 @@ export async function initChatRoom(topic: string, stamp: BatchId): Promise<void>
     await sleep(2000);
 
     const data: MessageData = {
-      message: `This is chat for topic '${topic}' Welcome!`,
+      message: `Chat for topic '${topic}' Welcome!`,
       name: 'admin',
       timestamp: Date.now(),
     };

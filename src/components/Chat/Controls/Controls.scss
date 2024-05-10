@@ -1,21 +1,21 @@
+@import '../../../styles/global.scss';
+
 .controls {
+  position: absolute;
   display: flex;
   min-height: 37px;
   max-height: 120px;
-  position: absolute;
   bottom: 0px;
   right: 0px;
   width: 100%;
 
   .sendButton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
     color: rgb(255, 140, 0);
     width: 40px;
     height: 100%;
     background-color: #1b0900;
     border: none;
+    @extend .flex-center;
   }
 
   .sendButton:active {
@@ -23,6 +23,9 @@
   }
   svg[data-testid='SendIcon'] {
     font-size: 19px;
+  }
+  .sendButton:disabled:active {
+    box-shadow: none;
   }
 }
 
@@ -67,4 +70,8 @@ aside.EmojiPickerReact {
 
 .epr_-bbny0t > button.epr-btn {
   border-radius: 0px;
+}
+
+.unseenMessages {
+  background-color: yellow;
 }
