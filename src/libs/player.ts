@@ -8,14 +8,6 @@ import { findHexInUint8Array, parseVint } from '../utils/webm';
 
 import { AsyncQueue } from './asyncQueue';
 
-// TODO fix bee-js related types in general
-// TODO import this type from @ethersphere/bee-js
-interface FeedUpdateResponse {
-  feedIndex: string;
-  feedIndexNext: string;
-  reference: string;
-}
-
 interface AttachOptions {
   media: HTMLVideoElement;
   address: string;
@@ -60,6 +52,7 @@ let reader: FeedReader;
 let queue: AsyncQueue;
 let currIndex = '';
 let seekIndex = '';
+const bufferQueueTest = {} as any;
 
 const settings: PlayerOptions = {
   timeslice: 1000,
@@ -194,10 +187,9 @@ async function startAppending() {
   }
 
   const append = appendBuffer(appendToSourceBuffer);
-  queue = new AsyncQueue({ indexed: false, waitable: true });
-  streamTimer = setInterval(() => queue.enqueue(append), settings.timeslice);
+  streamTimer = setInterval(append, settings.timeslice);
 
-  await sleep(settings.initBufferTime);
+  await sleep(1000);
   mediaElement.play();
 
   emitEvent(EVENTS.IS_PLAYING_CHANGE, true);
@@ -231,33 +223,90 @@ async function initStream(appendToSourceBuffer: (data: Uint8Array) => void) {
 }
 
 function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
-  let feedUpdateRes: FeedUpdateResponse;
-  let prevIndex = '';
-
   return async () => {
-    // handleBuffering();
+    console.log('Appending buffer:', currIndex);
 
-    try {
-      feedUpdateRes = (await reader.download({ index: currIndex })) as any;
-      currIndex = incrementHexString(currIndex);
-    } catch (error) {
-      currIndex = prevIndex;
+    await fillBufferQueue(currIndex);
+
+    if (bufferQueueTest[currIndex]?.loading || bufferQueueTest[currIndex]?.error) {
+      console.log(bufferQueueTest[currIndex], 'appendBuffer return');
       return;
     }
 
-    if (prevIndex === currIndex) {
-      return;
-    }
+    appendToSourceBuffer(bufferQueueTest[currIndex].segment);
+    delete bufferQueueTest[currIndex];
 
-    const segment = await bee.downloadData(feedUpdateRes.reference);
-    appendToSourceBuffer(segment);
-    prevIndex = currIndex;
+    currIndex = incrementHexString(currIndex);
+    console.log('Buffer appended:', currIndex);
   };
+}
+
+function fillBufferQueue(currIndex: string) {
+  const requestNum = 3;
+  let promiseIndex = currIndex;
+
+  return new Promise<void>((resolve, reject) => {
+    for (let i = 0; i < requestNum; i++) {
+      const currentIndex = promiseIndex;
+
+      if (bufferQueueTest[currentIndex]?.loading || bufferQueueTest[currentIndex]?.segment) {
+        promiseIndex = incrementHexString(promiseIndex);
+        continue;
+      }
+
+      bufferQueueTest[currentIndex] = {
+        loading: true,
+        segment: null,
+        error: null,
+      };
+
+      reader
+        .download({ index: currentIndex })
+        .then((res) => {
+          bee
+            .downloadData(res.reference)
+            .then((segment) => {
+              bufferQueueTest[currentIndex] = {
+                loading: false,
+                segment,
+                error: null,
+              };
+            })
+            .catch((error) => {
+              if (error.status !== 404) {
+                console.error('Error with reader:', error);
+              }
+              bufferQueueTest[currentIndex] = {
+                loading: false,
+                segment: null,
+                error,
+              };
+              reject();
+            });
+        })
+        .catch((error) => {
+          if (error.status !== 404) {
+            console.error('Error with reader:', error);
+          }
+          bufferQueueTest[currentIndex] = {
+            loading: false,
+            segment: null,
+            error,
+          };
+          reject();
+        });
+
+      promiseIndex = incrementHexString(promiseIndex);
+    }
+
+    resolve();
+  });
 }
 
 function initSourceBuffer() {
   const mimeType = 'video/webm; codecs="vp9,opus"';
-  const bufferQueue: Uint8Array[] = [];
+  // internal queue for sourceBuffer
+  const bufferQueue: any[] = [];
 
   if (!sourceBuffer) {
     sourceBuffer = mediaSource.addSourceBuffer(mimeType);
@@ -346,7 +395,7 @@ function setSeekIndex(index: number) {
 
 async function cleanSourceBuffer() {
   pauseAppending();
-  await queue.clearQueueAndWait();
+  await queue.clearQueue();
   sourceBuffer = null!;
   currIndex = '';
 }

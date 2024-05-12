@@ -29,7 +29,7 @@ export function Watch() {
         <JoinButton onClick={() => ({})} />
         <VideoList items={items} />
       </PlayerContainer>
-      <Chat />
+      {/* <Chat />{} */}
     </div>
   );
 }

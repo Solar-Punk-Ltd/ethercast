@@ -58,7 +58,7 @@ export class AsyncQueue {
     this.processQueue();
   }
 
-  async clearQueueAndWait() {
+  async clearQueue() {
     this.queue = [];
     while (this.isProcessing || this.currentPromiseProcessing) {
       await sleep(100);
