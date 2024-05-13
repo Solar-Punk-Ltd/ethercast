@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useReducer, useState } from 'react';
+import { Fragment, useContext, useEffect, useReducer, useState } from 'react';
 import { BatchId, FeedWriter } from '@ethersphere/bee-js';
 import { useEthers } from '@usedapp/core';
 import { produce } from 'immer';
