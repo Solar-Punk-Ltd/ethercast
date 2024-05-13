@@ -3,18 +3,18 @@ import { FIRST_SEGMENT_INDEX } from '../utils/constants';
 import { incrementHexString } from '../utils/operations';
 
 export class AsyncQueue {
-  private queue: ((index?: string) => Promise<void>)[] = [];
-  private indexed = false;
+  private indexed;
+  private waitable;
+  private clearWaitTime;
   private isProcessing = false;
   private currentPromiseProcessing = false;
   private index = FIRST_SEGMENT_INDEX;
-  private waitable = true;
+  private queue: ((index?: string) => Promise<void>)[] = [];
 
-  constructor({ indexed, waitable }: { indexed: boolean; waitable: boolean }) {
-    this.queue = [];
-    this.isProcessing = false;
-    this.indexed = indexed;
-    this.waitable = waitable;
+  constructor(settings: { indexed?: boolean; waitable?: boolean; clearWaitTime?: number } = {}) {
+    this.indexed = settings.indexed || false;
+    this.waitable = settings.waitable || false;
+    this.clearWaitTime = settings.clearWaitTime || 100;
   }
 
   private async processQueue() {
@@ -61,7 +61,7 @@ export class AsyncQueue {
   async clearQueue() {
     this.queue = [];
     while (this.isProcessing || this.currentPromiseProcessing) {
-      await sleep(100);
+      await sleep(this.clearWaitTime);
     }
   }
 }

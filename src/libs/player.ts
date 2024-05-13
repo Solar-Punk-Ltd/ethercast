@@ -39,9 +39,17 @@ export interface PlayerOptions {
   dynamicBufferIncrement: number;
 }
 
+interface SegmentBuffer {
+  [key: string]: any;
+  loading?: boolean;
+  segment?: Uint8Array | null;
+  error?: any;
+}
+
 // External libs
 const bee = new Bee('http://localhost:1633'); // Test address
 const emitter = new EventEmitter();
+const segmentBuffer: SegmentBuffer = {};
 
 // Functional vars
 let mediaElement: HTMLVideoElement;
@@ -49,10 +57,9 @@ let mediaSource: MediaSource;
 let sourceBuffer: SourceBuffer;
 let streamTimer: NodeJS.Timeout | null;
 let reader: FeedReader;
-let queue: AsyncQueue;
+let processQueue: AsyncQueue;
 let currIndex = '';
 let seekIndex = '';
-const bufferQueueTest = {} as any;
 
 const settings: PlayerOptions = {
   timeslice: 1000,
@@ -172,7 +179,7 @@ export function detach() {
   emitter.cleanAll();
   mediaSource = null!;
   sourceBuffer = null!;
-  queue = null!;
+  processQueue = null!;
   mediaElement = null!;
   reader = null!;
   currIndex = '';
@@ -186,10 +193,11 @@ async function startAppending() {
     await initStream(appendToSourceBuffer);
   }
 
+  processQueue = new AsyncQueue({ indexed: false, waitable: false });
   const append = appendBuffer(appendToSourceBuffer);
-  streamTimer = setInterval(append, settings.timeslice);
+  streamTimer = setInterval(() => processQueue.enqueue(append), settings.timeslice);
 
-  await sleep(1000);
+  await sleep(settings.initBufferTime);
   mediaElement.play();
 
   emitEvent(EVENTS.IS_PLAYING_CHANGE, true);
@@ -200,7 +208,7 @@ function continueAppending() {
   const { appendToSourceBuffer } = initSourceBuffer();
 
   const append = appendBuffer(appendToSourceBuffer);
-  streamTimer = setInterval(() => queue.enqueue(append), settings.timeslice);
+  streamTimer = setInterval(() => processQueue.enqueue(append), settings.timeslice);
 
   mediaElement.play();
 
@@ -228,13 +236,13 @@ function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
 
     await fillBufferQueue(currIndex);
 
-    if (bufferQueueTest[currIndex]?.loading || bufferQueueTest[currIndex]?.error) {
-      console.log(bufferQueueTest[currIndex], 'appendBuffer return');
+    if (segmentBuffer[currIndex]?.loading || segmentBuffer[currIndex]?.error) {
+      console.log(segmentBuffer[currIndex], 'appendBuffer return');
       return;
     }
 
-    appendToSourceBuffer(bufferQueueTest[currIndex].segment);
-    delete bufferQueueTest[currIndex];
+    appendToSourceBuffer(segmentBuffer[currIndex].segment!);
+    delete segmentBuffer[currIndex];
 
     currIndex = incrementHexString(currIndex);
     console.log('Buffer appended:', currIndex);
@@ -249,12 +257,12 @@ function fillBufferQueue(currIndex: string) {
     for (let i = 0; i < requestNum; i++) {
       const currentIndex = promiseIndex;
 
-      if (bufferQueueTest[currentIndex]?.loading || bufferQueueTest[currentIndex]?.segment) {
+      if (segmentBuffer[currentIndex]?.loading || segmentBuffer[currentIndex]?.segment) {
         promiseIndex = incrementHexString(promiseIndex);
         continue;
       }
 
-      bufferQueueTest[currentIndex] = {
+      segmentBuffer[currentIndex] = {
         loading: true,
         segment: null,
         error: null,
@@ -266,7 +274,7 @@ function fillBufferQueue(currIndex: string) {
           bee
             .downloadData(res.reference)
             .then((segment) => {
-              bufferQueueTest[currentIndex] = {
+              segmentBuffer[currentIndex] = {
                 loading: false,
                 segment,
                 error: null,
@@ -276,7 +284,7 @@ function fillBufferQueue(currIndex: string) {
               if (error.status !== 404) {
                 console.error('Error with reader:', error);
               }
-              bufferQueueTest[currentIndex] = {
+              segmentBuffer[currentIndex] = {
                 loading: false,
                 segment: null,
                 error,
@@ -288,7 +296,7 @@ function fillBufferQueue(currIndex: string) {
           if (error.status !== 404) {
             console.error('Error with reader:', error);
           }
-          bufferQueueTest[currentIndex] = {
+          segmentBuffer[currentIndex] = {
             loading: false,
             segment: null,
             error,
@@ -306,7 +314,7 @@ function fillBufferQueue(currIndex: string) {
 function initSourceBuffer() {
   const mimeType = 'video/webm; codecs="vp9,opus"';
   // internal queue for sourceBuffer
-  const bufferQueue: any[] = [];
+  const bufferQueue: Uint8Array[] = [];
 
   if (!sourceBuffer) {
     sourceBuffer = mediaSource.addSourceBuffer(mimeType);
@@ -395,7 +403,7 @@ function setSeekIndex(index: number) {
 
 async function cleanSourceBuffer() {
   pauseAppending();
-  await queue.clearQueue();
+  await processQueue.clearQueue();
   sourceBuffer = null!;
   currIndex = '';
 }
