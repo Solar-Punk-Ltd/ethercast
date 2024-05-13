@@ -16,17 +16,17 @@ interface ChatProps {
 }
 
 export function Chat({ feedDataForm }: ChatProps) {
-  const chatBodyRef = useRef<HTMLDivElement | null>(null);
   const { nickNames, setNickNames, actualAccount, actualTopic } = useContext(MainContext);
   const nickName = nickNames[actualAccount] ? nickNames[actualAccount][actualTopic] : '';
-  const programScrolling = useRef(false);
   const [state, dispatch] = useReducer(chatUserSideReducer, initialStateForChatUserSide);
   const [chatBodyHeight, setChatBodyHeight] = useState('auto');
-  const [nickname, setNickname] = useState(nickName); // Our name
+  const [nickname, setNickname] = useState(nickName);
   const readInterval = 3000;
   const [isEditMode, setIsEditMode] = useState(false);
   const [isNickNameSet, setIsNickNameSet] = useState(nickname ? true : false);
   const [time, setTime] = useState(Date.now());
+  const chatBodyRef = useRef<HTMLDivElement | null>(null);
+  const programScrolling = useRef(false);
   const [newUnseenMessages, setNewUnseenMessages] = useState(false);
 
   // Set a timer, to check for new messages
@@ -41,7 +41,7 @@ export function Chat({ feedDataForm }: ChatProps) {
 
   useEffect(() => {
     readNextMessage(state, feedDataForm.topic.value, feedDataForm.address.value, dispatch);
-  }, [time]); 
+  }, [time]);
   
   const scrollToBottom = () => {
     if (programScrolling.current && chatBodyRef.current) {
