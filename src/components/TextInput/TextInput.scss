@@ -13,21 +13,17 @@
   outline: none;
   box-sizing: border-box;
   border: 1px solid white;
-  color: #1b0900;
-  caret-color: #1b0900;
+  color: $sp-bg-primary-100;
+  caret-color: $sp-bg-primary-100;
   font-family: 'iaWriterQuattroV';
 }
 
 .text-input-container input:focus {
-  border: 1px solid #1b0900;
+  border: 1px solid $sp-bg-primary-100;
 }
 
 .text-inpu-container input::placeholder {
-  color: #1b0900;
-}
-
-.text-input-container input:focus {
-  border: 1px solid #1b0900;
+  color: $sp-bg-primary-100;
 }
 
 .text-inpu-container input::placeholder {

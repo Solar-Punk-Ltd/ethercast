@@ -8,12 +8,30 @@ export enum ROUTES {
   HOME = '/',
   STREAM = '/stream',
 }
-export const MainContext = createContext({ mainNickName: '', setMainNickName: (_: string) => {} });
+export const MainContext = createContext({
+  nickNames: {} as { [key: string]: { [key: string]: string } },
+  setNickNames: (_: any) => {},
+  actualAccount: '',
+  setActualAccount: (_: any) => {},
+  actualTopic: '',
+  setActualTopic: (_: any) => {},
+});
 
 const BaseRouter = (): ReactElement => {
-  const [mainNickName, setMainNickName] = useState<string>('');
+  const [nickNames, setNickNames] = useState<{ [key: string]: { [key: string]: string } }>({});
+  const [actualAccount, setActualAccount] = useState('');
+  const [actualTopic, setActualTopic] = useState('');
   return (
-    <MainContext.Provider value={{ mainNickName: mainNickName, setMainNickName: setMainNickName }}>
+    <MainContext.Provider
+      value={{
+        nickNames: nickNames,
+        setNickNames: setNickNames,
+        actualAccount,
+        setActualAccount,
+        actualTopic,
+        setActualTopic,
+      }}
+    >
       <Routes>
         <Route path={ROUTES.HOME} element={<Home />} />
         <Route path={ROUTES.STREAM} element={<Stream />} />

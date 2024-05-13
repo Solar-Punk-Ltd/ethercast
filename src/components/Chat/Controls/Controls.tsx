@@ -1,56 +1,58 @@
 import { useState } from 'react';
 import './Controls.scss';
-import { EthAddress, MessageData, writeToOwnFeed } from '../../../libs/chat';
-import { BatchId } from '@ethersphere/bee-js';
+import { RoomID, checkUploadResult, readSingleMessage, sendMessage } from '../../../libs/chat';
+import { BatchId, Reference } from '@solarpunk/bee-js';
 import SendIcon from '@mui/icons-material/Send';
 import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
 import { ChatInput } from './ChatInput/ChatInput';
-import { ChatAction, ChatActions, State } from '../../../libs/chatUserSide';
-import { generateUniqId } from '../../../utils/chat';
+import { generateRoomId } from '../../../utils/chat';
+import { sleep } from '../../../utils/common';
+import CircularProgress from '@mui/material/CircularProgress';
 
 interface ControlsProps {
   topic: string;
   streamerAddress: EthAddress;
   nickname: string;
   stamp: BatchId;
-  state: State;
-  dispatch: React.Dispatch<ChatAction>;
+  newUnseenMessages?: boolean;
 }
 
-export function Controls({ topic, streamerAddress, nickname, stamp, state, dispatch }: ControlsProps) {
+export function Controls({ topic, nickname, stamp }: ControlsProps) {
   const [showIcons, setShowIcons] = useState(false);
-  // const [height, setHeight] = useState('37px');
-  const [sendActive, setSendActive] = useState(true);
+  const [sendActive, setSendActive] = useState(false);
   const [newMessage, setNewMessage] = useState('');
-  // const [controlHeight, setControlHeight] = useState('37px');
-  // const { setChatBodyHeight } = useContext(LayoutContext);
   function handleSmileyClick() {
     setShowIcons(!showIcons);
   }
+  const roomId: RoomID = generateRoomId(topic);
 
   async function handleSubmit() {
-    if (newMessage === '' || !sendActive) return;
-    setSendActive(false);
+    if (newMessage === '') return;
+    setSendActive(true);
+    setShowIcons(false);
     const messageTimestamp = Date.now(); // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
+    let result: Reference | number = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
+    let success = false;
+    let counter = 0;
 
-    const userAddress: EthAddress | null = localStorage.getItem(generateUniqId(topic, streamerAddress)) as EthAddress;
-    if (!userAddress) throw "Could not get address from local storage!"                       // This suggests that the user haven't registered yet for this chat
-    
-    const messageObj: MessageData = {
-      message: newMessage,
-      username: nickname,
-      address: userAddress,
-      timestamp: messageTimestamp,
-    };
-    
-    const result = await writeToOwnFeed(topic, streamerAddress, state.ownFeedIndex, messageObj, stamp);
-    if (!result) throw 'Could not send message!';
-    dispatch({ type: ChatActions.UPDATE_OWN_FEED_INDEX, payload: { ownFeedIndex: state.ownFeedIndex + 1 } });
+    while (!success) {
+      setSendActive(true);
+      if (counter > 32) {
+        counter = 0;
+        result = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
+      }
 
+      if (result != -1) {
+        success = await checkUploadResult(result as Reference);
+      }
+
+      counter++;
+      await sleep(2000);
+    }
 
     setNewMessage('');
-    setSendActive(true);
+    setSendActive(false);
   }
 
   function handleKeyPress(event: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -58,21 +60,7 @@ export function Controls({ topic, streamerAddress, nickname, stamp, state, dispa
       event.preventDefault();
       handleSubmit();
       setNewMessage('');
-      // setHeight('37px');
-      // setChatBodyHeight('auto');
     }
-  }
-
-  function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    // alert(e.target.value);
-    // setNewMessage(e.target.value);
-    // const charsCount = e.target.value.length;
-    // if (charsCount <= 54) {
-    //   setHeight('37px');
-    // } else if (charsCount > 54) {
-    //   setHeight(`${Math.ceil(charsCount / 27) * 18}px`);
-    //   // setChatBodyHeight('10px');
-    // }
   }
 
   function onEmojiClick(emojiData: EmojiClickData) {
@@ -84,12 +72,12 @@ export function Controls({ topic, streamerAddress, nickname, stamp, state, dispa
       <ChatInput
         className="chat-input"
         value={newMessage}
-        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange(e)}
         onKeyPressed={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyPress(e)}
         setValue={setNewMessage}
-        // setControlHeight={setControlHeight}
         name={nickname}
+        disabled={sendActive}
         placeholder={'Type your message here'}
+        textareaClassName={sendActive}
       />
       {showIcons && (
         <div className="text-input-icons">
@@ -113,10 +101,22 @@ export function Controls({ topic, streamerAddress, nickname, stamp, state, dispa
         </div>
       )}
 
-      <SentimentSatisfiedAltIcon className="text-input-icon" onClick={handleSmileyClick} />
+      {!sendActive ? (
+        <SentimentSatisfiedAltIcon
+          sx={{ cursor: sendActive ? 'not-allowed' : '' }}
+          className="text-input-icon"
+          onClick={handleSmileyClick}
+        />
+      ) : null}
+
       <div className="controlButton">
-        <button onClick={handleSubmit} className="sendButton">
-          <SendIcon />
+        <button
+          onClick={handleSubmit}
+          className="sendButton"
+          style={{ cursor: sendActive ? 'not-allowed' : '' }}
+          disabled={sendActive}
+        >
+          {sendActive ? <CircularProgress size={20} sx={{ color: '#ff7900' }} /> : <SendIcon />}
         </button>
       </div>
     </div>

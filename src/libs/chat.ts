@@ -400,7 +400,6 @@ export async function uploadObjectToBee(
     const result = await bee.uploadData(stamp as any, serializeGraffitiRecord(jsObject), { redundancyLevel: 4 });
     
     return result;
-
   } catch (error) {
     return null;
   }
