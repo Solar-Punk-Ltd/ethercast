@@ -20,7 +20,7 @@ interface ControlsProps {
   newUnseenMessages?: boolean;
 }
 
-export function Controls({ topic, streamerAddress, nickname, stamp, state, dispatch, newUnseenMessages }: ControlsProps) {
+export function Controls({ topic, streamerAddress, nickname, stamp, state, dispatch }: ControlsProps) {
   const [showIcons, setShowIcons] = useState(false);
   const [sendActive, setSendActive] = useState(false);
   const [newMessage, setNewMessage] = useState('');
@@ -29,7 +29,7 @@ export function Controls({ topic, streamerAddress, nickname, stamp, state, dispa
   }
     
   async function handleSubmit() {
-    if (newMessage === '' || !sendActive) return;
+    if (newMessage === '' || sendActive) return;
     setSendActive(true);
     setShowIcons(false);
     const messageTimestamp = Date.now(); // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
@@ -50,7 +50,7 @@ export function Controls({ topic, streamerAddress, nickname, stamp, state, dispa
 
 
     setNewMessage('');
-    setSendActive(true);
+    setSendActive(false);
   } 
 
   function handleKeyPress(event: React.KeyboardEvent<HTMLTextAreaElement>) {
