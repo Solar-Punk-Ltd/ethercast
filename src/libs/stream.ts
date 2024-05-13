@@ -1,5 +1,7 @@
-import { BatchId, Bee, FeedWriter } from '@solarpunk/bee-js';
+import { BatchId, Bee, FeedWriter, Reference } from '@ethersphere/bee-js';
+import { makeChunkedFile } from '@fairdatasociety/bmt-js';
 
+import { bytesToHex } from '../utils/beeJs/hex';
 import { CLUSTER_ID } from '../utils/constants';
 import { findHexInUint8Array } from '../utils/webm';
 
@@ -14,11 +16,7 @@ interface Options {
   video: boolean;
   audio: boolean;
   timeslice: number;
-  videoDetails?: {
-    width: number;
-    height: number;
-    frameRate: number;
-  };
+  videoBitsPerSecond: number;
 }
 
 const bee = new Bee('http://localhost:1633'); // Test address
@@ -29,24 +27,17 @@ let mediaStream: MediaStream;
 export async function startStream(signer: Signer, topic: string, stamp: BatchId, options: Options): Promise<void> {
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: options.video && {
-        width: {
-          ideal: options.videoDetails?.width,
-        },
-        height: {
-          ideal: options.videoDetails?.height,
-        },
-        frameRate: { ideal: options.videoDetails?.frameRate },
-      },
+      video: options.video,
       audio: options.audio,
     });
 
     mediaRecorder = new MediaRecorder(mediaStream, {
       mimeType: 'video/webm; codecs=vp9,opus',
+      videoBitsPerSecond: options.videoBitsPerSecond,
     });
 
     await initFeed(signer, topic, stamp);
-    const queue = new AsyncQueue({ indexed: true });
+    const queue = new AsyncQueue({ indexed: true, waitable: true });
 
     let firstChunk = true;
     mediaRecorder.ondataavailable = async (event) => {
@@ -79,8 +70,12 @@ export function isStreamOngoing() {
 }
 
 async function uploadChunk(stamp: BatchId, chunk: Uint8Array, index: string) {
-  const chunkResult = await bee.uploadData(stamp, chunk);
-  await feedWriter.upload(stamp, chunkResult.reference, { index });
+  bee.uploadData(stamp, chunk);
+
+  // precalculate the reference
+  const newChunk = makeChunkedFile(chunk);
+  const newChunkRef = bytesToHex(newChunk.address()) as Reference;
+  feedWriter.upload(stamp, newChunkRef, { index });
 }
 
 async function initFeed(signer: Signer, rawTopic: string, stamp: BatchId) {

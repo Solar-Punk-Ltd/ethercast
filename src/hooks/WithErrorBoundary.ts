@@ -3,6 +3,8 @@ import { useError } from '../app/Error/ErrorContext';
 export function WithErrorBoundary<T, Args extends any[]>(fn: (...args: Args) => T) {
   const { setError } = useError();
 
+  if (!fn) throw new Error('Function is required');
+
   const callback = (...props: Args): T => {
     try {
       return fn(...props) as T;
@@ -19,6 +21,8 @@ type UnwrapPromise<T> = T extends Promise<infer U> ? U : T;
 
 export function WithAsyncErrorBoundary<T, Args extends any[]>(fn: (...args: Args) => T) {
   const { setError } = useError();
+
+  if (!fn) throw new Error('Function is required');
 
   const callback = async (...props: Args): Promise<UnwrapPromise<T>> => {
     try {

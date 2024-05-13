@@ -24,9 +24,20 @@ export function parseVint(buffer: Uint8Array, offset = 0) {
   }
 
   return {
-    length: lengthOfLengthDescriptor,
+    lengthOfLengthDescriptor,
+    length,
     value,
   };
+}
+
+export function parseEBMLString(buffer: Uint8Array, offset = 0) {
+  const { length, lengthOfLengthDescriptor } = parseVint(buffer, offset);
+  const stringStartOffset = offset + lengthOfLengthDescriptor;
+  const stringEndOffset = stringStartOffset + length;
+
+  const decoder = new TextDecoder('utf-8');
+  const stringValue = decoder.decode(buffer.subarray(stringStartOffset, stringEndOffset));
+  return stringValue;
 }
 
 export function findHexInUint8Array(array: Uint8Array, hex: string) {

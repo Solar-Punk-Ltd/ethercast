@@ -5,24 +5,24 @@ import { ErrorModal } from './ErrorModal';
 
 interface ErrorBoundaryState {
   inBoundaryError: Error | null;
+  errorCount: number;
 }
 
 export class ErrorBoundary extends Component<PropsWithChildren<Record<string, unknown>>, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { inBoundaryError: null };
+  state: ErrorBoundaryState = { inBoundaryError: null, errorCount: 0 };
 
   static contextType = ErrorContext;
   declare context: ContextType<typeof ErrorContext>;
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { inBoundaryError: error };
-  }
-
   componentDidCatch(error: Error, _errorInfo: ErrorInfo) {
     console.error('Error caught by Error Boundary: ', error);
+    this.setState((prevState) => ({
+      inBoundaryError: error,
+      errorCount: prevState.errorCount + 1,
+    }));
   }
-
   closeError = () => {
-    this.setState({ inBoundaryError: null });
+    this.setState({ inBoundaryError: null, errorCount: 0 });
     this.context.setError(null);
   };
 
@@ -34,7 +34,7 @@ export class ErrorBoundary extends Component<PropsWithChildren<Record<string, un
     return (
       <>
         {!!this.error && <ErrorModal error={this.error} onClose={this.closeError} />}
-        {this.props.children}
+        {this.state.errorCount > 3 ? null : this.props.children}
       </>
     );
   }

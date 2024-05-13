@@ -5,6 +5,7 @@ import streamIcon from '../../../assets/icons/camera-reels.svg';
 import activeStreamIcon from '../../../assets/icons/camera-reels-fill.svg';
 import homeIcon from '../../../assets/icons/house-door.svg';
 import activeHomeIcon from '../../../assets/icons/house-door-fill.svg';
+import searchIcon from '../../../assets/icons/search.svg';
 import { ROUTES } from '../../../routes';
 
 import { MenuItem } from './MenuItem';
@@ -21,6 +22,12 @@ const items = [
     iconSrc: homeIcon,
     title: 'Home',
     href: ROUTES.HOME,
+  },
+  {
+    activeIconSrc: searchIcon,
+    iconSrc: searchIcon,
+    title: 'Search',
+    href: ROUTES.SEARCH,
   },
   {
     activeIconSrc: activeStreamIcon,
