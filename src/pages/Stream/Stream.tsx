@@ -20,6 +20,7 @@ import {
   doUpdateUserList, 
   doAggregationCycle
 } from '../../libs/chatAggregator';
+import { MainContext } from '../../routes';
 
 interface CommonForm {
   label: string;
@@ -29,7 +30,7 @@ interface CommonForm {
 
 export function Stream() {
   const { account, library } = useEthers();
-
+  const { setActualAccount } = useContext(MainContext);
   const [isLive, setIsLive] = useState(false);
   const [audio, setAudio] = useState<boolean>(true);
   const [video, setVideo] = useState<boolean>(true);
@@ -52,7 +53,7 @@ export function Stream() {
     stamp: {
       label: 'Please provide a valid stamp',
       placeholder: 'Stamp',
-      value: '50e31a7da81f50f6100591c2ba44077482ce9aac9e0fb4072671954b5c777c62',
+      value: '',
     },
   });
   const [streamDataForm, setStreamDataForm] = useState<Record<string, CommonForm>>({
@@ -125,6 +126,7 @@ export function Stream() {
     
 
     setIsLive(true);
+    setActualAccount(account!);
   };
 
   const stop = () => {

@@ -1,21 +1,25 @@
+@import '../../../styles/global.scss';
+
 .controls {
+  position: absolute;
   display: flex;
   min-height: 37px;
   max-height: 120px;
-  position: absolute;
   bottom: 0px;
   right: 0px;
   width: 100%;
 
   .sendButton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
     color: rgb(255, 140, 0);
     width: 40px;
     height: 100%;
     background-color: #1b0900;
     border: none;
+    @extend .flex-center;
+  }
+
+  .sendButton:active {
+    box-shadow: inset 0 0 10px #704214;
   }
 
   .sendButton:active {
@@ -24,6 +28,56 @@
   svg[data-testid='SendIcon'] {
     font-size: 19px;
   }
+  .sendButton:disabled:active {
+    box-shadow: none;
+  }
+}
+
+.controlButton {
+  display: flex;
+  align-items: center;
+}
+
+aside.EmojiPickerReact {
+  position: absolute;
+  bottom: $sp-input-height;
+  right: 0px;
+}
+
+.EmojiPickerReact.epr_-6npj90 {
+  display: flex;
+  flex-direction: column-reverse;
+  --epr-emoji-size: 20px;
+  --epr-picker-border-radius: 0px;
+  --epr-search-input-border-radius: 0px;
+  --epr-category-navigation-button-size: 30px;
+  --epr-header-padding: 5px;
+  --epr-category-label-height: 30px;
+  --epr-preview-height: 50px;
+  --epr-dark-search-input-bg-color-active: #1b0900;
+  --epr-search-input-text-color: rgb(255, 140, 0);
+}
+
+.epr_6daqyu .epr-emoji-category-label {
+  font-family: 'iAWriterQuattroV';
+}
+
+.epr_6daqyu input {
+  height: $sp-input-height;
+  font-family: 'iAWriterQuattroV';
+}
+
+.epr-header .epr_-8ygbw8 {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.epr_-bbny0t > button.epr-btn {
+  border-radius: 0px;
+}
+
+.unseenMessages {
+  background-color: yellow;
 }
 
 .controlButton {

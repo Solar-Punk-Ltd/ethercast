@@ -1,5 +1,4 @@
-import React, { useState, useRef } from 'react';
-import clsx from 'clsx';
+import React, { useRef } from 'react';
 import TextField from '@mui/material/TextField';
 
 import './ChatInput.scss';
@@ -10,12 +9,14 @@ interface ChatInputProps {
   className?: string;
   setValue?: any;
   value: string;
+  disabled?: boolean;
   name: string;
+  textareaClassName: boolean;
   onChange?: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onKeyPressed: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }
 
-export function ChatInput({ label, value, setValue, onKeyPressed, ...props }: ChatInputProps) {
+export function ChatInput({ label, value, disabled, setValue, textareaClassName, onKeyPressed }: ChatInputProps) {
   const textFieldRef = useRef(null);
   return (
     <>
@@ -23,6 +24,7 @@ export function ChatInput({ label, value, setValue, onKeyPressed, ...props }: Ch
 
       <TextField
         ref={textFieldRef}
+        disabled={disabled}
         multiline={true}
         value={value}
         sx={{
@@ -45,10 +47,16 @@ export function ChatInput({ label, value, setValue, onKeyPressed, ...props }: Ch
           '& .MuiInputBase-input::placeholder': {
             fontSize: '14px',
           },
+          '& .MuiInputBase-root .Mui-disabled': {
+            backgroundColor: textareaClassName ? 'grey' : 'white',
+            cursor: 'not-allowed',
+          },
+          '& .MuiInputBase-root': {
+            backgroundColor: textareaClassName ? 'grey' : 'white',
+            cursor: textareaClassName ? 'not-allowed' : '',
+          },
         }}
-        className="textarea-field"
         placeholder={'Type your message here'}
-        // {...props}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
           setValue(e.target.value);
         }}

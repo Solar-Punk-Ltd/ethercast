@@ -1,49 +1,54 @@
+@import '../../styles/global.scss';
+
 .chat {
   position: relative;
   height: calc(100vh - $sp-header-height);
-  width: 300px;
+  width: 360px;
   background-color: rgba(255, 255, 255, 0.295);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 
   .header {
-    height: 40px;
+    font-weight: bold;
+    height: 37px;
+    box-sizing: border-box;
     display: flex;
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid black;
-    padding: 12px;
-    color: rgb(255, 140, 0);
-    background-color: #1b0900;
+    padding-left: 12px;
+    padding-right: 12px;
+    color: $sp-text-orange;
+    background-color: $sp-bg-primary-100;
   }
 
-  .header button {
-    color: #1b0900;
-    background-color: white;
-    border: none;
-    margin-left: 10px;
+  .nickNameEditButton {
+    color: $sp-text-orange;
+    background-color: transparent;
+    border: 1px solid $sp-text-orange;
+    border-radius: 12px;
+    display: flex;
+    padding: 5px;
   }
 
   .header input::placeholder {
-    color: #1b0900;
+    color: $sp-bg-primary-100;
   }
 
   .body {
     overflow: auto;
-    padding-top: 10px;
+    padding-top: 40px;
     padding-bottom: 10px;
-    height: 79vh;
+    height: 83vh;
   }
 
   .set-name {
-    height: 37px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 10px;
+    height: 26px;
+    padding: 0px;
     background-color: white;
-    color: #1b0900;
+    color: $sp-bg-primary-100;
+    @extend .flex-center;
   }
   .editButtons {
     display: flex;
@@ -51,29 +56,70 @@
   }
 
   .editButtons .closeButton {
+    font-weight: bold;
     border-radius: 50px;
     background-color: #2a2828;
-    color: orange;
+    color: $sp-text-orange;
+    border: 1px solid $sp-text-orange;
+    margin-left: 10px;
   }
 
   .editButtons .okButton {
+    font-weight: bold;
     border-radius: 12px;
     background-color: #ebe3e3;
     color: rgb(65, 42, 0);
+    border: 1px solid rgb(65, 42, 0);
+    margin-left: 10px;
   }
 
   input.set-name {
-    background-color: #1b0900;
+    background-color: $sp-bg-primary-100;
     border: 0px;
-    border-bottom: 1px solid orange;
-    caret-color: orange;
-    color: orange;
+    border-bottom: 1px solid $sp-text-orange;
+    caret-color: $sp-text-orange;
+    color: $sp-text-orange;
   }
   input.set-name::placeholder {
-    color: orange;
+    color: $sp-text-orange;
   }
   .actualNickName {
-    color: #ff7900;
-    background-color: #1b0900;
+    position: absolute;
+    width: 100%;
+    height: 37px;
+    font-size: 1rem;
+    font-weight: bold;
+    color: black;
+    background-color: rgb(193 126 114);
+    box-shadow: 0 6px 11px 0 rgb(0 0 0 / 52%);
+    @extend .flex-center;
+  }
+
+  @keyframes slide {
+    0% {
+      background-position: 0%;
+    }
+    50% {
+      background-position: 100%;
+    }
+    100% {
+      background-position: 0%;
+    }
+  }
+
+  .unseenMessages {
+    animation: slide 2s infinite;
+    background: linear-gradient(90deg, #dddd00, #dddd00, #ffffaf, #dddd00, #dddd00);
+    background-size: 200%;
+    position: absolute;
+    bottom: 37px;
+    color: $sp-bg-primary-100;
+    width: 100%;
+    border: none;
+    font-weight: bold;
+    @extend .flex-center;
+  }
+  .chatFooter {
+    box-shadow: 0px -6px 11px 0px rgb(0 0 0 / 29%);
   }
 }

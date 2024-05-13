@@ -4,10 +4,10 @@ header {
   width: 100%;
   z-index: 2200;
   transform: translateY(0);
-  transition: transform .3s ease;
+  transition: transform 0.3s ease;
   background-color: $sp-bg-primary-100;
   height: $sp-header-height;
-  display: flex;  
+  display: flex;
   align-items: center;
   justify-content: space-between;
 
@@ -19,7 +19,7 @@ header {
     padding: 4px;
     margin-left: 18px;
     &:hover {
-      background-color: rgba(255,255,255,0.2);
+      background-color: rgba(255, 255, 255, 0.2);
     }
 
     button {
