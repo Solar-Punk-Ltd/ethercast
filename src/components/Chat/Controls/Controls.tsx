@@ -1,59 +1,57 @@
 import { useState } from 'react';
-import './Controls.scss';
-import { RoomID, checkUploadResult, readSingleMessage, sendMessage } from '../../../libs/chat';
-import { BatchId, Reference } from '@solarpunk/bee-js';
+import { EthAddress, MessageData, writeToOwnFeed } from '../../../libs/chat';
+import { BatchId } from '@ethersphere/bee-js';
 import SendIcon from '@mui/icons-material/Send';
 import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
+import { ChatAction, ChatActions, State } from '../../../libs/chatUserSide';
+import { generateUniqId } from '../../../utils/chat';
 import { ChatInput } from './ChatInput/ChatInput';
-import { generateRoomId } from '../../../utils/chat';
-import { sleep } from '../../../utils/common';
 import CircularProgress from '@mui/material/CircularProgress';
+import './Controls.scss';
 
 interface ControlsProps {
   topic: string;
   streamerAddress: EthAddress;
   nickname: string;
   stamp: BatchId;
+  state: State;
+  dispatch: React.Dispatch<ChatAction>;
   newUnseenMessages?: boolean;
 }
 
-export function Controls({ topic, nickname, stamp }: ControlsProps) {
+export function Controls({ topic, streamerAddress, nickname, stamp, state, dispatch, newUnseenMessages }: ControlsProps) {
   const [showIcons, setShowIcons] = useState(false);
   const [sendActive, setSendActive] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   function handleSmileyClick() {
     setShowIcons(!showIcons);
   }
-  const roomId: RoomID = generateRoomId(topic);
-
+    
   async function handleSubmit() {
-    if (newMessage === '') return;
+    if (newMessage === '' || !sendActive) return;
     setSendActive(true);
     setShowIcons(false);
     const messageTimestamp = Date.now(); // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
-    let result: Reference | number = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
-    let success = false;
-    let counter = 0;
 
-    while (!success) {
-      setSendActive(true);
-      if (counter > 32) {
-        counter = 0;
-        result = await sendMessage(newMessage, nickname, roomId, messageTimestamp, stamp);
-      }
+    const userAddress: EthAddress | null = localStorage.getItem(generateUniqId(topic, streamerAddress)) as EthAddress;
+    if (!userAddress) throw "Could not get address from local storage!"                       // This suggests that the user haven't registered yet for this chat
+    
+    const messageObj: MessageData = {
+      message: newMessage,
+      username: nickname,
+      address: userAddress,
+      timestamp: messageTimestamp,
+    };
+    
+    const result = await writeToOwnFeed(topic, streamerAddress, state.ownFeedIndex, messageObj, stamp);
+    if (!result) throw 'Could not send message!';
+    dispatch({ type: ChatActions.UPDATE_OWN_FEED_INDEX, payload: { ownFeedIndex: state.ownFeedIndex + 1 } });
 
-      if (result != -1) {
-        success = await checkUploadResult(result as Reference);
-      }
-
-      counter++;
-      await sleep(2000);
-    }
 
     setNewMessage('');
-    setSendActive(false);
-  }
+    setSendActive(true);
+  } 
 
   function handleKeyPress(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter') {

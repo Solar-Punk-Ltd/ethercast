@@ -109,16 +109,6 @@ export function Home() {
     }));
   };
 
-  const pasteFromClipBoard = async () => {
-    const clipboardData = await navigator.clipboard.readText();
-    setFeedDataForm((prevState) => ({
-      ...prevState,
-      address: {
-        ...prevState.address,
-        value: clipboardData,
-      },
-    }));
-  };
 
   return (
     <div className="home">
