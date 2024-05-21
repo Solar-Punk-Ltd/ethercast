@@ -234,7 +234,7 @@ function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
   return async () => {
     console.log('Appending buffer:', currIndex);
 
-    await fillBufferQueue(currIndex);
+    await loadSegmentBuffer(currIndex);
 
     if (segmentBuffer[currIndex]?.loading || segmentBuffer[currIndex]?.error) {
       console.log(segmentBuffer[currIndex], 'appendBuffer return');
@@ -249,7 +249,7 @@ function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
   };
 }
 
-function fillBufferQueue(currIndex: string) {
+function loadSegmentBuffer(currIndex: string) {
   const requestNum = 3;
   let promiseIndex = currIndex;
 
