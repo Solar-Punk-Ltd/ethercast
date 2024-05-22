@@ -1,4 +1,5 @@
 import { BrandedType, FlavoredType } from '@ethersphere/bee-js';
+
 import { HEX_RADIX } from '../constants';
 
 /**
