@@ -1,7 +1,7 @@
 import { Bee, Data, FeedReader } from '@ethersphere/bee-js';
 
 import { sleep } from '../utils/common';
-import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX, TIMESTAMP_SCALE } from '../utils/constants';
+import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX, HEX_RADIX, TIMESTAMP_SCALE } from '../utils/constants';
 import { EventEmitter } from '../utils/eventEmitter';
 import { decrementHexString, incrementHexString } from '../utils/operations';
 import { findHexInUint8Array, parseVint } from '../utils/webm';
@@ -93,7 +93,7 @@ export function getMediaElement() {
 
 async function getApproxDuration(): Promise<VideoDuration> {
   const metaFeedUpdateRes = await reader.download();
-  const decimalIndex = parseInt(metaFeedUpdateRes.feedIndex as string, 16);
+  const decimalIndex = parseInt(metaFeedUpdateRes.feedIndex as string, HEX_RADIX);
   return { duration: decimalIndex * settings.timeslice, index: decimalIndex };
 }
 
@@ -400,7 +400,7 @@ function getTimestampScaleInSeconds(segment: Uint8Array) {
 }
 
 function setSeekIndex(index: number) {
-  seekIndex = index.toString(16).padStart(16, '0');
+  seekIndex = index.toString(HEX_RADIX).padStart(HEX_RADIX, '0');
 }
 
 async function cleanSourceBuffer() {
