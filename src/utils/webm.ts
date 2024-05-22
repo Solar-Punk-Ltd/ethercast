@@ -1,3 +1,5 @@
+import { HEX_RADIX } from './constants';
+
 export function parseVint(buffer: Uint8Array, offset = 0) {
   const firstByte = buffer[offset];
   let mask = 0x80;
@@ -46,10 +48,10 @@ export function findHexInUint8Array(array: Uint8Array, hex: string) {
   const hexInt =
     compareBytes === 3
       ? [
-          parseInt(hex.substring(0, 4), 16), // First 16 bits
-          parseInt(hex.substring(4), 16), // Last 8 bits
+          parseInt(hex.substring(0, 4), HEX_RADIX), // First 16 bits
+          parseInt(hex.substring(4), HEX_RADIX), // Last 8 bits
         ]
-      : parseInt(hex, 16);
+      : parseInt(hex, HEX_RADIX);
 
   // false -> big endian
   // Set for 16, 24, 32 bits; ignored for 8 bits

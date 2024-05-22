@@ -1,19 +1,17 @@
 import { Bee, Data, FeedReader } from '@ethersphere/bee-js';
 
 import { sleep } from '../utils/common';
-import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX, TIMESTAMP_SCALE } from '../utils/constants';
+import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX, HEX_RADIX, TIMESTAMP_SCALE } from '../utils/constants';
 import { EventEmitter } from '../utils/eventEmitter';
 import { decrementHexString, incrementHexString } from '../utils/operations';
 import { findHexInUint8Array, parseVint } from '../utils/webm';
 
 import { AsyncQueue } from './asyncQueue';
 
-// TODO fix bee-js related types in general
-// TODO import this type from @ethersphere/bee-js
-interface FeedUpdateResponse {
-  feedIndex: string;
-  feedIndexNext: string;
-  reference: string;
+interface AttachOptions {
+  media: HTMLVideoElement;
+  address: string;
+  topic: string;
 }
 
 interface AttachOptions {
@@ -47,9 +45,17 @@ export interface PlayerOptions {
   dynamicBufferIncrement: number;
 }
 
+interface SegmentBuffer {
+  [key: string]: any;
+  loading?: boolean;
+  segment?: Uint8Array | null;
+  error?: any;
+}
+
 // External libs
 const bee = new Bee('http://localhost:1633'); // Test address
 const emitter = new EventEmitter();
+const segmentBuffer: SegmentBuffer = {};
 
 // Functional vars
 let mediaElement: HTMLVideoElement;
@@ -57,7 +63,7 @@ let mediaSource: MediaSource;
 let sourceBuffer: SourceBuffer;
 let streamTimer: NodeJS.Timeout | null;
 let reader: FeedReader;
-let queue: AsyncQueue;
+let processQueue: AsyncQueue;
 let currIndex = '';
 let seekIndex = '';
 
@@ -87,7 +93,7 @@ export function getMediaElement() {
 
 async function getApproxDuration(): Promise<VideoDuration> {
   const metaFeedUpdateRes = await reader.download();
-  const decimalIndex = parseInt(metaFeedUpdateRes.feedIndex as string, 16);
+  const decimalIndex = parseInt(metaFeedUpdateRes.feedIndex as string, HEX_RADIX);
   return { duration: decimalIndex * settings.timeslice, index: decimalIndex };
 }
 
@@ -179,7 +185,7 @@ export function detach() {
   emitter.cleanAll();
   mediaSource = null!;
   sourceBuffer = null!;
-  queue = null!;
+  processQueue = null!;
   mediaElement = null!;
   reader = null!;
   currIndex = '';
@@ -193,9 +199,9 @@ async function startAppending() {
     await initStream(appendToSourceBuffer);
   }
 
+  processQueue = new AsyncQueue({ indexed: false, waitable: false });
   const append = appendBuffer(appendToSourceBuffer);
-  queue = new AsyncQueue({ indexed: false, waitable: true });
-  streamTimer = setInterval(() => queue.enqueue(append), settings.timeslice);
+  streamTimer = setInterval(() => processQueue.enqueue(append), settings.timeslice);
 
   await sleep(settings.initBufferTime);
   mediaElement.play();
@@ -208,7 +214,7 @@ function continueAppending() {
   const { appendToSourceBuffer } = initSourceBuffer();
 
   const append = appendBuffer(appendToSourceBuffer);
-  streamTimer = setInterval(() => queue.enqueue(append), settings.timeslice);
+  streamTimer = setInterval(() => processQueue.enqueue(append), settings.timeslice);
 
   mediaElement.play();
 
@@ -231,32 +237,85 @@ async function initStream(appendToSourceBuffer: (data: Uint8Array) => void) {
 }
 
 function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
-  let feedUpdateRes: FeedUpdateResponse;
-  let prevIndex = '';
-
   return async () => {
-    // handleBuffering();
+    await loadSegmentBuffer(currIndex);
 
-    try {
-      feedUpdateRes = (await reader.download({ index: currIndex })) as any;
-      currIndex = incrementHexString(currIndex);
-    } catch (error) {
-      currIndex = prevIndex;
+    if (segmentBuffer[currIndex]?.loading || segmentBuffer[currIndex]?.error) {
       return;
     }
 
-    if (prevIndex === currIndex) {
-      return;
-    }
+    appendToSourceBuffer(segmentBuffer[currIndex].segment!);
+    delete segmentBuffer[currIndex];
 
-    const segment = await bee.downloadData(feedUpdateRes.reference);
-    appendToSourceBuffer(segment);
-    prevIndex = currIndex;
+    currIndex = incrementHexString(currIndex);
   };
+}
+
+function loadSegmentBuffer(currIndex: string) {
+  const requestNum = 3;
+  let promiseIndex = currIndex;
+
+  return new Promise<void>((resolve, reject) => {
+    for (let i = 0; i < requestNum; i++) {
+      const currentIndex = promiseIndex;
+
+      if (segmentBuffer[currentIndex]?.loading || segmentBuffer[currentIndex]?.segment) {
+        promiseIndex = incrementHexString(promiseIndex);
+        continue;
+      }
+
+      segmentBuffer[currentIndex] = {
+        loading: true,
+        segment: null,
+        error: null,
+      };
+
+      reader
+        .download({ index: currentIndex })
+        .then((res) => {
+          bee
+            .downloadData(res.reference)
+            .then((segment) => {
+              segmentBuffer[currentIndex] = {
+                loading: false,
+                segment,
+                error: null,
+              };
+            })
+            .catch((error) => {
+              if (error.status !== 404) {
+                console.error('Error with reader:', error);
+              }
+              segmentBuffer[currentIndex] = {
+                loading: false,
+                segment: null,
+                error,
+              };
+              reject();
+            });
+        })
+        .catch((error) => {
+          if (error.status !== 404) {
+            console.error('Error with reader:', error);
+          }
+          segmentBuffer[currentIndex] = {
+            loading: false,
+            segment: null,
+            error,
+          };
+          reject();
+        });
+
+      promiseIndex = incrementHexString(promiseIndex);
+    }
+
+    resolve();
+  });
 }
 
 function initSourceBuffer() {
   const mimeType = 'video/webm; codecs="vp9,opus"';
+  // internal queue for sourceBuffer
   const bufferQueue: Uint8Array[] = [];
 
   if (!sourceBuffer) {
@@ -341,12 +400,12 @@ function getTimestampScaleInSeconds(segment: Uint8Array) {
 }
 
 function setSeekIndex(index: number) {
-  seekIndex = index.toString(16).padStart(16, '0');
+  seekIndex = index.toString(HEX_RADIX).padStart(HEX_RADIX, '0');
 }
 
 async function cleanSourceBuffer() {
   pauseAppending();
-  await queue.clearQueueAndWait();
+  await processQueue.clearQueue();
   sourceBuffer = null!;
   currIndex = '';
 }
