@@ -14,6 +14,12 @@ interface AttachOptions {
   topic: string;
 }
 
+interface AttachOptions {
+  media: HTMLVideoElement;
+  address: string;
+  topic: string;
+}
+
 export interface VideoDuration {
   duration: number;
   index: number;
@@ -232,12 +238,9 @@ async function initStream(appendToSourceBuffer: (data: Uint8Array) => void) {
 
 function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
   return async () => {
-    console.log('Appending buffer:', currIndex);
-
     await loadSegmentBuffer(currIndex);
 
     if (segmentBuffer[currIndex]?.loading || segmentBuffer[currIndex]?.error) {
-      console.log(segmentBuffer[currIndex], 'appendBuffer return');
       return;
     }
 
@@ -245,7 +248,6 @@ function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
     delete segmentBuffer[currIndex];
 
     currIndex = incrementHexString(currIndex);
-    console.log('Buffer appended:', currIndex);
   };
 }
 
