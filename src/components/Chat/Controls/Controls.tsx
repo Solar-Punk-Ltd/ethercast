@@ -18,40 +18,52 @@ interface ControlsProps {
   state: State;
   dispatch: React.Dispatch<ChatAction>;
   newUnseenMessages?: boolean;
+  setAlreadySent: React.Dispatch<React.SetStateAction<boolean>>;
+  userAddress: EthAddress | null;
 }
 
-export function Controls({ topic, streamerAddress, nickname, stamp, state, dispatch }: ControlsProps) {
+export function Controls({
+  topic,
+  streamerAddress,
+  nickname,
+  stamp,
+  state,
+  dispatch,
+  setAlreadySent,
+  userAddress,
+}: ControlsProps) {
   const [showIcons, setShowIcons] = useState(false);
   const [sendActive, setSendActive] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   function handleSmileyClick() {
     setShowIcons(!showIcons);
   }
-    
+
   async function handleSubmit() {
     if (newMessage === '' || sendActive) return;
     setSendActive(true);
     setShowIcons(false);
+    setAlreadySent(true);
     const messageTimestamp = Date.now(); // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
 
-    const userAddress: EthAddress | null = localStorage.getItem(generateUniqId(topic, streamerAddress)) as EthAddress;
-    if (!userAddress) throw "Could not get address from local storage!"                       // This suggests that the user haven't registered yet for this chat
-    
+    // const userAddress2: EthAddress | null = localStorage.getItem(generateUniqId(topic, streamerAddress)) as EthAddress;
+    if (!userAddress) throw 'Could not get address from local storage!'; // This suggests that the user haven't registered yet for this chat
+
     const messageObj: MessageData = {
       message: newMessage,
       username: nickname,
       address: userAddress,
       timestamp: messageTimestamp,
+      isSending: true,
     };
-    
+
     const result = await writeToOwnFeed(topic, streamerAddress, state.ownFeedIndex, messageObj, stamp);
     if (!result) throw 'Could not send message!';
     dispatch({ type: ChatActions.UPDATE_OWN_FEED_INDEX, payload: { ownFeedIndex: state.ownFeedIndex + 1 } });
-
-
+    dispatch({ type: ChatActions.ADD_MESSAGE, payload: { message: messageObj } });
     setNewMessage('');
     setSendActive(false);
-  } 
+  }
 
   function handleKeyPress(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter') {

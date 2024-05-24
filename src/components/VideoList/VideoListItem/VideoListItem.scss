@@ -1,10 +1,22 @@
 @import '../../../styles/global.scss';
 
 .video-list-item {
+  .icon-hover {
+    display: none;
+  }
+  &:hover {
+    .icon-default {
+      display: none;
+    }
+    .icon-hover {
+      display: block;
+    }
+  }
+  background: linear-gradient(135deg, #190029, #310050);
   cursor: pointer;
-  height: 108px;
-  width: 150px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  height: 103px;
+  width: 145px;
+  border: 1px solid $sp-bg-primary-100;
   @extend .flex-center;
   img {
     width: 30p;

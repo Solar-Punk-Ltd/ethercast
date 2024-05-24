@@ -1,13 +1,15 @@
-import { useEffect, useReducer, useState, createContext, useContext, useRef } from 'react';
+import { useEffect, useReducer, useState, createContext, useContext, useRef, useMemo } from 'react';
 import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
 import { TextInput } from '../TextInput/TextInput';
-import { MessageData, registerUser } from '../../libs/chat';
+import { EthAddress, MessageData, registerUser } from '../../libs/chat';
 import { MainContext } from '../../routes.tsx';
 import EditIcon from '@mui/icons-material/Edit';
 import './Chat.scss';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { chatUserSideReducer, initialStateForChatUserSide, readNextMessage } from '../../libs/chatUserSide.ts';
+import ProfilePic from '../ProfilePic/ProfilePic.tsx';
+import { generateUniqId } from '../../utils/chat.ts';
 
 export const LayoutContext = createContext({ chatBodyHeight: 'auto', setChatBodyHeight: (_: string) => {} });
 
@@ -28,7 +30,10 @@ export function Chat({ feedDataForm }: ChatProps) {
   const chatBodyRef = useRef<HTMLDivElement | null>(null);
   const programScrolling = useRef(false);
   const [newUnseenMessages, setNewUnseenMessages] = useState(false);
-
+  const [alreadySent, setAlreadySent] = useState(false);
+  const userAddress: EthAddress | null = localStorage.getItem(
+    generateUniqId(feedDataForm.topic.value, feedDataForm.address.value),
+  ) as EthAddress;
   // Set a timer, to check for new messages
   useEffect(() => {
     if (true) {
@@ -42,7 +47,7 @@ export function Chat({ feedDataForm }: ChatProps) {
   useEffect(() => {
     readNextMessage(state, feedDataForm.topic.value, feedDataForm.address.value, dispatch);
   }, [time]);
-  
+
   const scrollToBottom = () => {
     if (programScrolling.current && chatBodyRef.current) {
       chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
@@ -87,16 +92,19 @@ export function Chat({ feedDataForm }: ChatProps) {
     }
   };
 
-
-  
   const nicknameChoosed = async () => {
     if (nickname === '') {
       return;
     }
     setIsNickNameSet(true);
 
-    const result = await registerUser(feedDataForm.topic.value, feedDataForm.address.value, nickname, feedDataForm.stamp.value);
-    if (!result) throw "Error registering user!";
+    const result = await registerUser(
+      feedDataForm.topic.value,
+      feedDataForm.address.value,
+      nickname,
+      feedDataForm.stamp.value,
+    );
+    if (!result) throw 'Error registering user!';
 
     setNickNames((prevState: any) => ({
       ...prevState,
@@ -112,21 +120,33 @@ export function Chat({ feedDataForm }: ChatProps) {
     };
   }, [isEditMode, nickNames]);
 
-
   return (
     <LayoutContext.Provider value={{ chatBodyHeight, setChatBodyHeight }}>
       <div className="chat">
         <div>
           {isNickNameSet ? (
             <div className="actualNickName">
-              <span>Your Nickname: {nickname}</span>
+              <ProfilePic hash={userAddress} width={30} height={30} name={nickname} />
+              <span>Nickname: {nickname}</span>
             </div>
           ) : null}
 
           <div className="body" ref={chatBodyRef}>
             {state.messages.map((m: MessageData, i: number) => {
               if (!m) return <Message key={i} name={'admin'} message={'loading'} own={false} />;
-              else return <Message key={i} name={m.username} message={m.message} own={nickname == m.username} />;
+              else
+                return (
+                  <Message
+                    key={i}
+                    name={m.username}
+                    message={m.message}
+                    own={nickname == m.username}
+                    state={state}
+                    alreadySent={alreadySent}
+                    isSending={m.isSending}
+                    address={m.address}
+                  />
+                );
             })}
           </div>
         </div>
@@ -178,8 +198,10 @@ export function Chat({ feedDataForm }: ChatProps) {
             stamp={feedDataForm.stamp.value}
             streamerAddress={feedDataForm.address.value}
             state={state}
+            setAlreadySent={setAlreadySent}
             dispatch={dispatch}
             newUnseenMessages={newUnseenMessages}
+            userAddress={userAddress}
           />
         )}
       </div>

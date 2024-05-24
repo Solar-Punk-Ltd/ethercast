@@ -18,7 +18,7 @@ export function CheckInput({ label, checked, onChange }: CheckInputProps) {
     <div>
       <label>
         {label}
-        <input type="checkbox" checked={isChecked} onChange={handleChange} />
+        <input type="checkbox" checked={isChecked} onChange={handleChange} className="checkbox-input" />
       </label>
     </div>
   );

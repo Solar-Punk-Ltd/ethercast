@@ -1,9 +1,11 @@
 @import '../../styles/global.scss';
 
 .video-list {
+  padding: 0px 10px;
   flex-wrap: wrap;
   gap: 10px;
   max-width: 640px;
   padding-bottom: 50px;
+  box-sizing: border-box;
   @extend .flex-center;
 }

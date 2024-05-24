@@ -109,18 +109,17 @@ export function Home() {
     }));
   };
 
-
   return (
     <div className="home">
       {showPlayer && (
-        <>
+        <div className="stream-chat-container">
           <ViewContainer>
             <VideoPlayer />
             <JoinButton onClick={() => ({})} />
             <VideoList items={items} />
           </ViewContainer>
           <Chat feedDataForm={feedDataForm} />
-        </>
+        </div>
       )}
 
       {showForm && (

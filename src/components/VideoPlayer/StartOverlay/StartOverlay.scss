@@ -1,6 +1,17 @@
 @import '../../../styles/global.scss';
 
 .start-overlay {
+  .icon-hover {
+    display: none;
+  }
+  &:hover {
+    .icon-default {
+      display: none;
+    }
+    .icon-hover {
+      display: block;
+    }
+  }
   @extend .flex-center;
   position: absolute;
   top: 0;

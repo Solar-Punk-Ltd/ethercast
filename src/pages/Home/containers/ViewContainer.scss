@@ -4,15 +4,48 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  width: 100%;
+  width: auto;
   margin-left: 12px;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgb(255, 255, 255);
   max-width: 660px;
   max-height: calc(100vh - 60px);
   overflow-y: scroll;
 
+  .video-header {
+    display: flex;
+    justify-content: left;
+    align-items: center;
+    padding: 0px 10px;
+    padding-top: 10px;
+    box-sizing: border-box;
+  }
+  .video-info {
+    margin-left: 10px;
+  }
+  .video-title {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 0;
+  }
+  .video-actions {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 10px;
+    box-sizing: border-box;
+    .likes {
+      display: flex;
+    }
+    .share {
+      margin-left: 10px;
+      display: flex;
+    }
+    .viewers {
+      display: flex;
+    }
+  }
   .video-section {
-    padding: 10px 0px;
+    padding-top: 10px;
     @extend .flex-center;
   }
   #view-secondary-actions {
