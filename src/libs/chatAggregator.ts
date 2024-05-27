@@ -3,7 +3,7 @@ import { EthAddress, MessageData, RoomID, UserWithIndex, fetchAllMessages, updat
 import { orderMessages, removeDuplicate } from "../utils/chat";
 
 
-export const AGGREGATION_CYCLE_INTERVAL = 2 * 1000;
+export const AGGREGATION_CYCLE_INTERVAL = 1 * 1000;
 
 enum ChatAggregatorAction {
   ADD_MESSAGES = 'ADD_MESSAGES',
@@ -167,7 +167,10 @@ export async function doAggregationCycle(state: State, streamTopic: string, writ
 export async function doMessageFetch(state: State, streamTopic: string, dispatch: React.Dispatch<AggregatorAction>) {
   try {
     // Result will be array of messages, and UserWithIndex list, which is used to update the index
+    console.time("fetchAllMessages");
     const result = await fetchAllMessages(state.users, streamTopic);
+    // what if we don't wait here, instead, we do this with some kind of callback
+    console.timeEnd("fetchAllMessages");
     if (!result) throw "fetchAllMessages gave back null";
 
     let newMessages: MessageData[] = [];

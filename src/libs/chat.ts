@@ -246,14 +246,21 @@ export async function fetchAllMessages(
       const messages: MessageData[] = [];
       const feedID = generateUserOwnedFeedId(streamTopic, user.address);
       const topic = bee.makeFeedTopic(feedID);
-      const feedReader = bee.makeFeedReader('sequence', topic, user.address);
+      const feedReader = bee.makeFeedReader('sequence', topic, user.address, { timeout: 500 });
       const max = user.index + 10;
       let i = 0;
 
       for (i = user.index; i < max; i++) {        // Looping through new messages for single user, but only read max
         try {
+          const timerID = `referenceDownload-${Date.now()}-${i}`
+          console.time(timerID)
+          // This is the thing that is slow
           const feedUpdate = await feedReader.download({ index: i });
+          console.timeEnd(timerID)
+          console.time("dataDownload")
+          // this is not slow
           const data = await bee.downloadData(feedUpdate.reference);
+          console.timeEnd("dataDownload")
           const json: MessageData = data.json() as unknown as MessageData;
 
           messages.push(json);
@@ -416,7 +423,7 @@ export async function readSingleMessage(
     const aggregatedChatID = generateRoomId(streamTopic);               // Human readable topic name, for the aggregated chat
     const topic = bee.makeFeedTopic(aggregatedChatID);
 
-    const feedReader: FeedReader = bee.makeFeedReader('sequence', topic, streamerAddress);
+    const feedReader: FeedReader = bee.makeFeedReader('sequence', topic, streamerAddress, { timeout: 500 });
     console.info(`address: ${feedReader.owner} topic: ${feedReader.topic}`)
     const recordPointer = await feedReader.download({ index });         // Fetch reference to data
     console.info("RecordPointer: ", recordPointer)
