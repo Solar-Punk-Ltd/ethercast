@@ -18,6 +18,7 @@
     "@ethersphere/bee-js": "^6.9.1",
     "@fairdatasociety/bmt-js": "^2.1.0",
     "@mui/icons-material": "^5.15.15",
+    "@mui/material": "^5.15.18",
     "@solarpunk/bee-js": "^6.9.0",
     "@usedapp/core": "^1.2.13",
     "clsx": "^2.1.0",
