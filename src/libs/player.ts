@@ -1,6 +1,6 @@
 import { Bee, Data, FeedReader } from '@ethersphere/bee-js';
 
-import { sleep } from '../utils/common';
+import { retryAwaitableAsync, sleep } from '../utils/common';
 import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX, HEX_RADIX, TIMESTAMP_SCALE } from '../utils/constants';
 import { EventEmitter } from '../utils/eventEmitter';
 import { decrementHexString, incrementHexString } from '../utils/operations';
@@ -53,7 +53,7 @@ interface SegmentBuffer {
 }
 
 // External libs
-const bee = new Bee('http://localhost:1633'); // Test address
+const bee = new Bee('http://45.137.70.219:1733'); // Test address
 const emitter = new EventEmitter();
 const segmentBuffer: SegmentBuffer = {};
 
@@ -252,7 +252,7 @@ function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
 }
 
 function loadSegmentBuffer(currIndex: string) {
-  const requestNum = 3;
+  const requestNum = 10;
   let promiseIndex = currIndex;
 
   return new Promise<void>((resolve, reject) => {
@@ -358,24 +358,30 @@ async function createInitSegment(clusterStartIndex: number, segment: Data) {
 async function findFirstCluster() {
   let UNTIL_CLUSTER_IS_FOUND = true;
   while (UNTIL_CLUSTER_IS_FOUND) {
-    const feedUpdateRes = await reader.download(seekIndex ? { index: seekIndex } : undefined);
-    const segment = await bee.downloadData(feedUpdateRes.reference);
-    const clusterIdIndex = findHexInUint8Array(segment, CLUSTER_ID);
+    try {
+      const feedUpdateRes = await reader.download(seekIndex ? { index: seekIndex } : undefined);
+      const segment = await retryAwaitableAsync(() => bee.downloadData(feedUpdateRes.reference));
 
-    if (clusterIdIndex !== -1) {
-      UNTIL_CLUSTER_IS_FOUND = false;
-      seekIndex = '';
-      return {
-        feedIndex: feedUpdateRes.feedIndexNext || incrementHexString(feedUpdateRes.feedIndex as string),
-        clusterIdIndex,
-        segment,
-      };
-    }
+      const clusterIdIndex = findHexInUint8Array(segment, CLUSTER_ID);
 
-    if (seekIndex) {
-      seekIndex = decrementHexString(seekIndex);
+      if (clusterIdIndex !== -1) {
+        UNTIL_CLUSTER_IS_FOUND = false;
+        seekIndex = '';
+        return {
+          feedIndex: feedUpdateRes.feedIndexNext || incrementHexString(feedUpdateRes.feedIndex as string),
+          clusterIdIndex,
+          segment,
+        };
+      }
+
+      if (seekIndex) {
+        seekIndex = decrementHexString(seekIndex);
+      }
+    } catch (error) {
+      // nothing for now
+    } finally {
+      await sleep(settings.timeslice);
     }
-    await sleep(settings.timeslice);
   }
 }
 
@@ -423,7 +429,7 @@ function setDefaultEventStates() {
   });
 }
 
-function handleBuffering() {
+/* function handleBuffering() {
   const bufferTimeRanges = sourceBuffer.buffered;
   const bufferEnd = bufferTimeRanges.end(bufferTimeRanges.length - 1);
   const diff = bufferEnd - mediaElement.currentTime;
@@ -442,4 +448,4 @@ function handleBuffering() {
   }
 
   setPlayerOptions({ buffer: settings.buffer - 1 });
-}
+} */
