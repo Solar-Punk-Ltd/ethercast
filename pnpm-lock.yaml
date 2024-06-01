@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@ethersphere/bee-js':
-        specifier: ^6.9.1
-        version: 6.9.1
+        specifier: file:../../Ethersphere/bee-js
+        version: file:../../Ethersphere/bee-js
       '@fairdatasociety/bmt-js':
         specifier: ^2.1.0
         version: 2.1.0
@@ -362,8 +362,8 @@ packages:
     resolution: {integrity: sha512-Ys+3g2TaW7gADOJzPt83SJtCDhMjndcDMFVQ/Tj9iA1BfJzFKD9mAUXT3OenpuPHbI6P/myECxRJrofUsDx/5g==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
 
-  '@ethersphere/bee-js@6.9.1':
-    resolution: {integrity: sha512-aZaoD4Q9BH2jOPU049vIsN3N/RID/CTrXdpMb593PREU9S9PksZkxVPS95sgLWnUsOK1IzW9a8WtkOIjcRZswA==}
+  '@ethersphere/bee-js@file:../../Ethersphere/bee-js':
+    resolution: {directory: ../../Ethersphere/bee-js, type: directory}
     engines: {bee: 1.18.2-759f56f, beeApiVersion: 4.0.0, beeDebugApiVersion: 4.0.0, node: '>=14.0.0', npm: '>=6.0.0'}
 
   '@ethersphere/swarm-cid@0.1.0':
@@ -2639,7 +2639,7 @@ snapshots:
 
   '@eslint/js@8.57.0': {}
 
-  '@ethersphere/bee-js@6.9.1':
+  '@ethersphere/bee-js@file:../../Ethersphere/bee-js':
     dependencies:
       '@ethersphere/swarm-cid': 0.1.0
       '@types/readable-stream': 2.3.15

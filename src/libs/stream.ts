@@ -20,7 +20,7 @@ interface Options {
   videoBitsPerSecond: number;
 }
 
-const bee = new Bee('http://45.137.70.219:1633'); // Test address
+const bee = new Bee('http://45.137.70.219:1833'); // Test address
 let feedWriter: FeedWriter;
 let mediaRecorder: MediaRecorder;
 let mediaStream: MediaStream;
@@ -75,9 +75,12 @@ async function uploadSegment(stamp: BatchId, segment: Uint8Array, index: string)
 
   // precalculate the reference
   const chunkedFile = makeChunkedFile(segment);
-  const newChunkRef = bytesToHex(chunkedFile.address()) as Reference;
+  /*   const newChunkRef = bytesToHex(chunkedFile.address()) as Reference; */
+  const rootChunk = chunkedFile.rootChunk();
 
-  retryAsync(() => feedWriter.upload(stamp, newChunkRef, { index }));
+  retryAsync(() =>
+    feedWriter.upload(stamp, { chunkPayload: rootChunk.payload, chunkSpan: rootChunk.span() }, { index }),
+  );
 }
 
 async function initFeed(signer: Signer, rawTopic: string, stamp: BatchId) {

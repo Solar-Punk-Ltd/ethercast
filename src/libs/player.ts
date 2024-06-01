@@ -1,5 +1,6 @@
 import { Bee, Data, FeedReader } from '@ethersphere/bee-js';
 
+import { bytesToHex } from '../utils/beeJs/hex';
 import { retryAwaitableAsync, sleep } from '../utils/common';
 import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX, HEX_RADIX, TIMESTAMP_SCALE } from '../utils/constants';
 import { EventEmitter } from '../utils/eventEmitter';
@@ -53,7 +54,7 @@ interface SegmentBuffer {
 }
 
 // External libs
-const bee = new Bee('http://45.137.70.219:1733'); // Test address
+const bee = new Bee('http://45.137.70.219:1833'); // Test address
 const emitter = new EventEmitter();
 const segmentBuffer: SegmentBuffer = {};
 
@@ -273,26 +274,11 @@ function loadSegmentBuffer(currIndex: string) {
       reader
         .download({ index: currentIndex })
         .then((res) => {
-          bee
-            .downloadData(res.reference)
-            .then((segment) => {
-              segmentBuffer[currentIndex] = {
-                loading: false,
-                segment,
-                error: null,
-              };
-            })
-            .catch((error) => {
-              if (error.status !== 404) {
-                console.error('Error with reader:', error);
-              }
-              segmentBuffer[currentIndex] = {
-                loading: false,
-                segment: null,
-                error,
-              };
-              reject();
-            });
+          segmentBuffer[currentIndex] = {
+            loading: false,
+            segment: res.data,
+            error: null,
+          };
         })
         .catch((error) => {
           if (error.status !== 404) {
@@ -348,7 +334,7 @@ function setMediaCurrentTime(clusterSegment: Uint8Array) {
 
 async function createInitSegment(clusterStartIndex: number, segment: Data) {
   const metaFeedUpdateRes = await reader.download({ index: FIRST_SEGMENT_INDEX });
-  const meta = await bee.downloadData(metaFeedUpdateRes.reference);
+  const meta = metaFeedUpdateRes.data;
   setPlayerOptions({ timeslice: getTimestampScaleInSeconds(meta) });
 
   const initSegment = addMetaToClusterStartSegment(clusterStartIndex, meta, segment);
@@ -360,7 +346,9 @@ async function findFirstCluster() {
   while (UNTIL_CLUSTER_IS_FOUND) {
     try {
       const feedUpdateRes = await reader.download(seekIndex ? { index: seekIndex } : undefined);
-      const segment = await retryAwaitableAsync(() => bee.downloadData(feedUpdateRes.reference));
+      const segment = feedUpdateRes.data;
+
+      console.log('segment', bytesToHex(segment));
 
       const clusterIdIndex = findHexInUint8Array(segment, CLUSTER_ID);
 
@@ -378,6 +366,7 @@ async function findFirstCluster() {
         seekIndex = decrementHexString(seekIndex);
       }
     } catch (error) {
+      console.log(error);
       // nothing for now
     } finally {
       await sleep(settings.timeslice);
