@@ -5,7 +5,6 @@ import SendIcon from '@mui/icons-material/Send';
 import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
 import { ChatAction, ChatActions, State } from '../../../libs/chatUserSide';
-import { generateUniqId } from '../../../utils/chat';
 import { ChatInput } from './ChatInput/ChatInput';
 import CircularProgress from '@mui/material/CircularProgress';
 import './Controls.scss';
@@ -41,7 +40,7 @@ export function Controls({
 
   async function handleSubmit() {
     if (newMessage === '' || sendActive) return;
-    setSendActive(true);
+    setSendActive(false);
     setShowIcons(false);
     setAlreadySent(true);
     const messageTimestamp = Date.now(); // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
@@ -57,10 +56,10 @@ export function Controls({
       isSending: true,
     };
 
+    dispatch({ type: ChatActions.ADD_MESSAGE, payload: { message: messageObj } });
     const result = await writeToOwnFeed(topic, streamerAddress, state.ownFeedIndex, messageObj, stamp);
     if (!result) throw 'Could not send message!';
     dispatch({ type: ChatActions.UPDATE_OWN_FEED_INDEX, payload: { ownFeedIndex: state.ownFeedIndex + 1 } });
-    dispatch({ type: ChatActions.ADD_MESSAGE, payload: { message: messageObj } });
     setNewMessage('');
     setSendActive(false);
   }

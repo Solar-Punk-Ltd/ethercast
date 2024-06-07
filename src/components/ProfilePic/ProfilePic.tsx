@@ -13,12 +13,12 @@ function ProfilePic({ hash, width, height, marginTop, name }: ProfilePicProps) {
   const [color2, setColor2] = useState('');
 
   const generateColor = () => {
-    // const hashForColor = Utils.keccak256Hash(hash);
-    // alert(hashForColor);
-    const color1 = '#' + hash?.slice(2, 8);
-    const color2 = '#' + hash?.slice(8, 16);
-    setColor1(color1);
-    setColor2(color2);
+    if (typeof hash === 'string' && hash.length >= 16) {
+      const color1 = '#' + hash?.slice(2, 8);
+      const color2 = '#' + hash?.slice(8, 16);
+      setColor1(color1);
+      setColor2(color2);
+    }
   };
 
   useEffect(() => {
