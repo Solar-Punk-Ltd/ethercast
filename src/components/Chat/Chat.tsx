@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState, createContext, useContext, useRef } from 'react';
+import { useEffect, useState, createContext, useContext, useRef } from 'react';
 import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
 import { TextInput } from '../TextInput/TextInput';
@@ -7,7 +7,7 @@ import { MainContext } from '../../routes.tsx';
 import EditIcon from '@mui/icons-material/Edit';
 import './Chat.scss';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import { chatUserSideReducer, initialStateForChatUserSide, readNextMessage } from '../../libs/chatUserSide.ts';
+import { initialStateForChatUserSide } from '../../libs/chatUserSide.ts';
 
 export const LayoutContext = createContext({ chatBodyHeight: 'auto', setChatBodyHeight: (_: string) => {} });
 
@@ -18,14 +18,15 @@ interface ChatProps {
 export function Chat({ feedDataForm }: ChatProps) {
   const { nickNames, setNickNames, actualAccount, actualTopic } = useContext(MainContext);
   const nickName = nickNames[actualAccount] ? nickNames[actualAccount][actualTopic] : '';
-  const [state, dispatch] = useReducer(chatUserSideReducer, initialStateForChatUserSide);
+  const [state, setState] = useState(initialStateForChatUserSide);
+  //const [state, dispatch] = useReducer(chatUserSideReducer, initialStateForChatUserSide);
   const [worker, setWorker] = useState<Worker | null>(null);
   const [chatBodyHeight, setChatBodyHeight] = useState('auto');
   const [nickname, setNickname] = useState(nickName);
-  const readInterval = 3000;
+  //const readInterval = 3000;
   const [isEditMode, setIsEditMode] = useState(false);
   const [isNickNameSet, setIsNickNameSet] = useState(nickname ? true : false);
-  const [time, setTime] = useState(Date.now());
+  //const [time, setTime] = useState(Date.now());
   const chatBodyRef = useRef<HTMLDivElement | null>(null);
   const programScrolling = useRef(false);
   const [newUnseenMessages, setNewUnseenMessages] = useState(false);
@@ -33,24 +34,36 @@ export function Chat({ feedDataForm }: ChatProps) {
   // Set a timer, to check for new messages
   useEffect(() => {
     if (true) {
-      const sw = new Worker('../../service-workers/chat-user-sw.ts');
-      sw.postMessage({ type: 'SET_PARAMETERS', payload: { streamTopic: feedDataForm.topic.value, streamAddress: feedDataForm.address.value }})
+      // Initiate the service worker with parameters, and create an event listener, that will listen to messages from worker
+      //const sw = new Worker('../../service-workers/chat-user-sw.js');
+      const sw = new Worker('./chat-user-sw.js');
+      sw.postMessage({ type: 'SET_PARAMETERS', payload: { streamTopic: feedDataForm.topic.value, streamAddress: feedDataForm.address.value }});
+
+      const handleWorkerMessage = (event: MessageEvent) => {
+        if (event.data.type === 'STATE_UPDATE') setState(event.data.state)
+      }
+
+      sw.addEventListener('message', handleWorkerMessage)
       setWorker(sw);
       
-      const messageChecker = setInterval(async () => {
+      /*const messageChecker = setInterval(async () => {
         setTime(Date.now());
-      }, readInterval);
+      }, readInterval);*/
       return () => {
-        clearInterval(messageChecker);
-        worker?.terminate();
+        //clearInterval(messageChecker);
+        if (worker) {
+          worker.removeEventListener('message', handleWorkerMessage);
+          worker.terminate();
+        }
       }
     }
   }, []);
 
-  useEffect(() => {
-    // CHANGE THIS TO SYNC WITH SERVICE WORKER INSTEAD
-    readNextMessage(state, feedDataForm.topic.value, feedDataForm.address.value, dispatch);
-  }, [time]);
+  /*useEffect(() => {
+    if (worker) {
+      const newState = worker.postMessage({ type: 'GET_STATE' });
+    }
+  }, [time]);*/
   
   const scrollToBottom = () => {
     if (programScrolling.current && chatBodyRef.current) {
@@ -187,7 +200,8 @@ export function Chat({ feedDataForm }: ChatProps) {
             stamp={feedDataForm.stamp.value}
             streamerAddress={feedDataForm.address.value}
             state={state}
-            dispatch={dispatch}
+            //dispatch={dispatch}
+            worker={worker}
             newUnseenMessages={newUnseenMessages}
           />
         )}

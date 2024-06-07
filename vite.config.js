@@ -1,10 +1,11 @@
 import react from '@vitejs/plugin-react-swc';
 import { defineConfig } from 'vite';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
+import { comlink } from 'vite-plugin-comlink';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [nodePolyfills(), react()],
+  plugins: [nodePolyfills(), react(), comlink()],
   css: {
     preprocessorOptions: {
       scss: {
@@ -12,4 +13,7 @@ export default defineConfig({
       },
     },
   },
+  worker: {
+    plugins: [comlink()]
+  }
 });

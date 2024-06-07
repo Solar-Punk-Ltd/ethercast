@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+      "target": "es5",
+      "module": "commonjs",
+      "lib": ["es2017", "dom"],
+      "strict": true,
+      "esModuleInterop": true,
+      "skipLibCheck": true,
+      "forceConsistentCasingInFileNames": true,
+      "outDir": "./dist",
+      "moduleResolution": "node",
+      "baseUrl": "./",
+      "paths": {
+        "*": ["node_modules/*"]
+      }
+    },
+    "include": ["src/service-workers/**/*.ts"],
+    "exclude": ["node_modules"]
+  }

@@ -6,7 +6,7 @@ import {
 } from '../utils/graffitiUtils';
 import { generateRoomId, generateUniqId, generateUserOwnedFeedId, generateUsersFeedId, validateUserObject } from '../utils/chat';
 import { Signature, Wallet, ethers } from 'ethers';
-import { HexString } from 'node_modules/@ethersphere/bee-js/dist/types/utils/hex';
+//import { HexString } from 'node_modules/@ethersphere/bee-js/dist/types/utils/hex';
 import { sleep } from '../utils/common';
 import { makeChunkedFile } from '@fairdatasociety/bmt-js';
 import { bytesToHex } from '../utils/beeJs/hex';
@@ -14,6 +14,13 @@ import { bytesToHex } from '../utils/beeJs/hex';
 export type RoomID = string;
 
 export type Sha3Message = string | number[] | ArrayBuffer | Uint8Array;
+
+type FlavoredType<Type, Name> = Type & {
+  __tag__?: Name;
+};
+type HexString<Length extends number = number> = FlavoredType<string & {
+  readonly length: Length;
+}, 'HexString'>;
 
 // Initialize the bee instance
 const bee = new Bee('http://localhost:1633');

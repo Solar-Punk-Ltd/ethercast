@@ -20,8 +20,8 @@ export function ControllerTextInput({ name, rules, control, defaultValue, label 
       rules={rules}
       control={control}
       defaultValue={defaultValue}
-      render={({ field: { onChange, value, ref }, fieldState: { error } }) => (
-        <TextInput label={label} name={name} value={value} onChange={onChange} ref={ref} error={error?.message} />
+      render={({ field: { onChange, value, /*ref*/ }, fieldState: { /*error*/ } }) => (
+        <TextInput label={label} name={name} value={value} onChange={onChange} /*ref={ref}*/ /*error={error?.message}*/ />
       )}
     />
   );

@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+    "outDir": "./dist",                       // Output directory for compiled JS files
+    "rootDir": "./src",                       // Root directory for your source TS files
+    "allowJs": true,                          // Allow JavaScript files to be compiled
+    "checkJs": false,                         // Skip type-checking JavaScript files    <- these lines are newly added, probably delete them if they are not needed
     "target": "ES2020",
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
@@ -26,5 +30,6 @@
     "strictPropertyInitialization": false
   },
   "include": ["src/**/*"],
+  "exclude": ["src/service-workers"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
