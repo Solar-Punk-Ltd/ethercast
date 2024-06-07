@@ -12,6 +12,9 @@ let streamerAddress: EthAddress | null = null;
 // Fetch interval in MS
 const FETCH_INTERVAL = 1000;
 
+// Flag to indicate if a fetch operation is in progress
+let isFetching = false;
+
 // Listen for the 'install' event
 sw.addEventListener('install', _event => {
   sw.skipWaiting();
@@ -53,7 +56,13 @@ function startFetchingMessages() {
   }
   
   setInterval(() => {
-    swReadNextMessage(streamTopic as string, streamerAddress as EthAddress);
+    if (!isFetching) {
+      isFetching = true;
+      swReadNextMessage(streamTopic as string, streamerAddress as EthAddress)
+        .finally(() => {
+          isFetching = false;
+        });
+    }
   }, FETCH_INTERVAL);
 }
 

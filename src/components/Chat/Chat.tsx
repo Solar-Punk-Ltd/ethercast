@@ -19,6 +19,7 @@ export function Chat({ feedDataForm }: ChatProps) {
   const { nickNames, setNickNames, actualAccount, actualTopic } = useContext(MainContext);
   const nickName = nickNames[actualAccount] ? nickNames[actualAccount][actualTopic] : '';
   const [state, dispatch] = useReducer(chatUserSideReducer, initialStateForChatUserSide);
+  const [worker, setWorker] = useState<Worker | null>(null);
   const [chatBodyHeight, setChatBodyHeight] = useState('auto');
   const [nickname, setNickname] = useState(nickName);
   const readInterval = 3000;
@@ -32,14 +33,22 @@ export function Chat({ feedDataForm }: ChatProps) {
   // Set a timer, to check for new messages
   useEffect(() => {
     if (true) {
+      const sw = new Worker('../../service-workers/chat-user-sw.ts');
+      sw.postMessage({ type: 'SET_PARAMETERS', payload: { streamTopic: feedDataForm.topic.value, streamAddress: feedDataForm.address.value }})
+      setWorker(sw);
+      
       const messageChecker = setInterval(async () => {
         setTime(Date.now());
       }, readInterval);
-      return () => clearInterval(messageChecker);
+      return () => {
+        clearInterval(messageChecker);
+        worker?.terminate();
+      }
     }
   }, []);
 
   useEffect(() => {
+    // CHANGE THIS TO SYNC WITH SERVICE WORKER INSTEAD
     readNextMessage(state, feedDataForm.topic.value, feedDataForm.address.value, dispatch);
   }, [time]);
   
