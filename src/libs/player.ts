@@ -3,6 +3,7 @@ import { Bee, Data, FeedReader } from '@ethersphere/bee-js';
 import { bytesToHex } from '../utils/beeJs/hex';
 import { retryAwaitableAsync, sleep } from '../utils/common';
 import { CLUSTER_ID, CLUSTER_TIMESTAMP, FIRST_SEGMENT_INDEX, HEX_RADIX, TIMESTAMP_SCALE } from '../utils/constants';
+import { bytesToTimestamp } from '../utils/date';
 import { EventEmitter } from '../utils/eventEmitter';
 import { decrementHexString, incrementHexString } from '../utils/operations';
 import { findHexInUint8Array, parseVint } from '../utils/webm';
@@ -44,6 +45,7 @@ export interface PlayerOptions {
   initBufferTime: number;
   buffer: number;
   dynamicBufferIncrement: number;
+  initialTime: number;
 }
 
 interface SegmentBuffer {
@@ -54,7 +56,8 @@ interface SegmentBuffer {
 }
 
 // External libs
-const bee = new Bee('http://45.137.70.219:1833'); // Test address
+const bee = new Bee('http://45.137.70.219:1933'); // Test address
+// const bee = new Bee('http://localhost:1633');
 const emitter = new EventEmitter();
 const segmentBuffer: SegmentBuffer = {};
 
@@ -69,11 +72,12 @@ let currIndex = '';
 let seekIndex = '';
 
 const settings: PlayerOptions = {
-  timeslice: 1000,
+  timeslice: 2000,
   minLiveThreshold: 1,
   initBufferTime: 0,
   buffer: 5,
   dynamicBufferIncrement: 0,
+  initialTime: 0,
 };
 
 const eventStates: Record<string, boolean> = {
@@ -200,8 +204,8 @@ async function startAppending() {
     await initStream(appendToSourceBuffer);
   }
 
-  processQueue = new AsyncQueue({ indexed: false, waitable: false });
-  const append = appendBuffer(appendToSourceBuffer);
+  processQueue = new AsyncQueue({ indexed: false, waitable: true });
+  const append = () => appendBuffer(appendToSourceBuffer);
   streamTimer = setInterval(() => processQueue.enqueue(append), settings.timeslice);
 
   await sleep(settings.initBufferTime);
@@ -214,7 +218,7 @@ async function startAppending() {
 function continueAppending() {
   const { appendToSourceBuffer } = initSourceBuffer();
 
-  const append = appendBuffer(appendToSourceBuffer);
+  const append = () => appendBuffer(appendToSourceBuffer);
   streamTimer = setInterval(() => processQueue.enqueue(append), settings.timeslice);
 
   mediaElement.play();
@@ -230,14 +234,31 @@ function pauseAppending() {
 }
 
 async function initStream(appendToSourceBuffer: (data: Uint8Array) => void) {
+  const metaFeedUpdateRes = (await reader.downloadWrapped({ index: FIRST_SEGMENT_INDEX })) as any;
+  const { meta, timestamp } = splitMetaWithTime(metaFeedUpdateRes.data);
+  // setPlayerOptions({ timeslice: getTimestampScaleInSeconds(meta), initialTime: bytesToTimestamp(timestamp) });
+  setPlayerOptions({ initialTime: bytesToTimestamp(timestamp) });
+
   const firstCluster = (await findFirstCluster())!;
   currIndex = firstCluster.feedIndex;
-  const initSegment = await createInitSegment(firstCluster.clusterIdIndex, firstCluster.segment);
+  const initSegment = addMetaToClusterStartSegment(meta, firstCluster.clusterIdIndex, firstCluster.segment);
   setMediaCurrentTime(initSegment);
   appendToSourceBuffer(initSegment);
 }
 
-function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
+async function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
+  try {
+    const response = (await reader.downloadWrapped({ index: currIndex, stream: true })) as any;
+    for await (const chunk of response.body) {
+      appendToSourceBuffer(chunk);
+    }
+    currIndex = incrementHexString(currIndex);
+  } catch (error) {
+    console.error('Error with reader:', error);
+  }
+}
+
+/* function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
   return async () => {
     await loadSegmentBuffer(currIndex);
 
@@ -250,18 +271,24 @@ function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
 
     currIndex = incrementHexString(currIndex);
   };
-}
+} */
 
 function loadSegmentBuffer(currIndex: string) {
-  const requestNum = 10;
+  const requestNum = 1;
   let promiseIndex = currIndex;
 
   return new Promise<void>((resolve, reject) => {
     for (let i = 0; i < requestNum; i++) {
       const currentIndex = promiseIndex;
 
-      if (segmentBuffer[currentIndex]?.loading || segmentBuffer[currentIndex]?.segment) {
+      if (segmentBuffer[currentIndex]?.loading) {
         promiseIndex = incrementHexString(promiseIndex);
+        continue;
+      }
+
+      if (segmentBuffer[currentIndex]?.segment) {
+        promiseIndex = incrementHexString(promiseIndex);
+        i--;
         continue;
       }
 
@@ -271,33 +298,55 @@ function loadSegmentBuffer(currIndex: string) {
         error: null,
       };
 
-      reader
-        .download({ index: currentIndex })
-        .then((res) => {
-          segmentBuffer[currentIndex] = {
-            loading: false,
-            segment: res.data,
-            error: null,
-          };
-        })
-        .catch((error) => {
-          if (error.status !== 404) {
-            console.error('Error with reader:', error);
-          }
-          segmentBuffer[currentIndex] = {
-            loading: false,
-            segment: null,
-            error,
-          };
-          reject();
-        });
-
+      // fetchActualSegment(currentIndex, reject);
       promiseIndex = incrementHexString(promiseIndex);
     }
 
     resolve();
   });
 }
+
+const fetchActualSegment = async (index: string, appendToSourceBuffer: (data: Uint8Array) => void) => {
+  try {
+    const response = (await reader.downloadWrapped({ index, stream: true })) as any;
+    /*     const content = response.arrayBuffer();
+    appendToSourceBuffer(content);
+  } catch (error) {
+    console.error('Error with reader:', error);
+  } */
+    const reader2 = response.body.getReader();
+
+    while (true) {
+      const { value, done } = await reader2.read();
+      if (done) break;
+      appendToSourceBuffer(value);
+    }
+    currIndex = incrementHexString(index);
+  } catch (error) {
+    console.error('Error with reader:', error);
+  }
+
+  /*   reader
+    .downloadWrapped({ index })
+    .then((res) => {
+      segmentBuffer[index] = {
+        loading: false,
+        segment: res.data,
+        error: null,
+      };
+    })
+    .catch((error) => {
+      if (error.status !== 404) {
+        console.error('Error with reader:', error);
+      }
+      segmentBuffer[index] = {
+        loading: false,
+        segment: null,
+        error,
+      };
+      reject();
+    }); */
+};
 
 function initSourceBuffer() {
   const mimeType = 'video/webm; codecs="vp9,opus"';
@@ -332,23 +381,21 @@ function setMediaCurrentTime(clusterSegment: Uint8Array) {
   mediaElement.currentTime = timestamp;
 }
 
-async function createInitSegment(clusterStartIndex: number, segment: Data) {
-  const metaFeedUpdateRes = await reader.download({ index: FIRST_SEGMENT_INDEX });
-  const meta = metaFeedUpdateRes.data;
-  setPlayerOptions({ timeslice: getTimestampScaleInSeconds(meta) });
-
-  const initSegment = addMetaToClusterStartSegment(clusterStartIndex, meta, segment);
-  return initSegment;
-}
-
 async function findFirstCluster() {
   let UNTIL_CLUSTER_IS_FOUND = true;
+  // let initIndex = geCurrInitIndex();
+  let initIndex = '';
+  let feedUpdateRes: any;
+
   while (UNTIL_CLUSTER_IS_FOUND) {
     try {
-      const feedUpdateRes = await reader.download(seekIndex ? { index: seekIndex } : undefined);
+      if (!initIndex) {
+        feedUpdateRes = (await reader.download()) as any;
+        initIndex = feedUpdateRes.feedIndex;
+      } else {
+        feedUpdateRes = (await reader.downloadWrapped({ index: initIndex })) as any;
+      }
       const segment = feedUpdateRes.data;
-
-      console.log('segment', bytesToHex(segment));
 
       const clusterIdIndex = findHexInUint8Array(segment, CLUSTER_ID);
 
@@ -356,7 +403,7 @@ async function findFirstCluster() {
         UNTIL_CLUSTER_IS_FOUND = false;
         seekIndex = '';
         return {
-          feedIndex: feedUpdateRes.feedIndexNext || incrementHexString(feedUpdateRes.feedIndex as string),
+          feedIndex: incrementHexString(initIndex),
           clusterIdIndex,
           segment,
         };
@@ -364,17 +411,19 @@ async function findFirstCluster() {
 
       if (seekIndex) {
         seekIndex = decrementHexString(seekIndex);
+      } else {
+        initIndex = incrementHexString(initIndex);
       }
     } catch (error) {
-      console.log(error);
       // nothing for now
+      console.log(error);
     } finally {
       await sleep(settings.timeslice);
     }
   }
 }
 
-function addMetaToClusterStartSegment(clusterStartIndex: number, meta: Data, segment: Data): Uint8Array {
+function addMetaToClusterStartSegment(meta: Uint8Array, clusterStartIndex: number, segment: Data): Uint8Array {
   const clusterData = segment.slice(clusterStartIndex);
   const metaAndClusterArray = new Uint8Array(meta.length + clusterData.length);
   metaAndClusterArray.set(meta);
@@ -416,6 +465,19 @@ function setDefaultEventStates() {
   Object.keys(eventStates).map((k) => {
     eventStates[k] = false;
   });
+}
+
+function splitMetaWithTime(byteArray: Uint8Array) {
+  const meta = byteArray.subarray(0, byteArray.length - 4);
+  const timestamp = byteArray.subarray(byteArray.length - 4);
+  return { meta, timestamp };
+}
+
+function geCurrInitIndex() {
+  const initialTime = settings.initialTime;
+  const currentTime = Math.floor(Date.now() / 1000);
+  const timesliceNumSinceStart = Math.floor((currentTime - initialTime) / (settings.timeslice / 1000));
+  return timesliceNumSinceStart.toString(HEX_RADIX).padStart(HEX_RADIX, '0');
 }
 
 /* function handleBuffering() {

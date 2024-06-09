@@ -2,8 +2,9 @@ import { BatchId, Bee, FeedWriter, Reference } from '@ethersphere/bee-js';
 import { makeChunkedFile } from '@fairdatasociety/bmt-js';
 
 import { bytesToHex } from '../utils/beeJs/hex';
-import { retryAsync } from '../utils/common';
+import { retryAsync, retryAwaitableAsync } from '../utils/common';
 import { CLUSTER_ID } from '../utils/constants';
+import { timeStampBytes } from '../utils/date';
 import { findHexInUint8Array } from '../utils/webm';
 
 import { AsyncQueue } from './asyncQueue';
@@ -21,6 +22,7 @@ interface Options {
 }
 
 const bee = new Bee('http://45.137.70.219:1833'); // Test address
+// const bee = new Bee('http://localhost:1633');
 let feedWriter: FeedWriter;
 let mediaRecorder: MediaRecorder;
 let mediaStream: MediaStream;
@@ -72,11 +74,13 @@ export function isStreamOngoing() {
 
 async function uploadSegment(stamp: BatchId, segment: Uint8Array, index: string) {
   retryAsync(() => bee.uploadData(stamp, segment));
+  // await bee.uploadData(stamp, segment);
 
   // precalculate the reference
   const chunkedFile = makeChunkedFile(segment);
   /*   const newChunkRef = bytesToHex(chunkedFile.address()) as Reference; */
   const rootChunk = chunkedFile.rootChunk();
+  // await feedWriter.upload(stamp, { chunkPayload: rootChunk.payload, chunkSpan: rootChunk.span() }, { index });
 
   retryAsync(() =>
     feedWriter.upload(stamp, { chunkPayload: rootChunk.payload, chunkSpan: rootChunk.span() }, { index }),
@@ -85,12 +89,19 @@ async function uploadSegment(stamp: BatchId, segment: Uint8Array, index: string)
 
 async function initFeed(signer: Signer, rawTopic: string, stamp: BatchId) {
   const topic = bee.makeFeedTopic(rawTopic);
-  await bee.createFeedManifest(stamp, 'sequence', topic, signer.address);
+  await retryAwaitableAsync(() => bee.createFeedManifest(stamp, 'sequence', topic, signer.address));
   feedWriter = bee.makeFeedWriter('sequence', topic, signer.key);
 }
 
 function createInitData(segment: Uint8Array) {
   const clusterStartIndex = findHexInUint8Array(segment, CLUSTER_ID);
   const meta = segment.slice(0, clusterStartIndex);
-  return meta;
+  const metaWithTime = appendInitialTime(meta);
+  return metaWithTime;
+}
+
+function appendInitialTime(meta: Uint8Array) {
+  const currentTimestamp = Math.floor(Date.now() / 1000);
+  const timestampArray = timeStampBytes(currentTimestamp);
+  return new Uint8Array([...meta, ...timestampArray]);
 }
