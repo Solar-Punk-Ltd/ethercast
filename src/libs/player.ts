@@ -205,7 +205,7 @@ async function startAppending() {
   }
 
   processQueue = new AsyncQueue({ indexed: false, waitable: true });
-  const append = () => appendBuffer(appendToSourceBuffer);
+  const append = appendBuffer(appendToSourceBuffer);
   streamTimer = setInterval(() => processQueue.enqueue(append), settings.timeslice);
 
   await sleep(settings.initBufferTime);
@@ -218,7 +218,7 @@ async function startAppending() {
 function continueAppending() {
   const { appendToSourceBuffer } = initSourceBuffer();
 
-  const append = () => appendBuffer(appendToSourceBuffer);
+  const append = appendBuffer(appendToSourceBuffer);
   streamTimer = setInterval(() => processQueue.enqueue(append), settings.timeslice);
 
   mediaElement.play();
@@ -246,19 +246,21 @@ async function initStream(appendToSourceBuffer: (data: Uint8Array) => void) {
   appendToSourceBuffer(initSegment);
 }
 
-async function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
-  try {
-    const response = (await reader.downloadWrapped({ index: currIndex, stream: true })) as any;
-    for await (const chunk of response.body) {
-      appendToSourceBuffer(chunk);
-    }
-    currIndex = incrementHexString(currIndex);
-  } catch (error) {
-    console.error('Error with reader:', error);
-  }
-}
-
 /* function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
+  return async () => {
+    try {
+      const response = (await reader.downloadWrapped({ index: currIndex, stream: true })) as any;
+      for await (const chunk of response.body) {
+        appendToSourceBuffer(chunk);
+      }
+      currIndex = incrementHexString(currIndex);
+    } catch (error) {
+      console.error('Error with reader:', error);
+    }
+  };
+} */
+
+function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
   return async () => {
     await loadSegmentBuffer(currIndex);
 
@@ -271,10 +273,10 @@ async function appendBuffer(appendToSourceBuffer: (data: Uint8Array) => void) {
 
     currIndex = incrementHexString(currIndex);
   };
-} */
+}
 
 function loadSegmentBuffer(currIndex: string) {
-  const requestNum = 1;
+  const requestNum = 2;
   let promiseIndex = currIndex;
 
   return new Promise<void>((resolve, reject) => {
@@ -298,7 +300,7 @@ function loadSegmentBuffer(currIndex: string) {
         error: null,
       };
 
-      // fetchActualSegment(currentIndex, reject);
+      fetchActualSegment(currentIndex, reject);
       promiseIndex = incrementHexString(promiseIndex);
     }
 
@@ -306,29 +308,10 @@ function loadSegmentBuffer(currIndex: string) {
   });
 }
 
-const fetchActualSegment = async (index: string, appendToSourceBuffer: (data: Uint8Array) => void) => {
-  try {
-    const response = (await reader.downloadWrapped({ index, stream: true })) as any;
-    /*     const content = response.arrayBuffer();
-    appendToSourceBuffer(content);
-  } catch (error) {
-    console.error('Error with reader:', error);
-  } */
-    const reader2 = response.body.getReader();
-
-    while (true) {
-      const { value, done } = await reader2.read();
-      if (done) break;
-      appendToSourceBuffer(value);
-    }
-    currIndex = incrementHexString(index);
-  } catch (error) {
-    console.error('Error with reader:', error);
-  }
-
-  /*   reader
+const fetchActualSegment = async (index: string, reject: any) => {
+  reader
     .downloadWrapped({ index })
-    .then((res) => {
+    .then((res: any) => {
       segmentBuffer[index] = {
         loading: false,
         segment: res.data,
@@ -345,7 +328,7 @@ const fetchActualSegment = async (index: string, appendToSourceBuffer: (data: Ui
         error,
       };
       reject();
-    }); */
+    });
 };
 
 function initSourceBuffer() {
