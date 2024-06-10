@@ -5,7 +5,7 @@ const path = require('path');
 // Paths
 const tsConfig = path.resolve(__dirname, '../tsconfig.sw.json');
 const src = path.resolve(__dirname, '../src/service-workers/chat-user-sw.ts');
-const dest = path.resolve(__dirname, '../public/chat-user-sw.js');
+const dest = path.resolve(__dirname, '../dist/chat-user-sw.js');
 
 // Function to compile TypeScript to JavaScript
 function compileTypeScript() {
@@ -25,13 +25,15 @@ function compileTypeScript() {
 // Function to copy the compiled JavaScript file to the public directory
 function copyCompiledFile() {
   return new Promise((resolve, reject) => {
-    if (fs.existsSync(src)) {
-      fs.copyFileSync(src, dest);
-      console.log('Worker file copied to public directory.');
-      resolve();
-    } else {
-      reject(`Compiled file ${src} does not exist.`);
-    }
+    fs.copyFile(src.replace('.ts', '.js'), dest, (err) => {
+      if (err) {
+        console.error(`Error copying file: ${err}`);
+        reject(err);
+      } else {
+        console.log('Worker file copied to public directory.');
+        resolve();
+      }
+    });
   });
 }
 
@@ -39,7 +41,6 @@ function copyCompiledFile() {
 async function compileAndCopy() {
   try {
     await compileTypeScript();
-    await copyCompiledFile();
     console.log('Compilation and copy completed successfully.');
   } catch (error) {
     console.error('Error during compilation and copy:', error);

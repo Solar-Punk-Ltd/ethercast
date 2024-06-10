@@ -1,26 +1,34 @@
-import { Utils } from '@solarpunk/bee-js';
-import { Wallet, utils } from 'ethers';
-export function getConsensualPrivateKey(resource) {
-    if (Utils.isHexString(resource) && resource.length === 64) {
-        return Utils.hexToBytes(resource);
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.sleep = exports.numberToFeedIndex = exports.serializeGraffitiRecord = exports.getGraffitiWallet = exports.getConsensualPrivateKey = void 0;
+const bee_js_1 = require("@solarpunk/bee-js");
+const ethers_1 = require("ethers");
+function getConsensualPrivateKey(resource) {
+    if (bee_js_1.Utils.isHexString(resource) && resource.length === 64) {
+        return bee_js_1.Utils.hexToBytes(resource);
     }
-    return Utils.keccak256Hash(resource);
+    return bee_js_1.Utils.keccak256Hash(resource);
 }
-export function getGraffitiWallet(consensualPrivateKey) {
-    const privateKeyBuffer = utils.hexlify(consensualPrivateKey);
-    return new Wallet(privateKeyBuffer);
+exports.getConsensualPrivateKey = getConsensualPrivateKey;
+function getGraffitiWallet(consensualPrivateKey) {
+    const privateKeyBuffer = ethers_1.utils.hexlify(consensualPrivateKey);
+    return new ethers_1.Wallet(privateKeyBuffer);
 }
-export function serializeGraffitiRecord(record) {
+exports.getGraffitiWallet = getGraffitiWallet;
+function serializeGraffitiRecord(record) {
     return new TextEncoder().encode(JSON.stringify(record));
 }
-export function numberToFeedIndex(index) {
+exports.serializeGraffitiRecord = serializeGraffitiRecord;
+function numberToFeedIndex(index) {
     const bytes = new Uint8Array(8);
     const dv = new DataView(bytes.buffer);
     dv.setUint32(4, index);
-    return Utils.bytesToHex(bytes);
+    return bee_js_1.Utils.bytesToHex(bytes);
 }
-export function sleep(delay) {
+exports.numberToFeedIndex = numberToFeedIndex;
+function sleep(delay) {
     return new Promise((resolve) => {
         setTimeout(resolve, delay);
     });
 }
+exports.sleep = sleep;

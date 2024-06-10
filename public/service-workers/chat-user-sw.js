@@ -1,8 +1,10 @@
-import { readSingleMessage } from "../libs/chat";
-import { ChatActions, chatUserSideReducer, initialStateForChatUserSide } from "../libs/chatUserSide";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const chat_1 = require("../libs/chat");
+const chatUserSide_1 = require("../libs/chatUserSide");
 const sw = self;
 // State
-let state = initialStateForChatUserSide;
+let state = chatUserSide_1.initialStateForChatUserSide;
 // Input parameters
 let streamTopic = null;
 let streamerAddress = null;
@@ -19,7 +21,7 @@ sw.addEventListener('activate', event => {
     // Cast event to ExtendableEvent to use waitUntil
     const activateEvent = event;
     activateEvent.waitUntil(sw.clients.claim());
-    state = initialStateForChatUserSide;
+    state = chatUserSide_1.initialStateForChatUserSide;
 });
 // Listen for messages from the main thread. Setting parameters, and reading the state.
 sw.addEventListener('message', event => {
@@ -32,7 +34,7 @@ sw.addEventListener('message', event => {
             startFetchingMessages();
             break;
         case 'INCREMENT_OWN_FEED_INDEX':
-            state = chatUserSideReducer(state, { type: ChatActions.UPDATE_OWN_FEED_INDEX, payload: { ownFeedIndex: state.ownFeedIndex + 1 } });
+            state = (0, chatUserSide_1.chatUserSideReducer)(state, { type: chatUserSide_1.ChatActions.UPDATE_OWN_FEED_INDEX, payload: { ownFeedIndex: state.ownFeedIndex + 1 } });
             break;
         case 'GET_STATE':
             sw.postMessage({ type: 'STATE_UPDATE', state });
@@ -60,12 +62,12 @@ function startFetchingMessages() {
 // swReadNextMessage will read a new message from the AggregatedFeed, and insert it into the state
 async function swReadNextMessage(streamTopic, streamerAddress) {
     try {
-        const result = await readSingleMessage(state.chatIndex, streamTopic, streamerAddress);
+        const result = await (0, chat_1.readSingleMessage)(state.chatIndex, streamTopic, streamerAddress);
         if (!result)
             throw 'Error reading message!';
-        state = chatUserSideReducer(state, { type: ChatActions.ADD_MESSAGE, payload: { message: result } });
-        state = chatUserSideReducer(state, { type: ChatActions.ARRANGE });
-        state = chatUserSideReducer(state, { type: ChatActions.UPDATE_CHAT_INDEX, payload: { chatIndex: state.chatIndex + 1 } });
+        state = (0, chatUserSide_1.chatUserSideReducer)(state, { type: chatUserSide_1.ChatActions.ADD_MESSAGE, payload: { message: result } });
+        state = (0, chatUserSide_1.chatUserSideReducer)(state, { type: chatUserSide_1.ChatActions.ARRANGE });
+        state = (0, chatUserSide_1.chatUserSideReducer)(state, { type: chatUserSide_1.ChatActions.UPDATE_CHAT_INDEX, payload: { chatIndex: state.chatIndex + 1 } });
     }
     catch (error) {
         // Currently we can't distinguish "no new messages" from error

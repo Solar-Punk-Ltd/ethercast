@@ -1,3 +1,6 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.bytesToHex = exports.isPrefixedHexString = exports.isHexString = void 0;
 /**
  * Type guard for HexStrings.
  * Requires no 0x prefix!
@@ -7,25 +10,27 @@
  * @param s string input
  * @param len expected length of the HexString
  */
-export function isHexString(s, len) {
+function isHexString(s, len) {
     return typeof s === 'string' && /^[0-9a-f]+$/i.test(s) && (!len || s.length === len);
 }
+exports.isHexString = isHexString;
 /**
  * Type guard for PrefixedHexStrings.
  * Does enforce presence of 0x prefix!
  *
  * @param s string input
  */
-export function isPrefixedHexString(s) {
+function isPrefixedHexString(s) {
     return typeof s === 'string' && /^0x[0-9a-f]+$/i.test(s);
 }
+exports.isPrefixedHexString = isPrefixedHexString;
 /**
  * Converts array of number or Uint8Array to HexString without prefix.
  *
  * @param bytes   The input array
  * @param len     The length of the non prefixed HexString
  */
-export function bytesToHex(bytes, len) {
+function bytesToHex(bytes, len) {
     const hexByte = (n) => n.toString(16).padStart(2, '0');
     const hex = Array.from(bytes, hexByte).join('');
     // TODO: Make Length mandatory: https://github.com/ethersphere/bee-js/issues/208
@@ -34,3 +39,4 @@ export function bytesToHex(bytes, len) {
     }
     return hex;
 }
+exports.bytesToHex = bytesToHex;

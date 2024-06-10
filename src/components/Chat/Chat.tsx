@@ -36,7 +36,7 @@ export function Chat({ feedDataForm }: ChatProps) {
     if (true) {
       // Initiate the service worker with parameters, and create an event listener, that will listen to messages from worker
       //const sw = new Worker('../../service-workers/chat-user-sw.js');
-      const sw = new Worker('./chat-user-sw.js');
+      const sw = new Worker('./service-workers/chat-user-sw.js');
       sw.postMessage({ type: 'SET_PARAMETERS', payload: { streamTopic: feedDataForm.topic.value, streamAddress: feedDataForm.address.value }});
 
       const handleWorkerMessage = (event: MessageEvent) => {
