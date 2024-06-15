@@ -113,7 +113,7 @@ function setPlayerOptions(s: Partial<Record<keyof PlayerOptions, number>>) {
 
 function setFeedReader(rawTopic: string, owner: string) {
   const topic = bee.makeFeedTopic(rawTopic);
-  reader = bee.makeFeedReader('sequence', topic, owner);
+  reader = bee.makeFeedReader('sequence', topic, owner, { headers: { 'swarm-redundancy-strategy': '3' } });
 }
 
 function setVolumeControl(volumeControl: HTMLInputElement) {
@@ -366,18 +366,19 @@ function setMediaCurrentTime(clusterSegment: Uint8Array) {
 
 async function findFirstCluster() {
   let UNTIL_CLUSTER_IS_FOUND = true;
-  // let initIndex = geCurrInitIndex();
-  let initIndex = '';
-  let feedUpdateRes: any;
+  let initIndex = geCurrInitIndex();
+  /*   let initIndex = '';
+  let feedUpdateRes: any; */
 
   while (UNTIL_CLUSTER_IS_FOUND) {
     try {
-      if (!initIndex) {
+      /*       if (!initIndex) {
         feedUpdateRes = (await reader.download()) as any;
         initIndex = feedUpdateRes.feedIndex;
       } else {
         feedUpdateRes = (await reader.downloadWrapped({ index: initIndex })) as any;
-      }
+      } */
+      const feedUpdateRes = (await reader.downloadWrapped({ index: initIndex })) as any;
       const segment = feedUpdateRes.data;
 
       const clusterIdIndex = findHexInUint8Array(segment, CLUSTER_ID);

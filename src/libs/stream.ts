@@ -1,4 +1,4 @@
-import { BatchId, Bee, FeedWriter, Reference } from '@ethersphere/bee-js';
+import { BatchId, Bee, FeedWriter, RedundancyLevel, Reference } from '@ethersphere/bee-js';
 import { makeChunkedFile } from '@fairdatasociety/bmt-js';
 
 import { bytesToHex } from '../utils/beeJs/hex';
@@ -73,7 +73,7 @@ export function isStreamOngoing() {
 }
 
 async function uploadSegment(stamp: BatchId, segment: Uint8Array, index: string) {
-  retryAsync(() => bee.uploadData(stamp, segment));
+  retryAsync(() => bee.uploadData(stamp, segment, { redundancyLevel: 1 }));
   // await bee.uploadData(stamp, segment);
 
   // precalculate the reference
