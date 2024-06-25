@@ -1,5 +1,5 @@
-import { Fragment, useContext, useEffect, useReducer, useState } from 'react';
-import { BatchId, FeedWriter } from '@ethersphere/bee-js';
+import { Fragment, useContext, useEffect, useState } from 'react';
+import { BatchId } from '@ethersphere/bee-js';
 import { useEthers } from '@usedapp/core';
 import { produce } from 'immer';
 
@@ -13,13 +13,6 @@ import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
 import './Stream.scss';
 import { initChatRoom } from '../../libs/chat';
 import Tooltip from '@mui/material/Tooltip';
-import { 
-  AGGREGATION_CYCLE_INTERVAL, 
-  chatAggregatorReducer, 
-  initialStateForChatAggregator, 
-  doUpdateUserList, 
-  doAggregationCycle
-} from '../../libs/chatAggregator';
 import { MainContext } from '../../routes';
 
 interface CommonForm {
@@ -36,9 +29,6 @@ export function Stream() {
   const [video, setVideo] = useState<boolean>(true);
   const [tooltipText, setTooltipText] = useState<string>('Click to copy');
   const [timeslice, setTimeslice] = useState<number>(2000); // [ms]
-  const [chatWriter, setChatWriter] = useState<FeedWriter | null>(null);                              // This is the FeedWriter for the AggregatedFeed
-  const [chatState, dispatch] = useReducer(chatAggregatorReducer, initialStateForChatAggregator);     // State related to Chat aggregation
-  const [time, setTime] = useState(Date.now());
   const [feedDataForm, setFeedDataForm] = useState<Record<string, CommonForm>>({
     key: {
       label: 'Please provide your key for the feed',
@@ -53,7 +43,7 @@ export function Stream() {
     stamp: {
       label: 'Please provide a valid stamp',
       placeholder: 'Stamp',
-      value: '',
+      value: '155108dc409af79f3201f7300ff09de93a57e2f1b1b338916b2fcee6c2737bbb',
     },
   });
   const [streamDataForm, setStreamDataForm] = useState<Record<string, CommonForm>>({
@@ -78,27 +68,6 @@ export function Stream() {
     setIsLive(isStreamOngoing());
   }, []);
 
-  // `doAggregationCycle` will trigger for the change of `time`, we update time here periodically
-  // Directly we couldn't put `doAggregationCycle` into setInterval, because state wouldn't update
-  useEffect(() => {
-    if (!chatWriter) return;
-    const aggregationInterval = setInterval(() => {
-      setTime(Date.now())
-    }, AGGREGATION_CYCLE_INTERVAL);
-    
-    return () => {
-      clearInterval(aggregationInterval);
-    };
-  }, [chatWriter]);
-  
-  // This useEffect does the actual chat aggregation, will receive fresh state always
-  useEffect(() => {
-    if (!chatWriter) return;
-    if (!chatState.locked)                                          // Only one aggregation cycle should run at at time
-      doAggregationCycle(chatState, feedDataForm.topic.value, chatWriter, feedDataForm.stamp.value as BatchId, dispatch);
-    doUpdateUserList(feedDataForm.topic.value, chatState, dispatch);  
-  }, [time]);
-
   const start = async () => {
     if (!library) return;
     startStream(
@@ -120,9 +89,8 @@ export function Stream() {
     );
 
     // We save chatWriter to state, Graffiti-feed connector will be re-generated every time it is used (nothing needs to be saved)
-    const result = await initChatRoom(feedDataForm.topic.value, feedDataForm.key.value, feedDataForm.stamp.value as BatchId);
+    const result = await initChatRoom(feedDataForm.topic.value, feedDataForm.stamp.value as BatchId);
     if (!result) throw 'initChatRoom gave back null';
-    setChatWriter(result.chatWriter);
     
 
     setIsLive(true);

@@ -5,7 +5,7 @@ import {
   serializeGraffitiRecord,
 } from '../utils/graffitiUtils';
 import { generateRoomId, generateUniqId, generateUserOwnedFeedId, generateUsersFeedId, validateUserObject } from '../utils/chat';
-import { Signature, Wallet, ethers } from 'ethers';
+import { Signature, ethers } from 'ethers';
 import { HexString } from 'node_modules/@ethersphere/bee-js/dist/types/utils/hex';
 import { sleep } from '../utils/common';
 import { makeChunkedFile } from '@fairdatasociety/bmt-js';
@@ -46,23 +46,15 @@ const ConsensusID = 'SwarmStream';                                              
 // This will be called on the side of the Streamer (aggregator)
 export async function initChatRoom(
   topic: string,
-  privKey: string,
   stamp: BatchId
-): Promise<{usersRef: Reference, chatWriter: FeedWriter} | null> {
+): Promise<{usersRef: Reference} | null> {
   try {
-    const wallet = new ethers.Wallet(privKey);                            // This is the same privKey, as used for the Stream
-
     // Create the Users feed, that is used to register to the chat
     const usersFeedResult = await createUsersFeed(topic, stamp);
     if (!usersFeedResult) throw "Could not create Users feed!";
 
-    // Create the AggregatedChat feed, that is the real chat feed
-    let chatWriter = await createAggregatedFeedWriter(topic, wallet);
-    if (!chatWriter) throw "Could not create FeedWriter for the aggregated chat!";
-
     return {
       usersRef: usersFeedResult,
-      chatWriter: chatWriter
     }
 
   } catch (error) {
@@ -99,23 +91,6 @@ async function createUsersFeed(topic: string, stamp: BatchId) {
 
   } catch (error) {
     console.error("There was an error while creating Users feed: ", error);
-    return null;
-  }
-}
-
-// This is the feed that will contain the whole chat, all the messages are aggregated to this feed (by the Streamer)
-async function createAggregatedFeedWriter(streamTopic: string, wallet: Wallet): Promise<FeedWriter | null> {
-  try {
-    console.info("Initiating aggregated feed...");
-    const humanReadableTopic = generateRoomId(streamTopic);
-    const topic = bee.makeFeedTopic(humanReadableTopic) ;
-    const feedWriter = bee.makeFeedWriter('sequence', topic, wallet.privateKey);
-    console.info("Aggregated feed created, address of owner: ", feedWriter.owner)
-    
-    return feedWriter;
-
-  } catch (error) {
-    console.error("There was an error while trying to create the AggregatedChat feed: ", error);
     return null;
   }
 }
@@ -229,137 +204,6 @@ export async function writeToOwnFeed(
 
   } catch (error) {
     console.error(`There was an error while trying to write own feed (chat), index: ${index}, message: ${messageObj.message}: `, error);
-    return null;
-  }
-}
-
-// Reads all new messages from Swarm, each user has a feed, input userList will include the last read index
-// Will return the new messages, for each user
-// This is called on the side of the Streamer (aggregator)
-export async function fetchAllMessages(
-  userList: UserWithIndex[],
-  streamTopic: string
-): Promise<{ user: UserWithIndex; messages: MessageData[]; }[] | null> {
-  try {
-    // List of promises, that will give back { user, messages }, if successful
-    const promiseList: Promise<{user: UserWithIndex, messages: MessageData[]}>[] = userList.map(async (user) => {
-      const messages: MessageData[] = [];
-      const feedID = generateUserOwnedFeedId(streamTopic, user.address);
-      const topic = bee.makeFeedTopic(feedID);
-      const feedReader = bee.makeFeedReader('sequence', topic, user.address, { timeout: 500 });
-      const max = user.index + 10;
-      let i = 0;
-
-      for (i = user.index; i < max; i++) {        // Looping through new messages for single user, but only read max
-        try {
-          const timerID = `referenceDownload-${Date.now()}-${i}`
-          console.time(timerID)
-          // This is the thing that is slow
-          const feedUpdate = await feedReader.download({ index: i });
-          console.timeEnd(timerID)
-          console.time("dataDownload")
-          // this is not slow
-          const data = await bee.downloadData(feedUpdate.reference);
-          console.timeEnd("dataDownload")
-          const json: MessageData = data.json() as unknown as MessageData;
-
-          messages.push(json);
-          console.info(`Messages for user ${user.address} (i: ${i}): `, messages)
-
-        } catch (error) {
-          break;                                  // We quit the loop, if no new messages
-        }
-      }
-
-      const userWithIndex: UserWithIndex = {
-        ...user,
-        index: i
-      };
-
-      return {
-        user: userWithIndex,
-        messages: messages
-      };
-    });
-
-    return Promise.all(promiseList);
-
-  } catch (error) {
-    console.error("There was an error reading user feeds (fetchAllMessages): ", error);
-    return null;
-  }
-}
-
-// Write the messages of all users to an aggregated feed, in chronological order.
-// This is called on the side of the Streamer (aggregator)
-export async function writeOneMessageToAggregatedFeed(
-  message: MessageData, 
-  chatWriter: FeedWriter,
-  chatIndex: number,
-  stamp: BatchId
-): Promise<number|null> {
-  try {
-    //const uploadRes = await uploadObjectToBee(message, stamp);                    // This data should already exist on Swarm, we just don't know the reference
-    //if (!uploadRes) throw "Error uploading message to Swarm!";                    // but it's probably good that we give it more time-to-live
-    
-    const uint8 = serializeGraffitiRecord(message)                                // don't upload the chunk, just calculate ref
-    const newChunk = makeChunkedFile(uint8)
-    const newRef = bytesToHex(newChunk.address()) as Reference
-
-    chatWriter.upload(stamp, newRef, { index: chatIndex });
-    console.info(`Wrote message to index ${chatIndex}, address: ${chatWriter.owner}, topic: ${chatWriter.topic}`)
-
-    return chatIndex+1;
-    
-  } catch (error) {
-    console.error("There was an error while trying to write aggregated feed for the chat: ", error);
-    return null;
-  }
-}
-
-// This is createUserList as well. If no input user list and index, it will create the user list
-// This is called on the side of the Streamer (aggregator)
-export async function updateUserList(
-  topic: RoomID,
-  index: number = 0,
-  users: UserWithIndex[] = []
-): Promise<{users: UserWithIndex[], lastReadIndex: number} | null> {
-  try {
-    const roomId: RoomID = generateUsersFeedId(topic);
-    const lastIndex = await getGraffitiFeedIndex(roomId);
-    console.info("Updating user list. Last index: ", lastIndex);
-    const feedReader = feedReaderFromRoomId(roomId);
-
-    if (index < 0 || index > lastIndex) throw `Invalid index: ${index}`;
-
-    for (let i = index; i <= lastIndex; i++) {
-      try {
-        const feedEntry = await feedReader.download({ index: i });
-        const data = await bee.downloadData(feedEntry.reference);
-        const json = data.json() as unknown as User;
-        const isValid = validateUserObject(json);
-
-        if (!isValid) {
-          throw("Validation failed");
-        } else {
-          const userExists = users.some((user) => user.address === json.address);
-          if (userExists) {
-            throw "Duplicate User entry";
-          } else {
-            users.push({ ...json, index: 0 });              // We add the User object to the list, if it's not duplicate
-          }
-        }
-      } catch (error) {
-        console.error("Skipping element: ", error);
-        continue;
-      }
-    }
-    console.log("Users: ", users);
-
-    return { users, lastReadIndex: lastIndex };
-
-  } catch (error) {
-    console.error("There was an error while trying to insert new users to users state: ", error);
     return null;
   }
 }
