@@ -104,6 +104,7 @@ export async function registerUser(topic: string, streamerAddress: EthAddress, u
     const wallet = ethers.Wallet.createRandom();
 
     const address = wallet.address as EthAddress;
+    console.info(`Address for ${username}: ${address}`);
     const timestamp = Date.now();
     const signature = await wallet.signMessage(JSON.stringify({ username, address, timestamp })) as unknown as Signature;
     localStorage.setItem(generateUniqId(topic, streamerAddress), address as string);
