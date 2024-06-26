@@ -34,10 +34,6 @@ export function Chat({ feedDataForm }: ChatProps) {
   const [otherParty, setOtherParty] = useState<EthAddress | null>(null);
   // ----
 
-  const startMessageFetching = async () => {
-    
-  }
-
   // Set a timer, to check for new messages
   useEffect(() => {
     if (true) {

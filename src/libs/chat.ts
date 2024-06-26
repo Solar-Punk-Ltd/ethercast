@@ -41,6 +41,7 @@ export interface UserWithIndex extends User {                                   
 const ConsensusID = 'SwarmStream';                                              // Used for Graffiti feed
 
 let messages: MessageData[] = [];
+let userListPointer = 0;
 
 // This function will create 2 feeds: a Users feed, and an AggregatedChat
 // This will be called on the side of the Streamer (aggregator)
@@ -172,6 +173,53 @@ export async function registerUser(topic: string, streamerAddress: EthAddress, u
   }
 }
 
+// This is createUserList as well. If no input user list and index, it will create the user list
+// This is called on the side of the Streamer (aggregator)
+export async function getNewUsers(
+  topic: RoomID,
+  index: number = 0,
+  users: UserWithIndex[] = []
+): Promise<{users: UserWithIndex[], lastReadIndex: number} | null> {
+  try {
+    const roomId: RoomID = generateUsersFeedId(topic);
+    const lastIndex = await getGraffitiFeedIndex(roomId);
+    console.info("Updating user list. Last index: ", lastIndex);
+    const feedReader = feedReaderFromRoomId(roomId);
+
+    if (index < 0 || index > lastIndex) throw `Invalid index: ${index}`;
+
+    for (let i = index; i <= lastIndex; i++) {
+      try {
+        const feedEntry = await feedReader.download({ index: i });
+        const data = await bee.downloadData(feedEntry.reference);
+        const json = data.json() as unknown as User;
+        const isValid = validateUserObject(json);
+
+        if (!isValid) {
+          throw("Validation failed");
+        } else {
+          const userExists = users.some((user) => user.address === json.address);
+          if (userExists) {
+            throw "Duplicate User entry";
+          } else {
+            users.push({ ...json, index: 0 });              // We add the User object to the list, if it's not duplicate
+          }
+        }
+      } catch (error) {
+        console.error("Skipping element: ", error);
+        continue;
+      }
+    }
+    console.log("Users: ", users);
+
+    return { users, lastReadIndex: lastIndex };
+
+  } catch (error) {
+    console.error("There was an error while trying to insert new users to users state: ", error);
+    return null;
+  }
+}
+
 // Write a new message to the feed of the user. Every user has a feed.
 // Index is stored in React state (we are not fetching the feed index from Swarm)
 // This is called client side
@@ -297,6 +345,25 @@ export async function receiveMessage(
     messages.push(data.message);
     messages = orderMessages(messages);
     console.log("Messages: ", messages);
+  }
+}
+
+// Start message fetching for new participants
+export async function startFetchingForNewUsers(topic: string) {
+  try {
+    const result = await getNewUsers(topic, userListPointer);
+    if (!result) throw "Error fetching users";
+
+    const { users, lastReadIndex } = result;
+
+    // Start message fetching for each new user
+    users.map((user) => {
+      readSingleMessage(0, topic, user.address, receiveMessage);
+    })
+
+    userListPointer = lastReadIndex;
+  } catch (error) {
+    console.error("There was an error while starting message fetching for new users: ", error);
   }
 }
 
