@@ -35,9 +35,7 @@ export function Chat({ feedDataForm }: ChatProps) {
   // ----
 
   const startMessageFetching = async () => {
-    if (!otherParty) return;
-    const index = 0;      // Later we could change this to fetch current position
-    readSingleMessage(index, feedDataForm.topic.value, otherParty, receiveMessage);
+    
   }
 
   // Set a timer, to check for new messages
@@ -58,7 +56,9 @@ export function Chat({ feedDataForm }: ChatProps) {
   }, [isNickNameSet]);
 
   useEffect(() => {
-    startMessageFetching();
+    if (!otherParty) return;
+    const index = 0;      // Later we could change this to fetch current position
+    readSingleMessage(index, feedDataForm.topic.value, otherParty, receiveMessage);
   }, [otherParty]);
 
   useEffect(() => {

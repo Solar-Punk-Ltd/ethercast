@@ -4,12 +4,10 @@ import {
   getGraffitiWallet,
   serializeGraffitiRecord,
 } from '../utils/graffitiUtils';
-import { generateRoomId, generateUniqId, generateUserOwnedFeedId, generateUsersFeedId, validateUserObject } from '../utils/chat';
+import { generateUniqId, generateUserOwnedFeedId, generateUsersFeedId, orderMessages, validateUserObject } from '../utils/chat';
 import { Signature, ethers } from 'ethers';
 import { HexString } from 'node_modules/@ethersphere/bee-js/dist/types/utils/hex';
 import { sleep } from '../utils/common';
-import { makeChunkedFile } from '@fairdatasociety/bmt-js';
-import { bytesToHex } from '../utils/beeJs/hex';
 
 export type RoomID = string;
 
@@ -41,6 +39,8 @@ export interface UserWithIndex extends User {                                   
 }
 
 const ConsensusID = 'SwarmStream';                                              // Used for Graffiti feed
+
+let messages: MessageData[] = [];
 
 // This function will create 2 feeds: a Users feed, and an AggregatedChat
 // This will be called on the side of the Streamer (aggregator)
@@ -189,13 +189,7 @@ export async function writeToOwnFeed(
     const feedID = generateUserOwnedFeedId(topic, address);
     const privateKey = localStorage.getItem(feedID);                                      // Private key for this single chat is stored in local storage
     const feedTopicHex = bee.makeFeedTopic(feedID);
-    if (!privateKey) throw "Could not get private key from local storage!";
-
-    /*const uploadRes = await*/ uploadObjectToBee(messageObj, stamp);                         // We first upload the message object to Swarm
-    /*if (!uploadRes) throw "Could not upload message object to Swarm!";*/
-    const uint8 = serializeGraffitiRecord(messageObj)
-    const newChunk = makeChunkedFile(uint8)
-    const newRef = bytesToHex(newChunk.address()) as Reference
+    if (!privateKey) throw "Could not get private key from local storage!";    
 
     const msgData = await uploadObjectToBee(messageObj, stamp);
     if (!msgData) throw "Could not upload message data to bee"
@@ -293,15 +287,16 @@ export async function receiveMessage(
   participantAddress: EthAddress
 ) {
   if (!participantAddress) return;
-  console.log("Error: ", error);
-  console.log("Message: ", data);
 
   if (error) {
     // try again
     readSingleMessage(data.index, topic, participantAddress, receiveMessage);
   } else {
     readSingleMessage(data.index, topic, participantAddress, receiveMessage);
-    console.log("Message: ", data.message)
+    if (!data.message) return;
+    messages.push(data.message);
+    messages = orderMessages(messages);
+    console.log("Messages: ", messages);
   }
 }
 
