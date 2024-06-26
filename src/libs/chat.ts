@@ -197,8 +197,11 @@ export async function writeToOwnFeed(
     const newChunk = makeChunkedFile(uint8)
     const newRef = bytesToHex(newChunk.address()) as Reference
 
+    const msgData = await uploadObjectToBee(messageObj, stamp);
+    if (!msgData) throw "Could not upload message data to bee"
+
     const feedWriter = bee.makeFeedWriter('sequence', feedTopicHex, privateKey);
-    const ref = await feedWriter.upload(stamp, newRef, { index });           // We write to specific index, index is stored in React state
+    const ref = await feedWriter.upload(stamp, msgData.reference, { index });           // We write to specific index, index is stored in React state
     console.info("Wrote message to own feed with ref ", ref)
 
     return ref;
@@ -258,27 +261,27 @@ export async function uploadObjectToBee(
   }
 }
 
-// Reads a message from AggregatedChat, this should be the same as Graffiti feed version, but input roomId is different
+// Reads a message from UserOwnFeed, this should be the same as Graffiti feed version, but input roomId is different
 export async function readSingleMessage(
   index: number,
   streamTopic: string,
-  streamerAddress: EthAddress
-): Promise<MessageData | false> {
+  userAddress: EthAddress,
+  callback: (error: Error | null, data: { message: MessageData | null, index: number } ) => void
+) {
   try {
-    const aggregatedChatID = generateRoomId(streamTopic);               // Human readable topic name, for the aggregated chat
-    const topic = bee.makeFeedTopic(aggregatedChatID);
+    const chatID = generateUserOwnedFeedId(streamTopic, userAddress);   // Human readable topic name, for the aggregated chat
+    const topic = bee.makeFeedTopic(chatID);
 
-    const feedReader: FeedReader = bee.makeFeedReader('sequence', topic, streamerAddress, { timeout: 500 });
-    console.info(`address: ${feedReader.owner} topic: ${feedReader.topic}`)
+    const feedReader: FeedReader = bee.makeFeedReader('sequence', topic, userAddress, { timeout: 50000 });
+    console.info(`address: ${feedReader.owner} topic: ${feedReader.topic}`);
     const recordPointer = await feedReader.download({ index });         // Fetch reference to data
-    console.info("RecordPointer: ", recordPointer)
+    console.info("RecordPointer: ", recordPointer);
     const data = await bee.downloadData(recordPointer.reference);       // Fetch data
 
-    return JSON.parse(new TextDecoder().decode(data)) as MessageData;   // Return message object
-  } catch (e: any) {
-    // Don't spam the console
-    if (e.status != 500) console.error('There was an error, while reading single Message: ', e);
-    return false;
+    const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
+    callback(null, { message: messageData, index: index+1 });
+  } catch (error) {
+    callback(error as Error, { message: null, index });
   }
 }
 

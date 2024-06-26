@@ -2,7 +2,7 @@ import { useEffect, useReducer, useState, createContext, useContext, useRef } fr
 import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
 import { TextInput } from '../TextInput/TextInput';
-import { EthAddress, MessageData, registerUser } from '../../libs/chat';
+import { EthAddress, MessageData, readSingleMessage, registerUser } from '../../libs/chat';
 import { MainContext } from '../../routes.tsx';
 import EditIcon from '@mui/icons-material/Edit';
 import './Chat.scss';
@@ -34,6 +34,27 @@ export function Chat({ feedDataForm }: ChatProps) {
   const [otherParty, setOtherParty] = useState<EthAddress | null>(null);
   // ----
 
+  const startMessageFetching = async () => {
+    if (!otherParty) return;
+    const index = 0// fetch index
+    readSingleMessage(index, feedDataForm.topic.value, otherParty, receiveMessage);
+  }
+
+  // This should be moved to lib as well
+  const receiveMessage = (error: Error | null, data: { message: MessageData | null, index: number }) => {
+    if (!otherParty) return;
+    console.log("Error: ", error);
+    console.log("Message: ", data);
+
+    if (error) {
+      // try again
+      readSingleMessage(data.index, feedDataForm.topic.value, otherParty, receiveMessage);
+    } else {
+      readSingleMessage(data.index, feedDataForm.topic.value, otherParty, receiveMessage);
+      console.log("Message: ", data.message)
+    }
+  }
+
   // Set a timer, to check for new messages
   useEffect(() => {
     if (true) {
@@ -49,7 +70,11 @@ export function Chat({ feedDataForm }: ChatProps) {
       const addr = window.prompt("Address of the other party");
       setOtherParty(addr as EthAddress);
     }
-  }, [isNickNameSet])
+  }, [isNickNameSet]);
+
+  useEffect(() => {
+    startMessageFetching();
+  }, [otherParty]);
 
   useEffect(() => {
     readNextMessage(state, feedDataForm.topic.value, feedDataForm.address.value, dispatch);
