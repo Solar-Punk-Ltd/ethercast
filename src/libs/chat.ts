@@ -4,7 +4,7 @@ import {
   getGraffitiWallet,
   serializeGraffitiRecord,
 } from '../utils/graffitiUtils';
-import { generateUniqId, generateUserOwnedFeedId, generateUsersFeedId, orderMessages, validateUserObject } from '../utils/chat';
+import { generateUniqId, generateUserOwnedFeedId, generateUsersFeedId, orderMessages, removeDuplicate, validateUserObject } from '../utils/chat';
 import { Signature, ethers } from 'ethers';
 import { HexString } from 'node_modules/@ethersphere/bee-js/dist/types/utils/hex';
 import { sleep } from '../utils/common';
@@ -14,8 +14,8 @@ export type RoomID = string;
 export type Sha3Message = string | number[] | ArrayBuffer | Uint8Array;
 
 // Initialize the bee instance
-const bee = new Bee('http://localhost:1633');
-//const bee = new Bee("http://161.97.125.121:1933");
+//const bee = new Bee('http://localhost:1633');
+const bee = new Bee("http://195.88.57.155:1633");
 
 const ETH_ADDRESS_LENGTH = 42;                                                  // Be careful not to use EthAddress from bee-js,
 export type EthAddress = HexString<typeof ETH_ADDRESS_LENGTH>;                  // because that is a byte array
@@ -343,6 +343,7 @@ export async function receiveMessage(
     readSingleMessage(data.index, topic, participantAddress, receiveMessage);
     if (!data.message) return;
     messages.push(data.message);
+    messages = removeDuplicate(messages);
     messages = orderMessages(messages);
     console.log("Messages: ", messages);
   }
