@@ -4,7 +4,6 @@ import { BatchId } from '@ethersphere/bee-js';
 import SendIcon from '@mui/icons-material/Send';
 import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
-import { ChatAction, ChatActions, State } from '../../../libs/chatUserSide';
 import { generateUniqId } from '../../../utils/chat';
 import { ChatInput } from './ChatInput/ChatInput';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -15,15 +14,15 @@ interface ControlsProps {
   streamerAddress: EthAddress;
   nickname: string;
   stamp: BatchId;
-  state: State;
-  dispatch: React.Dispatch<ChatAction>;
   newUnseenMessages?: boolean;
 }
 
-export function Controls({ topic, streamerAddress, nickname, stamp, state, dispatch }: ControlsProps) {
+export function Controls({ topic, streamerAddress, nickname, stamp }: ControlsProps) {
   const [showIcons, setShowIcons] = useState(false);
   const [sendActive, setSendActive] = useState(false);
   const [newMessage, setNewMessage] = useState('');
+  const [ownFeedIndex, setOwnFeedIndex] = useState(0);
+
   function handleSmileyClick() {
     setShowIcons(!showIcons);
   }
@@ -44,9 +43,9 @@ export function Controls({ topic, streamerAddress, nickname, stamp, state, dispa
       timestamp: messageTimestamp,
     };
     
-    const result = await writeToOwnFeed(topic, streamerAddress, state.ownFeedIndex, messageObj, stamp);
+    const result = await writeToOwnFeed(topic, streamerAddress, ownFeedIndex, messageObj, stamp);
     if (!result) throw 'Could not send message!';
-    dispatch({ type: ChatActions.UPDATE_OWN_FEED_INDEX, payload: { ownFeedIndex: state.ownFeedIndex + 1 } });
+    setOwnFeedIndex(ownFeedIndex+1);
 
 
     setNewMessage('');

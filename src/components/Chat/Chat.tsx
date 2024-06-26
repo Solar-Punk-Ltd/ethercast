@@ -1,13 +1,12 @@
-import { useEffect, useReducer, useState, createContext, useContext, useRef } from 'react';
+import { useEffect, useState, createContext, useContext, useRef } from 'react';
 import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
 import { TextInput } from '../TextInput/TextInput';
-import { EthAddress, MessageData, readSingleMessage, receiveMessage, registerUser } from '../../libs/chat';
+import { MessageData, loadMessagesToUI, registerUser, startFetchingForNewUsers } from '../../libs/chat';
 import { MainContext } from '../../routes.tsx';
 import EditIcon from '@mui/icons-material/Edit';
 import './Chat.scss';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import { chatUserSideReducer, initialStateForChatUserSide, readNextMessage } from '../../libs/chatUserSide.ts';
 
 export const LayoutContext = createContext({ chatBodyHeight: 'auto', setChatBodyHeight: (_: string) => {} });
 
@@ -18,48 +17,35 @@ interface ChatProps {
 export function Chat({ feedDataForm }: ChatProps) {
   const { nickNames, setNickNames, actualAccount, actualTopic } = useContext(MainContext);
   const nickName = nickNames[actualAccount] ? nickNames[actualAccount][actualTopic] : '';
-  const [state, dispatch] = useReducer(chatUserSideReducer, initialStateForChatUserSide);
   const [chatBodyHeight, setChatBodyHeight] = useState('auto');
   const [nickname, setNickname] = useState(nickName);
-  const readInterval = 3000;
+  const refreshInterval = 50;
+  const userUpdateInterval = 5000;
   const [isEditMode, setIsEditMode] = useState(false);
   const [isNickNameSet, setIsNickNameSet] = useState(nickname ? true : false);
-  const [time, setTime] = useState(Date.now());
   const chatBodyRef = useRef<HTMLDivElement | null>(null);
   const programScrolling = useRef(false);
   const [newUnseenMessages, setNewUnseenMessages] = useState(false);
-
-
-  // --TEMPORARY--
-  const [otherParty, setOtherParty] = useState<EthAddress | null>(null);
-  // ----
+  const [loadedMessages, setLoadedMessages] = useState<MessageData[]>([]);
 
   // Set a timer, to check for new messages
   useEffect(() => {
     if (true) {
-      const messageChecker = setInterval(async () => {
-        setTime(Date.now());
-      }, readInterval);
-      return () => clearInterval(messageChecker);
+      const messageLoader = setInterval(() => {
+        const messages = loadMessagesToUI(0);
+        setLoadedMessages(messages);
+      }, refreshInterval);
+
+      const userUpdater = setInterval(() => {
+        startFetchingForNewUsers(feedDataForm.topic.value);
+      }, userUpdateInterval);
+
+      return () => {
+        clearInterval(messageLoader);
+        clearInterval(userUpdater);
+      }
     }
   }, []);
-
-  useEffect(() => {
-    if (isNickNameSet) {
-      const addr = window.prompt("Address of the other party");
-      setOtherParty(addr as EthAddress);
-    }
-  }, [isNickNameSet]);
-
-  useEffect(() => {
-    if (!otherParty) return;
-    const index = 0;      // Later we could change this to fetch current position
-    readSingleMessage(index, feedDataForm.topic.value, otherParty, receiveMessage);
-  }, [otherParty]);
-
-  useEffect(() => {
-    readNextMessage(state, feedDataForm.topic.value, feedDataForm.address.value, dispatch);
-  }, [time]);
   
   const scrollToBottom = () => {
     if (programScrolling.current && chatBodyRef.current) {
@@ -97,7 +83,7 @@ export function Chat({ feedDataForm }: ChatProps) {
     if (!programScrolling.current) {
       setNewUnseenMessages(true);
     }
-  }, [state.messages]);
+  }, [loadedMessages]);
 
   const handleClickOutside = (event: any) => {
     if (event.target.className === 'layout') {
@@ -142,7 +128,7 @@ export function Chat({ feedDataForm }: ChatProps) {
           ) : null}
 
           <div className="body" ref={chatBodyRef}>
-            {state.messages.map((m: MessageData, i: number) => {
+            {loadedMessages.map((m: MessageData, i: number) => {
               if (!m) return <Message key={i} name={'admin'} message={'loading'} own={false} />;
               else return <Message key={i} name={m.username} message={m.message} own={nickname == m.username} />;
             })}
@@ -195,8 +181,6 @@ export function Chat({ feedDataForm }: ChatProps) {
             nickname={nickname}
             stamp={feedDataForm.stamp.value}
             streamerAddress={feedDataForm.address.value}
-            state={state}
-            dispatch={dispatch}
             newUnseenMessages={newUnseenMessages}
           />
         )}

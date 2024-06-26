@@ -367,6 +367,19 @@ export async function startFetchingForNewUsers(topic: string) {
   }
 }
 
+// Will give back array of messages. Should be used in the UI
+export function loadMessagesToUI(start: number = 0, end?: number) {
+  let messagesToReturn = [];
+
+  if (end) {
+    messagesToReturn = messages.slice(start, end);
+  } else {
+    messagesToReturn = messages.slice(start);
+  }
+
+  return messagesToReturn;
+}
+
 // Current index for Graffiti feed, used by createUserList
 export async function getGraffitiFeedIndex(roomId: RoomID) {
   try {
