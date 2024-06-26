@@ -2,7 +2,7 @@ import { useEffect, useReducer, useState, createContext, useContext, useRef } fr
 import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
 import { TextInput } from '../TextInput/TextInput';
-import { MessageData, registerUser } from '../../libs/chat';
+import { EthAddress, MessageData, readSingleMessage, receiveMessage, registerUser } from '../../libs/chat';
 import { MainContext } from '../../routes.tsx';
 import EditIcon from '@mui/icons-material/Edit';
 import './Chat.scss';
@@ -29,6 +29,17 @@ export function Chat({ feedDataForm }: ChatProps) {
   const programScrolling = useRef(false);
   const [newUnseenMessages, setNewUnseenMessages] = useState(false);
 
+
+  // --TEMPORARY--
+  const [otherParty, setOtherParty] = useState<EthAddress | null>(null);
+  // ----
+
+  const startMessageFetching = async () => {
+    if (!otherParty) return;
+    const index = 0;      // Later we could change this to fetch current position
+    readSingleMessage(index, feedDataForm.topic.value, otherParty, receiveMessage);
+  }
+
   // Set a timer, to check for new messages
   useEffect(() => {
     if (true) {
@@ -38,6 +49,17 @@ export function Chat({ feedDataForm }: ChatProps) {
       return () => clearInterval(messageChecker);
     }
   }, []);
+
+  useEffect(() => {
+    if (isNickNameSet) {
+      const addr = window.prompt("Address of the other party");
+      setOtherParty(addr as EthAddress);
+    }
+  }, [isNickNameSet]);
+
+  useEffect(() => {
+    startMessageFetching();
+  }, [otherParty]);
 
   useEffect(() => {
     readNextMessage(state, feedDataForm.topic.value, feedDataForm.address.value, dispatch);
