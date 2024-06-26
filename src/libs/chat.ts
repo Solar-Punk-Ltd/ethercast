@@ -266,7 +266,7 @@ export async function readSingleMessage(
   index: number,
   streamTopic: string,
   userAddress: EthAddress,
-  callback: (error: Error | null, data: { message: MessageData | null, index: number } ) => void
+  callback: (error: Error | null, data: { message: MessageData | null, index: number }, topic: string, participantAddress: EthAddress ) => void
 ) {
   try {
     const chatID = generateUserOwnedFeedId(streamTopic, userAddress);   // Human readable topic name, for the aggregated chat
@@ -279,9 +279,29 @@ export async function readSingleMessage(
     const data = await bee.downloadData(recordPointer.reference);       // Fetch data
 
     const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
-    callback(null, { message: messageData, index: index+1 });
+    callback(null, { message: messageData, index: index+1 }, streamTopic, userAddress);
   } catch (error) {
-    callback(error as Error, { message: null, index });
+    callback(error as Error, { message: null, index }, streamTopic, userAddress);
+  }
+}
+
+// Callback for readSingleMessage
+export async function receiveMessage(
+  error: Error | null,
+  data: { message: MessageData | null, index: number },
+  topic: string,
+  participantAddress: EthAddress
+) {
+  if (!participantAddress) return;
+  console.log("Error: ", error);
+  console.log("Message: ", data);
+
+  if (error) {
+    // try again
+    readSingleMessage(data.index, topic, participantAddress, receiveMessage);
+  } else {
+    readSingleMessage(data.index, topic, participantAddress, receiveMessage);
+    console.log("Message: ", data.message)
   }
 }
 
