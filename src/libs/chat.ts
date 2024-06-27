@@ -239,11 +239,18 @@ export async function writeToOwnFeed(
     const feedTopicHex = bee.makeFeedTopic(feedID);
     if (!privateKey) throw "Could not get private key from local storage!";    
 
+    console.time("UploadingObjectToBee");
     const msgData = await uploadObjectToBee(messageObj, stamp);
+    console.timeEnd("UploadingObjectToBee");
     if (!msgData) throw "Could not upload message data to bee"
 
+    console.time("makeFeedWriter");
     const feedWriter = bee.makeFeedWriter('sequence', feedTopicHex, privateKey);
+    console.timeEnd("makeFeedWriter");
+    console.time("upload");
+    console.log("Index to write: ", index);
     const ref = await feedWriter.upload(stamp, msgData.reference, { index });           // We write to specific index, index is stored in React state
+    console.timeEnd("upload");
     console.info("Wrote message to own feed with ref ", ref)
 
     return ref;

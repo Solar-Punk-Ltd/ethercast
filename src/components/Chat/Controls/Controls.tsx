@@ -43,6 +43,7 @@ export function Controls({ topic, streamerAddress, nickname, stamp }: ControlsPr
       timestamp: messageTimestamp,
     };
     
+    console.log("Sending message...")
     const result = await writeToOwnFeed(topic, streamerAddress, ownFeedIndex, messageObj, stamp);
     if (!result) throw 'Could not send message!';
     setOwnFeedIndex(ownFeedIndex+1);
