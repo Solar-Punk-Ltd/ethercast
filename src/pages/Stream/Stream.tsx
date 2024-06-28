@@ -43,7 +43,7 @@ export function Stream() {
     stamp: {
       label: 'Please provide a valid stamp',
       placeholder: 'Stamp',
-      value: 'a9701f4fa4f3824e9e2a17a99f76cf5949eb96887276f0f46223fb6557467247',
+      value: '79fd19404ee9c1e55a2cbaba31b66d3231f82c01bd3f3d7cfe039ca08f926881',
     },
   });
   const [streamDataForm, setStreamDataForm] = useState<Record<string, CommonForm>>({

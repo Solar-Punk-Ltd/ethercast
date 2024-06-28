@@ -344,7 +344,9 @@ export async function receiveMessage(
   if (!participantAddress) return;
 
   if (error) {
-    // try again
+    console.error("Error reading message: ", error);
+    console.log("Retrying...");
+    await sleep(100);
     readSingleMessage(data.index, topic, participantAddress, receiveMessage);
   } else {
     readSingleMessage(data.index, topic, participantAddress, receiveMessage);
