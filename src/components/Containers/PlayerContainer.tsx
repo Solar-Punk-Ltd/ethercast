@@ -1,15 +1,15 @@
 import { useEffect } from 'react';
 
-import './ViewContainer.scss';
+import './PlayerContainer.scss';
 
-interface ViewContainerProps {
+interface PlayerContainerProps {
   children: React.ReactNode[];
 }
 
-export function ViewContainer({ children }: ViewContainerProps) {
+export function PlayerContainer({ children }: PlayerContainerProps) {
   useEffect(() => {
-    const outerDiv = document.getElementById('view-container')!;
-    const innerDiv = document.getElementById('view-secondary-actions')!;
+    const outerDiv = document.getElementById('player-container')!;
+    const innerDiv = document.getElementById('player-secondary-actions')!;
 
     const scrollHandler = () => {
       const bottomValue = `-${outerDiv.scrollTop}px`;
@@ -23,9 +23,9 @@ export function ViewContainer({ children }: ViewContainerProps) {
   }, []);
 
   return (
-    <div id="view-container">
+    <div id="player-container">
       <div className="video-section">{children[0]}</div>
-      <div id="view-secondary-actions">{children[1]}</div>
+      <div id="player-secondary-actions">{children[1]}</div>
       <div className="list-section">{children[2]}</div>
     </div>
   );

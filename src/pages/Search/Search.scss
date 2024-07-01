@@ -1,18 +1,13 @@
-.home {
+.search {
   display: flex;
   justify-content: center;
   min-height: 100vh;
 
-  .browser-form {
-    position: relative;
+  .search-form {
     display: flex;
     flex-direction: column;
-<<<<<<< HEAD
-    // margin-top: 50px;
-=======
     margin-top: 10px;
     margin-bottom: 40px;
->>>>>>> demo
     min-width: 400px;
     .indicator {
       margin: auto;
@@ -34,13 +29,6 @@
       min-width: 200px;
       margin-left: auto;
       margin-right: auto;
-    }
-    .pasteIcon {
-      position: absolute;
-      right: 28px;
-      top: 73px;
-      color: #00000080;
-      cursor: pointer;
     }
   }
 }

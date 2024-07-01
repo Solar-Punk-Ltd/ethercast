@@ -14,13 +14,23 @@
     background-color: $sp-text-orange;
     bottom: 2px;
     transition: opacity 0.3s ease-in-out;
-    p {
-      font-size: 12px;
-      position: relative;
-      bottom: 30px;
-      right: 28px;
-      color: white;
+    .marker-info-container {
+      height: fit-content;
+      width: fit-content;
+      .loader {
+        position: relative;
+        bottom: 32px;
+        right: 16px;
+      }
+      p {
+        font-size: 12px;
+        position: relative;
+        bottom: 30px;
+        right: 28px;
+        color: white;
+      }
     }
+
   }
 
   .filler {
