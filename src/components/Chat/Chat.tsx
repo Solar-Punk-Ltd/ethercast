@@ -1,9 +1,8 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import EditIcon from '@mui/icons-material/Edit';
 
 import { loadMessagesToUI, MessageData, registerUser, startFetchingForNewUsers } from '../../libs/chat';
-import { MainContext } from '../../routes.tsx';
 import { TextInput } from '../TextInput/TextInput';
 
 import { Controls } from './Controls/Controls';
@@ -19,17 +18,14 @@ const refreshInterval = 2000;
 const userUpdateInterval = 5000;
 
 export function Chat({ feedDataForm }: ChatProps) {
-  const { nickNames, setNickNames, actualAccount, actualTopic } = useContext(MainContext);
-
   const chatBodyRef = useRef<HTMLDivElement | null>(null);
   const programScrolling = useRef(false);
 
-  const [chatBodyHeight, setChatBodyHeight] = useState('auto');
   const nickName = nickNames[actualAccount] ? nickNames[actualAccount][actualTopic] : '';
 
-  const [nickname, setNickname] = useState(nickName);
+  const [nickNames, setNickNames] = useState<any>();
+  const [nickName, setNickname] = useState(nickName);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [isNickNameSet, setIsNickNameSet] = useState(nickname ? true : false);
   const [newUnseenMessages, setNewUnseenMessages] = useState(false);
   const [loadedMessages, setLoadedMessages] = useState<MessageData[]>([]);
 
@@ -102,15 +98,14 @@ export function Chat({ feedDataForm }: ChatProps) {
   }, [isEditMode, nickNames]);
 
   const nicknameChoosed = async () => {
-    if (nickname === '') {
+    if (nickName === '') {
       return;
     }
-    setIsNickNameSet(true);
 
     const result = await registerUser(
       feedDataForm.topic.value,
       feedDataForm.address.value,
-      nickname,
+      nickName,
       feedDataForm.stamp.value,
     );
     if (!result) throw 'Error registering user!';
@@ -124,9 +119,9 @@ export function Chat({ feedDataForm }: ChatProps) {
   return (
     <div className="chat">
       <div>
-        {isNickNameSet && (
+        {!!nickName && (
           <div className="actualNickName">
-            <span>Your Nickname: {nickname}</span>
+            <span>Your Nickname: {nickName}</span>
           </div>
         )}
 
@@ -136,7 +131,7 @@ export function Chat({ feedDataForm }: ChatProps) {
               key={i}
               name={m.username || 'admin'}
               message={m.message || 'loading'}
-              own={nickname == m.username}
+              own={nickName == m.username}
             />
           ))}
         </div>
@@ -155,13 +150,13 @@ export function Chat({ feedDataForm }: ChatProps) {
           New messages <ArrowDownwardIcon style={{ fontSize: '15px', marginLeft: '10px' }} />
         </button>
       )}
-      {!isNickNameSet ? (
+      {!nickName ? (
         <div className="header">
           {!isEditMode && <span style={{ fontSize: '13px' }}>Enter a Nickname to use chat</span>}
           {isEditMode && (
             <TextInput
               className="set-name"
-              value={nickname}
+              value={nickName}
               name={'nickname'}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNickname(e.target.value)}
               placeholder="Choose a nickname"
@@ -185,7 +180,7 @@ export function Chat({ feedDataForm }: ChatProps) {
       ) : (
         <Controls
           topic={feedDataForm.topic.value}
-          nickname={nickname}
+          nickname={nickName}
           stamp={feedDataForm.stamp.value}
           streamerAddress={feedDataForm.address.value}
           newUnseenMessages={newUnseenMessages}
