@@ -37,7 +37,7 @@ let currIndex = '';
 let seekIndex = '';
 
 //const bee = new Bee('http://localhost:1633'); // Test address
-const bee = new Bee("http://195.88.57.155:1633");
+const bee = new Bee('http://45.137.70.219:2133');
 
 let TIMESLICE = 2000;
 let MIN_LIVE_TRHESHOLD = 1;

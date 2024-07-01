@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { EthAddress, MessageData, writeToOwnFeed } from '../../../libs/chat';
 import { BatchId } from '@ethersphere/bee-js';
 import SendIcon from '@mui/icons-material/Send';
-import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
-import { generateUniqId } from '../../../utils/chat';
-import { ChatInput } from './ChatInput/ChatInput';
 import CircularProgress from '@mui/material/CircularProgress';
+import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
+
+import { EthAddress, MessageData, writeToOwnFeed } from '../../../libs/chat';
+import { generateUniqId } from '../../../utils/chat';
+
+import { ChatInput } from './ChatInput/ChatInput';
+
 import './Controls.scss';
 
 interface ControlsProps {
@@ -26,7 +29,7 @@ export function Controls({ topic, streamerAddress, nickname, stamp }: ControlsPr
   function handleSmileyClick() {
     setShowIcons(!showIcons);
   }
-    
+
   async function handleSubmit() {
     if (newMessage === '' || sendActive) return;
     setSendActive(true);
@@ -34,24 +37,23 @@ export function Controls({ topic, streamerAddress, nickname, stamp }: ControlsPr
     const messageTimestamp = Date.now(); // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
 
     const userAddress: EthAddress | null = localStorage.getItem(generateUniqId(topic, streamerAddress)) as EthAddress;
-    if (!userAddress) throw "Could not get address from local storage!"                       // This suggests that the user haven't registered yet for this chat
-    
+    if (!userAddress) throw 'Could not get address from local storage!'; // This suggests that the user haven't registered yet for this chat
+
     const messageObj: MessageData = {
       message: newMessage,
       username: nickname,
       address: userAddress,
       timestamp: messageTimestamp,
     };
-    
-    console.log("Sending message...")
+
+    console.log('Sending message...');
     const result = await writeToOwnFeed(topic, streamerAddress, ownFeedIndex, messageObj, stamp);
     if (!result) throw 'Could not send message!';
-    setOwnFeedIndex(ownFeedIndex+1);
-
+    setOwnFeedIndex(ownFeedIndex + 1);
 
     setNewMessage('');
     setSendActive(false);
-  } 
+  }
 
   function handleKeyPress(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter') {

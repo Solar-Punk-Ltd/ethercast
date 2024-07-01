@@ -1,5 +1,6 @@
 import { Fragment, useContext, useEffect, useState } from 'react';
 import { BatchId } from '@ethersphere/bee-js';
+import Tooltip from '@mui/material/Tooltip';
 import { useEthers } from '@usedapp/core';
 import { produce } from 'immer';
 
@@ -8,12 +9,11 @@ import { CheckInput } from '../../components/CheckInput';
 import { FormContainer } from '../../components/FormContainer';
 import { LiveIndicator } from '../../components/LiveIndicator/LiveIndicator';
 import { TextInput } from '../../components/TextInput/TextInput';
+import { initChatRoom } from '../../libs/chat';
 import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
+import { MainContext } from '../../routes';
 
 import './Stream.scss';
-import { initChatRoom } from '../../libs/chat';
-import Tooltip from '@mui/material/Tooltip';
-import { MainContext } from '../../routes';
 
 interface CommonForm {
   label: string;
@@ -79,9 +79,9 @@ export function Stream() {
         video,
         timeslice,
         videoDetails: video
-        ? {
-          width: streamDataForm.width.value,
-          height: streamDataForm.height.value,
+          ? {
+              width: streamDataForm.width.value,
+              height: streamDataForm.height.value,
               frameRate: streamDataForm.frameRate.value,
             }
           : undefined,
@@ -91,7 +91,6 @@ export function Stream() {
     // We save chatWriter to state, Graffiti-feed connector will be re-generated every time it is used (nothing needs to be saved)
     const result = await initChatRoom(feedDataForm.topic.value, feedDataForm.stamp.value as BatchId);
     if (!result) throw 'initChatRoom gave back null';
-    
 
     setIsLive(true);
     setActualAccount(account!);

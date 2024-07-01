@@ -1,4 +1,4 @@
-import { ReactElement, createContext, useState } from 'react';
+import { createContext, ReactElement, useState } from 'react';
 import { Route, Routes } from 'react-router-dom';
 
 import { Home } from './pages/Home/Home';

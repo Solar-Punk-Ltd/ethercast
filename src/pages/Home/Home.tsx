@@ -1,4 +1,6 @@
-import { Fragment, useMemo, useState, useContext } from 'react';
+import { Fragment, useContext, useMemo, useState } from 'react';
+import ContentPasteIcon from '@mui/icons-material/ContentPaste';
+import Tooltip from '@mui/material/Tooltip';
 import { produce } from 'immer';
 
 import { Button } from '../../components/Button/Button';
@@ -11,11 +13,8 @@ import { VideoPlayer } from '../../components/VideoPlayer/VideoPlayer';
 import { setFeedReader, setPlayerOptions } from '../../libs/player';
 
 import { ViewContainer } from './containers/ViewerContainer';
-import ContentPasteIcon from '@mui/icons-material/ContentPaste';
-import Tooltip from '@mui/material/Tooltip';
 
 import './Home.scss';
-import { MainContext } from '../../routes';
 
 interface CommonForm {
   label: string;
@@ -27,7 +26,6 @@ const items = [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}];
 
 export function Home() {
   const [showPlayer, setShowPlayer] = useState(false);
-  const { setActualAccount, setActualTopic } = useContext(MainContext);
   const [feedDataForm, setFeedDataForm] = useState<Record<string, CommonForm>>({
     address: {
       label: 'Please add the public address that streams the feed',
@@ -94,8 +92,6 @@ export function Home() {
     });
     setFeedReader(feedDataForm.topic.value, feedDataForm.address.value);
     setShowPlayer(true);
-    setActualAccount(feedDataForm.address.value);
-    setActualTopic(feedDataForm.topic.value);
   };
 
   const pasteFromClipBoard = async () => {
@@ -108,7 +104,6 @@ export function Home() {
       },
     }));
   };
-
 
   return (
     <div className="home">
