@@ -8,7 +8,7 @@ import { generateUniqId, generateUserOwnedFeedId, generateUsersFeedId, orderMess
 import { Signature, ethers } from 'ethers';
 import { HexString } from 'node_modules/@ethersphere/bee-js/dist/types/utils/hex';
 import { sleep } from '../utils/common';
-import { AsyncQueue } from './asyncQueue';
+import { AsyncQueue } from './asyncQueueChat';
 
 export type RoomID = string;
 
@@ -43,8 +43,8 @@ const ConsensusID = 'SwarmStream';                                              
 
 let messages: MessageData[] = [];
 let userListPointer = 0;
-let userFetchQueue = new AsyncQueue({ indexed: false, waitable: true });
-let messageQueue = new AsyncQueue({ indexed: false, waitable: false });
+let userFetchQueue = new AsyncQueue({ indexed: false, waitable: true, max: 1 });
+let messageQueue = new AsyncQueue({ indexed: false, waitable: true });
 
 // This function will create 2 feeds: a Users feed, and an AggregatedChat
 // This will be called on the side of the Streamer (aggregator)
