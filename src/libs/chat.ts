@@ -8,6 +8,7 @@ import { generateUniqId, generateUserOwnedFeedId, generateUsersFeedId, orderMess
 import { Signature, ethers } from 'ethers';
 import { HexString } from 'node_modules/@ethersphere/bee-js/dist/types/utils/hex';
 import { sleep } from '../utils/common';
+import { AsyncQueue } from './asyncQueue';
 
 export type RoomID = string;
 
@@ -42,6 +43,7 @@ const ConsensusID = 'SwarmStream';                                              
 
 let messages: MessageData[] = [];
 let userListPointer = 0;
+let userFetchQueue = new AsyncQueue({indexed: false})
 
 // This function will create 2 feeds: a Users feed, and an AggregatedChat
 // This will be called on the side of the Streamer (aggregator)
@@ -360,21 +362,24 @@ export async function receiveMessage(
 
 // Start message fetching for new participants
 export async function startFetchingForNewUsers(topic: string) {
-  try {
-    const result = await getNewUsers(topic, userListPointer);
-    if (!result) throw "Error fetching users";
+  userFetchQueue.enqueue(() => getNewUsers(topic, userListPointer)
+  .then(result => {
+    if (!result) {
+      throw new Error("Error fetching users");
+    }
 
     const { users, lastReadIndex } = result;
 
     // Start message fetching for each new user
-    users.map((user) => {
+    users.forEach(user => {
       readSingleMessage(0, topic, user.address, receiveMessage);
-    })
+    });
 
     userListPointer = lastReadIndex;
-  } catch (error) {
+  })
+  .catch(error => {
     console.error("There was an error while starting message fetching for new users: ", error);
-  }
+  }));
 }
 
 // Will give back array of messages. Should be used in the UI
