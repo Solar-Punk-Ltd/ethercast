@@ -43,7 +43,8 @@ const ConsensusID = 'SwarmStream';                                              
 
 let messages: MessageData[] = [];
 let userListPointer = 0;
-let userFetchQueue = new AsyncQueue({indexed: false})
+let userFetchQueue = new AsyncQueue({ indexed: false, waitable: true });
+let messageQueue = new AsyncQueue({ indexed: false, waitable: false });
 
 // This function will create 2 feeds: a Users feed, and an AggregatedChat
 // This will be called on the side of the Streamer (aggregator)
@@ -319,21 +320,33 @@ export async function readSingleMessage(
   userAddress: EthAddress,
   callback: (error: Error | null, data: { message: MessageData | null, index: number }, topic: string, participantAddress: EthAddress ) => void
 ) {
-  try {
-    const chatID = generateUserOwnedFeedId(streamTopic, userAddress);   // Human readable topic name, for the aggregated chat
-    const topic = bee.makeFeedTopic(chatID);
-
-    const feedReader: FeedReader = bee.makeFeedReader('sequence', topic, userAddress, { timeout: 50000 });
-    console.info(`address: ${feedReader.owner} topic: ${feedReader.topic}`);
-    const recordPointer = await feedReader.download({ index });         // Fetch reference to data
-    console.info("RecordPointer: ", recordPointer);
-    const data = await bee.downloadData(recordPointer.reference);       // Fetch data
-
-    const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
-    callback(null, { message: messageData, index: index+1 }, streamTopic, userAddress);
-  } catch (error) {
-    callback(error as Error, { message: null, index }, streamTopic, userAddress);
-  }
+  messageQueue.enqueue(() => new Promise((resolve, reject) => {
+    try {
+      const chatID = generateUserOwnedFeedId(streamTopic, userAddress);   // Human readable topic name, for the aggregated chat
+      const topic = bee.makeFeedTopic(chatID);
+  
+      const feedReader: FeedReader = bee.makeFeedReader('sequence', topic, userAddress, { timeout: 50000 });
+      console.info(`address: ${feedReader.owner} topic: ${feedReader.topic}`);
+      
+      feedReader.download({ index })
+        .then(recordPointer => {
+          console.info("RecordPointer: ", recordPointer);
+          return bee.downloadData(recordPointer.reference);       // Fetch data
+        })
+        .then(data => {
+          const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
+          callback(null, { message: messageData, index: index + 1 }, streamTopic, userAddress);
+          resolve(true);
+        })
+        .catch(error => {
+          callback(error, { message: null, index }, streamTopic, userAddress);
+          reject(error);
+        });
+    } catch (error) {
+      callback(error as Error, { message: null, index }, streamTopic, userAddress);
+      reject(error);
+    }
+  }))
 }
 
 // Callback for readSingleMessage
