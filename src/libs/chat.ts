@@ -320,6 +320,7 @@ export async function readSingleMessage(
   userAddress: EthAddress,
   callback: (error: Error | null, data: { message: MessageData | null, index: number }, topic: string, participantAddress: EthAddress ) => void
 ) {
+  let callbackDone = false;
   messageQueue.enqueue(() => new Promise((resolve, reject) => {
     try {
       const chatID = generateUserOwnedFeedId(streamTopic, userAddress);   // Human readable topic name, for the aggregated chat
@@ -335,15 +336,17 @@ export async function readSingleMessage(
         })
         .then(data => {
           const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
+          callbackDone = true;
           callback(null, { message: messageData, index: index + 1 }, streamTopic, userAddress);
           resolve(true);
         })
         .catch(error => {
+          callbackDone = true;
           callback(error, { message: null, index }, streamTopic, userAddress);
           reject(error);
         });
     } catch (error) {
-      callback(error as Error, { message: null, index }, streamTopic, userAddress);
+      if (!callbackDone) callback(error as Error, { message: null, index }, streamTopic, userAddress);
       reject(error);
     }
   }))
@@ -364,12 +367,12 @@ export async function receiveMessage(
     await sleep(100);
     readSingleMessage(data.index, topic, participantAddress, receiveMessage);
   } else {
-    readSingleMessage(data.index, topic, participantAddress, receiveMessage);
     if (!data.message) return;
     messages.push(data.message);
     messages = removeDuplicate(messages);
     messages = orderMessages(messages);
     console.log("Messages: ", messages);
+    readSingleMessage(data.index, topic, participantAddress, receiveMessage);
   }
 }
 

@@ -22,6 +22,8 @@ export class AsyncQueue {
 
   private async processQueue() {
     if (this.inProgressCount >= this.maxParallel) return;
+    console.warn("Current inProgressCount: ", this.inProgressCount);
+    console.warn("Queue length: ", this.queue.length);
     this.isProcessing = true;
 
     while (this.queue.length > 0) {
