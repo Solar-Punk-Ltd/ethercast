@@ -35,7 +35,6 @@ export function Chat({ topic }: ChatProps) {
   const { account, isLoading } = useEthers();
   const { openModal, closeModal } = useModal();
 
-  const initRef = useRef(true);
   const chatBodyRef = useRef<HTMLDivElement>(null);
 
   const [user, setUser] = useState<UserWithIndex>();
@@ -47,50 +46,56 @@ export function Chat({ topic }: ChatProps) {
   const [loadingUserInit, setLoadingUserInit] = useState(true);
 
   useEffect(() => {
+    const { on, off } = getChatActions();
+
+    const handleMessageLoad = (newMessages: MessageData[]) => {
+      setMessages((prevMessages) => {
+        const uniqueNewMessages = newMessages.filter(
+          (newMsg) => !prevMessages.some((prevMsg) => prevMsg.timestamp === newMsg.timestamp),
+        );
+        return [...prevMessages, ...uniqueNewMessages];
+      });
+
+      // Schedule a scroll after the state update if we're already at the bottom
+      if (isScrolledToBottom()) {
+        setTimeout(scrollToBottom, 0);
+      }
+    };
+
+    const handleInitLoad = () => setLoadingUserInit(false);
+
+    on(EVENTS.LOAD_MESSAGE, handleMessageLoad);
+    on(EVENTS.LOADING_INIT_USERS, handleInitLoad);
+
+    return () => {
+      off(EVENTS.LOAD_MESSAGE, handleMessageLoad);
+      off(EVENTS.LOADING_INIT_USERS, handleInitLoad);
+    };
+  }, []);
+
+  useEffect(() => {
     if (isLoading) {
       return;
     }
 
-    initUsers(topic)
-      .then((users) => {
-        if (users?.length && account) {
-          const user = users.find((u) => u.address.toLocaleLowerCase() === account.toLocaleLowerCase());
-          setUser(user);
-        }
-      })
-      .finally(() => {
-        setLoadingUserInit(false);
-      });
+    initUsers(topic).then((users) => {
+      if (users?.length && account) {
+        const user = users.find((u) => u.address.toLocaleLowerCase() === account.toLocaleLowerCase());
+        setUser(user);
+      }
+    });
   }, [account, topic, isLoading]);
 
   useEffect(() => {
-    if (!loadingUserInit && initRef.current) {
-      const { on, off, startFetchingForNewUsers, startLoadingNewMessages } = getChatActions();
+    if (!loadingUserInit) {
+      const { startFetchingForNewUsers, startLoadingNewMessages } = getChatActions();
 
       const userUpdater = setInterval(startFetchingForNewUsers(topic), USER_UPDATE_INTERVAL);
       const messageLoader = setInterval(startLoadingNewMessages(topic), MESSAGE_CHECK_INTERVAL);
 
-      const handleMessageLoad = (newMessages: MessageData[]) => {
-        setMessages((prevMessages) => {
-          const uniqueNewMessages = newMessages.filter(
-            (newMsg) => !prevMessages.some((prevMsg) => prevMsg.timestamp === newMsg.timestamp),
-          );
-          return [...prevMessages, ...uniqueNewMessages];
-        });
-
-        // Schedule a scroll after the state update if we're already at the bottom
-        if (isScrolledToBottom()) {
-          setTimeout(scrollToBottom, 0);
-        }
-      };
-      on(EVENTS.LOAD_MESSAGE, handleMessageLoad);
-
-      initRef.current = false;
-
       return () => {
         clearInterval(userUpdater);
         clearInterval(messageLoader);
-        off(EVENTS.LOAD_MESSAGE, handleMessageLoad);
       };
     }
   }, [loadingUserInit, topic]);
