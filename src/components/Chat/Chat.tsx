@@ -143,7 +143,7 @@ export function Chat({ topic }: ChatProps) {
     <div className="chat">
       <div>
         {!!nickName && (
-          <div className="actualNickName">
+          <div className="actual-nickname">
             <span>Your Nickname: {nickName}</span>
           </div>
         )}
@@ -162,7 +162,7 @@ export function Chat({ topic }: ChatProps) {
 
       {writeMode === WriteMode.NICK ? (
         <div className="register-container">
-          <button onClick={handleOpenModal} className="okButton" disabled={loadingUserInit}>
+          <button onClick={handleOpenModal} disabled={loadingUserInit}>
             Join to chat
           </button>
         </div>
