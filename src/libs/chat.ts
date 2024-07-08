@@ -88,6 +88,8 @@ export async function initChatRoom(topic: string, stamp: BatchId) {
 
 export async function initUsers(topic: string): Promise<UserWithIndex[] | null> {
   try {
+    emitEvent(EVENTS.LOADING_INIT_USERS, true);
+
     const feedReader = graffitiFeedReaderFromTopic(topic);
 
     const feedEntry = await feedReader.download();
@@ -104,6 +106,8 @@ export async function initUsers(topic: string): Promise<UserWithIndex[] | null> 
   } catch (error) {
     console.error('Init users error: ', error);
     throw error;
+  } finally {
+    emitEvent(EVENTS.LOADING_INIT_USERS, false);
   }
 }
 
@@ -147,11 +151,11 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
 
     const feedWriter = graffitiFeedWriterFromTopic(topic);
     await feedWriter.upload(stamp, userRef.reference);
-
-    emitEvent(EVENTS.LOADING_REGISTRATION, false);
   } catch (error) {
     console.error(error);
     throw new Error(`There was an error while trying to register user (chatroom): ${error}`);
+  } finally {
+    emitEvent(EVENTS.LOADING_REGISTRATION, false);
   }
 }
 
@@ -251,7 +255,7 @@ export async function sendMessage(
         feedEntry = await feedReader.download();
         ownIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
       } catch (error) {
-        if (error.stack.includes('404')) {
+        if (isNotFoundError(error)) {
           ownIndex = 0;
         }
       }
@@ -327,4 +331,10 @@ function emitEvent(event: string, value: any) {
     eventStates[event] = value;
     emitter.emit(event, value);
   }
+}
+
+// TODO: why bee-js do this?
+// status is undefined in the error object
+function isNotFoundError(error: any) {
+  return error.stack.includes('404');
 }

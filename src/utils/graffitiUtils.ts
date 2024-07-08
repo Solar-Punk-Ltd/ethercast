@@ -1,7 +1,7 @@
 import { Utils } from '@ethersphere/bee-js';
 import { BytesLike, utils, Wallet } from 'ethers';
 
-import { Sha3Message } from '../libs/chat';
+type Sha3Message = string | number[] | ArrayBuffer | Uint8Array;
 
 export function getConsensualPrivateKey(resource: Sha3Message) {
   if (Utils.isHexString(resource) && resource.length === 64) {
