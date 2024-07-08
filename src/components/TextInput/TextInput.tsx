@@ -15,6 +15,7 @@ interface TextInputProps {
   className?: string;
   ref?: RefCallBack;
   error?: string;
+  disabled?: boolean;
   onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
 }
 

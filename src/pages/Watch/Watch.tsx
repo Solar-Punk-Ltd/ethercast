@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-// import { Chat } from '../../components/Chat/Chat';
+import { Chat } from '../../components/Chat/Chat';
 import { PlayerContainer } from '../../components/Containers/PlayerContainer';
 import { JoinButton } from '../../components/JoinButton/JoinButton';
 import { VideoList } from '../../components/VideoList/VideoList';
@@ -29,7 +29,7 @@ export function Watch() {
         <JoinButton onClick={() => ({})} />
         <VideoList items={items} />
       </PlayerContainer>
-      {/* <Chat />{} */}
+      <Chat owner={searchParams.get('a')!} topic={searchParams.get('t')!} />
     </div>
   );
 }

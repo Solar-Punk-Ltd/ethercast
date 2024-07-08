@@ -2,17 +2,6 @@ import { ethers } from 'ethers';
 
 import { EthAddress, MessageData } from '../libs/chat';
 
-// Save messages to localStorage for the corresponding chat room
-export function saveMessages(chatRoom: string, messages: MessageData[]) {
-  localStorage.setItem(chatRoom, JSON.stringify(messages));
-}
-
-// Load messages from localStorage for the corresponding chat room
-export function loadMessages(chatRoom: string): MessageData[] {
-  const storedMessages = JSON.parse(localStorage.getItem(chatRoom) || '[]');
-  return storedMessages;
-}
-
 // Generate an ID for the feed, that will be connected to the stream, as Users list
 export function generateUsersFeedId(topic: string) {
   return `${topic}_EthercastChat_Users`;

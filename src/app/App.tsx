@@ -8,6 +8,7 @@ import BaseRouter from '../routes';
 import { ErrorBoundary } from './Error/ErrorBoundary';
 import { ErrorProvider } from './Error/ErrorContext';
 import { MainLayout } from './layout/MainLayout';
+import { ModalProvider } from './Modal/ModalProvider';
 
 import './App.scss';
 
@@ -27,9 +28,11 @@ root.render(
       <ErrorBoundary>
         <DAppProvider config={config}>
           <HashRouter basename="/">
-            <MainLayout>
-              <BaseRouter />
-            </MainLayout>
+            <ModalProvider>
+              <MainLayout>
+                <BaseRouter />
+              </MainLayout>
+            </ModalProvider>
           </HashRouter>
         </DAppProvider>
       </ErrorBoundary>

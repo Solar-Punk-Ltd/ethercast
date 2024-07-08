@@ -9,31 +9,15 @@
   flex-direction: column;
   justify-content: space-between;
 
-  .header {
+  .register-container {
     font-weight: bold;
-    height: 37px;
-    box-sizing: border-box;
     display: flex;
-    justify-content: space-between;
+    height: 50px;
+    justify-content: center;
     align-items: center;
     border-bottom: 1px solid black;
-    padding-left: 12px;
-    padding-right: 12px;
-    color: $sp-text-orange;
+    padding: 0px 12px;
     background-color: $sp-bg-primary-100;
-  }
-
-  .nickNameEditButton {
-    color: $sp-text-orange;
-    background-color: transparent;
-    border: 1px solid $sp-text-orange;
-    border-radius: 12px;
-    display: flex;
-    padding: 5px;
-  }
-
-  .header input::placeholder {
-    color: $sp-bg-primary-100;
   }
 
   .body {
@@ -43,46 +27,6 @@
     height: 83vh;
   }
 
-  .set-name {
-    height: 26px;
-    padding: 0px;
-    background-color: white;
-    color: $sp-bg-primary-100;
-    @extend .flex-center;
-  }
-  .editButtons {
-    display: flex;
-    justify-content: space-between;
-  }
-
-  .editButtons .closeButton {
-    font-weight: bold;
-    border-radius: 50px;
-    background-color: #2a2828;
-    color: $sp-text-orange;
-    border: 1px solid $sp-text-orange;
-    margin-left: 10px;
-  }
-
-  .editButtons .okButton {
-    font-weight: bold;
-    border-radius: 12px;
-    background-color: #ebe3e3;
-    color: rgb(65, 42, 0);
-    border: 1px solid rgb(65, 42, 0);
-    margin-left: 10px;
-  }
-
-  input.set-name {
-    background-color: $sp-bg-primary-100;
-    border: 0px;
-    border-bottom: 1px solid $sp-text-orange;
-    caret-color: $sp-text-orange;
-    color: $sp-text-orange;
-  }
-  input.set-name::placeholder {
-    color: $sp-text-orange;
-  }
   .actualNickName {
     position: absolute;
     width: 100%;

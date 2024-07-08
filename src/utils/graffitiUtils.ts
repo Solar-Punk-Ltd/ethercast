@@ -1,4 +1,4 @@
-import { Utils } from '@solarpunk/bee-js';
+import { Utils } from '@ethersphere/bee-js';
 import { BytesLike, utils, Wallet } from 'ethers';
 
 import { Sha3Message } from '../libs/chat';

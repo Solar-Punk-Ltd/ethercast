@@ -2,7 +2,7 @@ import { BatchId, Bee, FeedWriter, Reference } from '@ethersphere/bee-js';
 import { makeChunkedFile } from '@fairdatasociety/bmt-js';
 
 import { bytesToHex } from '../utils/beeJs/hex';
-import { retryAsync } from '../utils/common';
+import { retryAsync, retryAwaitableAsync } from '../utils/common';
 import { CLUSTER_ID } from '../utils/constants';
 import { findHexInUint8Array } from '../utils/webm';
 
@@ -20,7 +20,7 @@ interface Options {
   videoBitsPerSecond: number;
 }
 
-const bee = new Bee('http://45.137.70.219:1633'); // Test address
+const bee = new Bee('http://45.137.70.219:2033'); // Test address
 let feedWriter: FeedWriter;
 let mediaRecorder: MediaRecorder;
 let mediaStream: MediaStream;

@@ -53,7 +53,7 @@ interface SegmentBuffer {
 }
 
 // External libs
-const bee = new Bee('http://45.137.70.219:1733'); // Test address
+const bee = new Bee('http://45.137.70.219:2133'); // Test address
 const emitter = new EventEmitter();
 const segmentBuffer: SegmentBuffer = {};
 
@@ -416,7 +416,7 @@ async function cleanSourceBuffer() {
   currIndex = '';
 }
 
-function emitEvent(event: string, value: boolean) {
+function emitEvent(event: string, value: any) {
   if (eventStates[event] !== value) {
     eventStates[event] = value;
     emitter.emit(event, value);
