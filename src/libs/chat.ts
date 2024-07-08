@@ -196,7 +196,7 @@ export function startLoadingNewMessages(topic: string) {
     messagesQueue = new AsyncQueue({ indexed: false, waitable: true });
   }
 
-  return async () => {
+  return () => {
     for (const user of users) {
       messagesQueue.enqueue(() => readMessage(user, topic));
     }
@@ -217,6 +217,12 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
   await setUsers(newUsers);
 
   messages.push(messageData);
+
+  // TODO - discuss with the team
+  if (messages.length > 300) {
+    messages.shift();
+  }
+
   emitter.emit(EVENTS.LOAD_MESSAGE, messages);
 }
 
@@ -238,8 +244,6 @@ export async function sendMessage(
     if (!msgData) throw 'Could not upload message data to bee';
 
     if (!ownIndex) {
-      console.log('ownIndex not found');
-      console.log(feedTopicHex, address);
       const feedReader = bee.makeFeedReader('sequence', feedTopicHex, address);
 
       let feedEntry;

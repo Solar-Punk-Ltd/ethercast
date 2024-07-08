@@ -36,6 +36,7 @@ export function Chat({ topic }: ChatProps) {
   const { openModal, closeModal } = useModal();
 
   const initRef = useRef(true);
+  const chatBodyRef = useRef<HTMLDivElement>(null);
 
   const [user, setUser] = useState<UserWithIndex>();
   const [writeMode, setWriteMode] = useState<WriteMode>(WriteMode.NICK);
@@ -76,6 +77,11 @@ export function Chat({ topic }: ChatProps) {
           );
           return [...prevMessages, ...uniqueNewMessages];
         });
+
+        // Schedule a scroll after the state update if we're already at the bottom
+        if (isScrolledToBottom()) {
+          setTimeout(scrollToBottom, 0);
+        }
       };
       on(EVENTS.LOAD_MESSAGE, handleMessageLoad);
 
@@ -109,6 +115,20 @@ export function Chat({ topic }: ChatProps) {
     [closeModal, topic, user],
   );
 
+  const isScrolledToBottom = () => {
+    if (chatBodyRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = chatBodyRef.current;
+      return Math.abs(scrollHeight - clientHeight - scrollTop) < 1;
+    }
+    return false;
+  };
+
+  const scrollToBottom = () => {
+    if (chatBodyRef.current) {
+      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+    }
+  };
+
   const handleOpenModal = useCallback(
     () => openModal(<ChatModal user={user} onAction={joinToChat} />),
     [user, openModal, joinToChat],
@@ -123,7 +143,7 @@ export function Chat({ topic }: ChatProps) {
           </div>
         )}
 
-        <div className="body">
+        <div className="body" ref={chatBodyRef}>
           {messages.map((m: MessageData, i: number) => (
             <Message
               key={i}
