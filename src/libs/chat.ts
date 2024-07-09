@@ -86,7 +86,7 @@ export async function initChatRoom(topic: string, stamp: BatchId) {
 
 export async function initUsers(topic: string): Promise<UserWithIndex[] | null> {
   try {
-    emitEvent(EVENTS.LOADING_INIT_USERS, true);
+    emitStateEvent(EVENTS.LOADING_INIT_USERS, true);
 
     const feedReader = graffitiFeedReaderFromTopic(topic);
 
@@ -105,13 +105,13 @@ export async function initUsers(topic: string): Promise<UserWithIndex[] | null> 
     console.error('Init users error: ', error);
     throw error;
   } finally {
-    emitEvent(EVENTS.LOADING_INIT_USERS, false);
+    emitStateEvent(EVENTS.LOADING_INIT_USERS, false);
   }
 }
 
 export async function registerUser(topic: string, { participant, key, stamp, nickName: username }: ParticipantDetails) {
   try {
-    emitEvent(EVENTS.LOADING_REGISTRATION, true);
+    emitStateEvent(EVENTS.LOADING_REGISTRATION, true);
 
     const alreadyRegistered = users.find((user) => user.address === participant);
 
@@ -160,7 +160,7 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
     console.error(error);
     throw new Error(`There was an error while trying to register user (chatroom): ${error}`);
   } finally {
-    emitEvent(EVENTS.LOADING_REGISTRATION, false);
+    emitStateEvent(EVENTS.LOADING_REGISTRATION, false);
   }
 }
 
@@ -172,7 +172,7 @@ export function startFetchingForNewUsers(topic: string) {
 }
 
 async function getNewUsers(topic: string, index: number) {
-  emitEvent(EVENTS.LOADING_USERS, true);
+  emitStateEvent(EVENTS.LOADING_USERS, true);
 
   const feedReader = graffitiFeedReaderFromTopic(topic);
   const feedEntry = await feedReader.download({ index });
@@ -197,7 +197,7 @@ async function getNewUsers(topic: string, index: number) {
 
   await setUsers(newUsers);
 
-  emitEvent(EVENTS.LOADING_USERS, false);
+  emitStateEvent(EVENTS.LOADING_USERS, false);
 }
 
 export function startLoadingNewMessages(topic: string) {
@@ -331,7 +331,7 @@ async function setUsers(newUsers: UserWithIndex[]) {
   });
 }
 
-function emitEvent(event: string, value: any) {
+function emitStateEvent(event: string, value: any) {
   if (eventStates[event] !== value) {
     eventStates[event] = value;
     emitter.emit(event, value);
