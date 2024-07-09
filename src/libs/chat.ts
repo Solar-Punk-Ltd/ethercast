@@ -191,7 +191,7 @@ async function getNewUsers(topic: string, index: number) {
   for (const user of validUsers) {
     const alreadyRegistered = users.find((u) => u.address === user.address);
     if (!alreadyRegistered) {
-      newUsers.push({ ...user, index: 0 });
+      newUsers.push({ ...user, index: -1 });
     }
   }
 
@@ -216,13 +216,18 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
   const chatID = generateUserOwnedFeedId(rawTopic, user.address);
   const topic = bee.makeFeedTopic(chatID);
 
+  let currIndex = user.index;
+  if (user.index === -1) {
+    currIndex = await getLatestFeedIndex(topic, user.address);
+  }
+
   const feedReader = bee.makeFeedReader('sequence', topic, user.address);
-  const recordPointer = await feedReader.download({ index: user.index });
+  const recordPointer = await feedReader.download({ index: currIndex });
   const data = await bee.downloadData(recordPointer.reference);
 
   const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
 
-  const newUsers = users.map((u) => (u.address === user.address ? { ...u, index: user.index + 1 } : u));
+  const newUsers = users.map((u) => (u.address === user.address ? { ...u, index: currIndex + 1 } : u));
   await setUsers(newUsers);
 
   messages.push(messageData);
@@ -253,17 +258,7 @@ export async function sendMessage(
     if (!msgData) throw 'Could not upload message data to bee';
 
     if (!ownIndex) {
-      const feedReader = bee.makeFeedReader('sequence', feedTopicHex, address);
-
-      let feedEntry;
-      try {
-        feedEntry = await feedReader.download();
-        ownIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
-      } catch (error) {
-        if (isNotFoundError(error)) {
-          ownIndex = 0;
-        }
-      }
+      ownIndex = await getLatestFeedIndex(feedTopicHex, address);
     }
 
     const feedWriter = bee.makeFeedWriter('sequence', feedTopicHex, privateKey);
@@ -317,6 +312,22 @@ function generateGraffitiFeedMetadata(topic: string) {
     consensusHash,
     graffitiSigner,
   };
+}
+
+async function getLatestFeedIndex(topic: string, address: EthAddress) {
+  let latestIndex;
+
+  try {
+    const feedReader = bee.makeFeedReader('sequence', topic, address);
+    const feedEntry = await feedReader.download();
+    latestIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
+    return latestIndex;
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return 0;
+    }
+    throw error;
+  }
 }
 
 let usersLoading = false;
