@@ -74,12 +74,12 @@ export function Stream() {
   const onSubmit = WithAsyncErrorBoundary(async (data: FormData) => {
     if (!library) return;
 
-    await startStream({ address: account!, key: data.key }, data.streamTopic, data.stamp as BatchId, {
+    /*     await startStream({ address: account!, key: data.key }, data.streamTopic, data.stamp as BatchId, {
       audio: options.audio,
       video: options.video,
       timeslice: +data.timeslice,
       videoBitsPerSecond: +data.videoBitsPerSecond,
-    });
+    }); */
 
     await initChatRoom(data.streamTopic, data.stamp as BatchId);
     setIsLive(true);

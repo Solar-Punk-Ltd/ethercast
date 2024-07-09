@@ -9,6 +9,7 @@ export class AsyncQueue {
   private index;
   private isProcessing = false;
   private currentPromiseProcessing = false;
+  private isWaiting = false;
   private queue: ((index?: string) => Promise<void>)[] = [];
 
   constructor(settings: { indexed?: boolean; index?: string; waitable?: boolean; clearWaitTime?: number } = {}) {
@@ -64,5 +65,17 @@ export class AsyncQueue {
     while (this.isProcessing || this.currentPromiseProcessing) {
       await sleep(this.clearWaitTime);
     }
+  }
+
+  async waitForProcessing() {
+    if (this.isWaiting) return true;
+
+    this.isWaiting = true;
+
+    while (this.isProcessing || this.currentPromiseProcessing) {
+      await sleep(this.clearWaitTime);
+    }
+
+    this.isWaiting = false;
   }
 }

@@ -47,7 +47,7 @@ const messages: MessageData[] = [];
 let usersQueue: AsyncQueue;
 let messagesQueue: AsyncQueue;
 let users: UserWithIndex[] = [];
-let userInitIndex;
+let usersInitIndex: number;
 
 const eventStates: Record<string, boolean> = {
   loadingInitUsers: false,
@@ -88,7 +88,7 @@ export async function initUsers(topic: string): Promise<UserWithIndex[] | null> 
     const feedReader = graffitiFeedReaderFromTopic(topic);
 
     const feedEntry = await feedReader.download();
-    userInitIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
+    usersInitIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
 
     const data = await bee.downloadData(feedEntry.reference);
 
@@ -163,7 +163,7 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
 
 export function startFetchingForNewUsers(topic: string) {
   if (!usersQueue) {
-    usersQueue = new AsyncQueue({ indexed: true, index: numberToFeedIndex(userInitIndex!), waitable: true });
+    usersQueue = new AsyncQueue({ indexed: true, index: numberToFeedIndex(usersInitIndex!), waitable: true });
   }
   return () => usersQueue.enqueue((index) => getNewUsers(topic, parseInt(index as string, HEX_RADIX)));
 }
@@ -172,10 +172,12 @@ async function getNewUsers(topic: string, index: number) {
   emitStateEvent(EVENTS.LOADING_USERS, true);
 
   const feedReader = graffitiFeedReaderFromTopic(topic);
+  console.log(index, 'newUsers index');
   const feedEntry = await feedReader.download({ index });
 
   const data = await bee.downloadData(feedEntry.reference);
   const rawUsers = data.json() as unknown as User[];
+  console.log(rawUsers, 'rawUsers');
 
   if (!Array.isArray(rawUsers)) {
     console.error('New users is not an array');
@@ -202,7 +204,12 @@ export function startLoadingNewMessages(topic: string) {
     messagesQueue = new AsyncQueue({ indexed: false, waitable: true });
   }
 
-  return () => {
+  return async () => {
+    const isWaiting = await messagesQueue.waitForProcessing();
+    if (isWaiting) {
+      return;
+    }
+
     for (const user of users) {
       messagesQueue.enqueue(() => readMessage(user, topic));
     }
@@ -210,6 +217,7 @@ export function startLoadingNewMessages(topic: string) {
 }
 
 async function readMessage(user: UserWithIndex, rawTopic: string) {
+  console.log(user, 'user for read message');
   const chatID = generateUserOwnedFeedId(rawTopic, user.address);
   const topic = bee.makeFeedTopic(chatID);
 
@@ -317,7 +325,7 @@ async function getLatestFeedIndex(topic: string, address: EthAddress) {
   try {
     const feedReader = bee.makeFeedReader('sequence', topic, address);
     const feedEntry = await feedReader.download();
-    latestIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
+    latestIndex = parseInt(feedEntry.feedIndex.toString(), HEX_RADIX);
     return latestIndex;
   } catch (error) {
     if (isNotFoundError(error)) {

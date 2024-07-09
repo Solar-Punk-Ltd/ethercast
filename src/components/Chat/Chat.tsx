@@ -61,7 +61,7 @@ export function Chat({ topic }: ChatProps) {
       }
     };
 
-    const handleInitLoad = () => setLoadingUserInit(false);
+    const handleInitLoad = (l: boolean) => setLoadingUserInit(l);
 
     on(EVENTS.LOAD_MESSAGE, handleMessageLoad);
     on(EVENTS.LOADING_INIT_USERS, handleInitLoad);
