@@ -1,6 +1,8 @@
 import { ethers } from 'ethers';
 
-import { EthAddress, MessageData } from '../libs/chat';
+import { MessageData } from '../libs/chat';
+
+import { EthAddress } from './beeJs/types';
 
 // Generate an ID for the feed, that will be connected to the stream, as Users list
 export function generateUsersFeedId(topic: string) {

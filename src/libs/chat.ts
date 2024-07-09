@@ -1,7 +1,7 @@
 import { BatchId, Bee, Reference, Signer, UploadResult, Utils } from '@ethersphere/bee-js';
 import { ethers, Signature } from 'ethers';
 
-import { HexString } from '../utils/beeJs/hex';
+import { EthAddress } from '../utils/beeJs/types';
 import { generateUserOwnedFeedId, generateUsersFeedId, validateUserObject } from '../utils/chat';
 import { retryAwaitableAsync } from '../utils/common';
 import { HEX_RADIX } from '../utils/constants';
@@ -14,9 +14,6 @@ import {
 } from '../utils/graffitiUtils';
 
 import { AsyncQueue } from './asyncQueue';
-
-const ETH_ADDRESS_LENGTH = 42; // Be careful not to use EthAddress from bee-js,
-export type EthAddress = HexString<typeof ETH_ADDRESS_LENGTH>; // because that is a byte array
 
 export interface ParticipantDetails {
   nickName: string;

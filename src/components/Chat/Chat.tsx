@@ -20,7 +20,6 @@ import './Chat.scss';
 
 interface ChatProps {
   topic: string;
-  streamerAddress: string;
 }
 
 enum WriteMode {

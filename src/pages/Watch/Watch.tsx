@@ -29,7 +29,7 @@ export function Watch() {
         <JoinButton onClick={() => ({})} />
         <VideoList items={items} />
       </PlayerContainer>
-      <Chat owner={searchParams.get('a')!} topic={searchParams.get('t')!} />
+      <Chat topic={searchParams.get('t')!} />
     </div>
   );
 }

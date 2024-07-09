@@ -2,7 +2,7 @@ import { BatchId, Bee, FeedWriter, Reference } from '@ethersphere/bee-js';
 import { makeChunkedFile } from '@fairdatasociety/bmt-js';
 
 import { bytesToHex } from '../utils/beeJs/hex';
-import { retryAsync, retryAwaitableAsync } from '../utils/common';
+import { retryAsync } from '../utils/common';
 import { CLUSTER_ID } from '../utils/constants';
 import { findHexInUint8Array } from '../utils/webm';
 
