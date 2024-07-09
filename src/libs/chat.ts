@@ -15,8 +15,6 @@ import {
 
 import { AsyncQueue } from './asyncQueue';
 
-export type Sha3Message = string | number[] | ArrayBuffer | Uint8Array;
-
 const ETH_ADDRESS_LENGTH = 42; // Be careful not to use EthAddress from bee-js,
 export type EthAddress = HexString<typeof ETH_ADDRESS_LENGTH>; // because that is a byte array
 
@@ -150,7 +148,14 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
     if (!userRef) throw new Error('Could not upload user to bee');
 
     const feedWriter = graffitiFeedWriterFromTopic(topic);
-    await feedWriter.upload(stamp, userRef.reference);
+
+    try {
+      await feedWriter.upload(stamp, userRef.reference);
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        await feedWriter.upload(stamp, userRef.reference, { index: 0 });
+      }
+    }
   } catch (error) {
     console.error(error);
     throw new Error(`There was an error while trying to register user (chatroom): ${error}`);

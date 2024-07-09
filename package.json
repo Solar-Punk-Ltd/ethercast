@@ -15,7 +15,7 @@
   "dependencies": {
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
-    "@ethersphere/bee-js": "file:/Users/kisslevente/Documents/git/Ethersphere/bee-js",
+    "@ethersphere/bee-js": "^7.0.3",
     "@fairdatasociety/bmt-js": "^2.1.0",
     "@mui/icons-material": "^5.15.15",
     "@mui/material": "^5.15.20",
