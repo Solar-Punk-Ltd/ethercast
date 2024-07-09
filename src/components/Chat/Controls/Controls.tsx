@@ -103,10 +103,10 @@ export function Controls({ topic, nickname, stamp, privateKey }: ControlsProps) 
         />
       )}
 
-      <div className="controlButton">
+      <div className="send-wrapper">
         <button
           onClick={handleSubmit}
-          className="sendButton"
+          className="send-button"
           style={{ cursor: isSendingMessage ? 'not-allowed' : '' }}
           disabled={isSendingMessage}
         >

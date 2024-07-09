@@ -9,7 +9,7 @@
   right: 0px;
   width: 100%;
 
-  .sendButton {
+  .send-button {
     color: rgb(255, 140, 0);
     width: 40px;
     height: 100%;
@@ -18,22 +18,22 @@
     @extend .flex-center;
   }
 
-  .sendButton:active {
+  .send-button:active {
     box-shadow: inset 0 0 10px #704214;
   }
 
-  .sendButton:active {
+  .send-button:active {
     box-shadow: inset 0 0 10px #704214;
   }
   svg[data-testid='SendIcon'] {
     font-size: 19px;
   }
-  .sendButton:disabled:active {
+  .send-button:disabled:active {
     box-shadow: none;
   }
 }
 
-.controlButton {
+.send-wrapper {
   display: flex;
   align-items: center;
 }
@@ -44,6 +44,7 @@ aside.EmojiPickerReact {
   right: 0px;
 }
 
+// TODO: these (epr_-6npj90  css names) seem bundled css names, check docs for proper class overwrite
 .EmojiPickerReact.epr_-6npj90 {
   display: flex;
   flex-direction: column-reverse;
@@ -76,11 +77,7 @@ aside.EmojiPickerReact {
   border-radius: 0px;
 }
 
-.unseenMessages {
-  background-color: yellow;
-}
-
-.controlButton {
+.send-wrapper {
   display: flex;
   align-items: center;
 }
