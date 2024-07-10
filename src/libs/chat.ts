@@ -172,12 +172,10 @@ async function getNewUsers(topic: string, index: number) {
   emitStateEvent(EVENTS.LOADING_USERS, true);
 
   const feedReader = graffitiFeedReaderFromTopic(topic);
-  console.log(index, 'newUsers index');
   const feedEntry = await feedReader.download({ index });
 
   const data = await bee.downloadData(feedEntry.reference);
   const rawUsers = data.json() as unknown as User[];
-  console.log(rawUsers, 'rawUsers');
 
   if (!Array.isArray(rawUsers)) {
     console.error('New users is not an array');
@@ -217,7 +215,6 @@ export function startLoadingNewMessages(topic: string) {
 }
 
 async function readMessage(user: UserWithIndex, rawTopic: string) {
-  console.log(user, 'user for read message');
   const chatID = generateUserOwnedFeedId(rawTopic, user.address);
   const topic = bee.makeFeedTopic(chatID);
 
