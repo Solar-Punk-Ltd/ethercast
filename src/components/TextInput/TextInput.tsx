@@ -7,23 +7,26 @@ import { InputError } from '../InputError/InputError';
 import './TextInput.scss';
 
 interface TextInputProps {
+  name: string;
+  value: string | number;
   label?: string;
   type?: string;
   placeholder?: string;
   className?: string;
-  value: string | number;
-  name: string;
-  icon?: boolean;
-  onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onKeyPress?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  ref?: RefCallBack;
+  error?: string;
+  disabled?: boolean;
+  onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
 }
 
-export function TextInput({ label, icon, ...props }: TextInputProps) {
+function TextInputInternal({ label, error, ...props }: TextInputProps, ref: ForwardedRef<HTMLInputElement>) {
   return (
     <div className={clsx('text-input-container')}>
       {label && <label className="text-input-label">{label}</label>}
-
-      <input className="text-input-field" {...props} />
+      <input className="text-input-field" {...props} ref={ref} />
+      {error && <InputError error={error} />}
     </div>
   );
 }
+
+export const TextInput = forwardRef(TextInputInternal);

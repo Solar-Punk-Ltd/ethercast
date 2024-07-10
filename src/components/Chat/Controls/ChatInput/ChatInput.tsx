@@ -16,6 +16,7 @@ interface ChatInputProps {
   onKeyPressed: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }
 
+// TODO: we don't want to use MUI --> create your own or extend the existing TextInput
 export function ChatInput({ label, value, disabled, setValue, textareaClassName, onKeyPressed }: ChatInputProps) {
   const textFieldRef = useRef(null);
   return (

@@ -1,424 +1,358 @@
-import { BatchId, Bee, FeedReader, FeedWriter, Reference, Signer, UploadResult, Utils } from '@ethersphere/bee-js';
+import { BatchId, Bee, Reference, Signer, UploadResult, Utils } from '@ethersphere/bee-js';
+import { ethers, Signature } from 'ethers';
+
+import { EthAddress } from '../utils/beeJs/types';
+import { generateUserOwnedFeedId, generateUsersFeedId, validateUserObject } from '../utils/chat';
+import { retryAwaitableAsync } from '../utils/common';
+import { HEX_RADIX } from '../utils/constants';
+import { EventEmitter } from '../utils/eventEmitter';
 import {
   getConsensualPrivateKey,
   getGraffitiWallet,
+  numberToFeedIndex,
   serializeGraffitiRecord,
 } from '../utils/graffitiUtils';
-import { generateUniqId, generateUserOwnedFeedId, generateUsersFeedId, orderMessages, removeDuplicate, validateUserObject } from '../utils/chat';
-import { Signature, ethers } from 'ethers';
-import { HexString } from 'node_modules/@ethersphere/bee-js/dist/types/utils/hex';
-import { sleep } from '../utils/common';
-import { AsyncQueue } from './asyncQueueChat';
 
-export type RoomID = string;
+import { AsyncQueue } from './asyncQueue';
 
-export type Sha3Message = string | number[] | ArrayBuffer | Uint8Array;
-
-// Initialize the bee instance
-//const bee = new Bee('http://localhost:1633');
-const bee = new Bee("http://195.88.57.155:1633");
-
-const ETH_ADDRESS_LENGTH = 42;                                                  // Be careful not to use EthAddress from bee-js,
-export type EthAddress = HexString<typeof ETH_ADDRESS_LENGTH>;                  // because that is a byte array
-
-export interface MessageData {                                                  // A single message object
+export interface ParticipantDetails {
+  nickName: string;
+  participant: string;
+  key: string;
+  stamp: string;
+}
+export interface MessageData {
   message: string;
   username: string;
   address: EthAddress;
   timestamp: number;
 }
 
-export interface User {                                                         // User object, that will be uploded to Users feed, at registration
-  username: string,
-  address: EthAddress,
-  timestamp: number,
-  signature: Signature
+export interface User {
+  username: string;
+  address: EthAddress;
+  timestamp: number;
+  signature: Signature;
 }
 
-export interface UserWithIndex extends User {                                   // Same as User object, but contains an index for the user's feed
-  index: number
+export interface UserWithIndex extends User {
+  index: number;
 }
 
-const ConsensusID = 'SwarmStream';                                              // Used for Graffiti feed
+const CONSENSUS_ID = 'SwarmStream'; // Used for Graffiti feed
+const bee = new Bee('http://45.137.70.219:1833');
+const emitter = new EventEmitter();
+const messages: MessageData[] = [];
 
-let messages: MessageData[] = [];
-let userListPointer = 0;
-let userFetchQueue = new AsyncQueue({ indexed: false, waitable: true, max: 1 });
-let messageQueue = new AsyncQueue({ indexed: false, waitable: true });
+let usersQueue: AsyncQueue;
+let messagesQueue: AsyncQueue;
+let users: UserWithIndex[] = [];
+let usersInitIndex: number;
 
-// This function will create 2 feeds: a Users feed, and an AggregatedChat
-// This will be called on the side of the Streamer (aggregator)
-export async function initChatRoom(
-  topic: string,
-  stamp: BatchId
-): Promise<{usersRef: Reference} | null> {
+const eventStates: Record<string, boolean> = {
+  loadingInitUsers: false,
+  loadingUsers: false,
+  loadingRegistration: false,
+};
+
+export const EVENTS = {
+  LOADING_INIT_USERS: 'loadingInitUsers',
+  LOADING_USERS: 'loadingUsers',
+  LOADING_REGISTRATION: 'loadingRegistration',
+  LOAD_MESSAGE: 'loadMessage',
+};
+
+export function getChatActions() {
+  return {
+    startFetchingForNewUsers,
+    startLoadingNewMessages,
+    on: emitter.on,
+    off: emitter.off,
+  };
+}
+
+export async function initChatRoom(topic: string, stamp: BatchId) {
   try {
-    // Create the Users feed, that is used to register to the chat
-    const usersFeedResult = await createUsersFeed(topic, stamp);
-    if (!usersFeedResult) throw "Could not create Users feed!";
+    const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
+    await bee.createFeedManifest(stamp, 'sequence', consensusHash, graffitiSigner.address);
+  } catch (error) {
+    console.error(error);
+    throw new Error('Could not create Users feed');
+  }
+}
 
-    return {
-      usersRef: usersFeedResult,
+export async function initUsers(topic: string): Promise<UserWithIndex[] | null> {
+  try {
+    emitStateEvent(EVENTS.LOADING_INIT_USERS, true);
+
+    const feedReader = graffitiFeedReaderFromTopic(topic);
+
+    const feedEntry = await feedReader.download();
+    usersInitIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
+
+    const data = await bee.downloadData(feedEntry.reference);
+
+    const rawUsers = data.json() as unknown as User[];
+    const validUsers = rawUsers.filter((user) => validateUserObject(user));
+    const users = validUsers.map((user) => ({ ...user, index: 0 }));
+    await setUsers(users);
+
+    return users;
+  } catch (error) {
+    console.error('Init users error: ', error);
+    throw error;
+  } finally {
+    emitStateEvent(EVENTS.LOADING_INIT_USERS, false);
+  }
+}
+
+export async function registerUser(topic: string, { participant, key, stamp, nickName: username }: ParticipantDetails) {
+  try {
+    emitStateEvent(EVENTS.LOADING_REGISTRATION, true);
+
+    const alreadyRegistered = users.find((user) => user.address === participant);
+
+    if (alreadyRegistered) {
+      console.log('User already registered');
+      return;
     }
 
-  } catch (error) {
-    console.error('There was an error while initalizing the chat for the feed (initChatRoom): ', error);
-    return null;
-  }
-}
+    const wallet = new ethers.Wallet(key);
+    if (wallet.address.toLowerCase() !== participant.toLowerCase()) {
+      throw new Error('The provided address does not match the address derived from the private key');
+    }
 
-// Create Users feed, where users will register (by inserting a User object to the feed)
-// The Aggregator (Streamer) will poll those feeds, that belong to these users
-async function createUsersFeed(topic: string, stamp: BatchId) {
-  try {
-    console.info("Initiating Users feed...");
-    const usersFeedID = generateUsersFeedId(topic);                       // Graffiti feed for users to register
-    const privateKey = getConsensualPrivateKey(usersFeedID);              // Can be generated by any participant (who knows the stream topic)
-    const wallet = getGraffitiWallet(privateKey);
-
-    const graffitiSigner: Signer = {
-      address: Utils.hexToBytes(wallet.address.slice(2)),
-      sign: async (data: string | Uint8Array) => {
-        return await wallet.signMessage(data)
-      }
-    };
-
-    const consensusHash = Utils.keccak256Hash(ConsensusID);
-    let exist = await bee.isFeedRetrievable('sequence', graffitiSigner.address, consensusHash);
-    if (exist) throw "This feed already exists!";
-
-    console.info("Creating feed manifest...");
-    const manifestResult = await bee.createFeedManifest(stamp, 'sequence', consensusHash, graffitiSigner.address);
-    console.info("Feed manifest created with ref ", manifestResult.reference);
-
-    return manifestResult.reference;
-
-  } catch (error) {
-    console.error("There was an error while creating Users feed: ", error);
-    return null;
-  }
-}
-
-// Will write a User object to the Users feed
-// This will be called on client side (user adds self to feed)
-export async function registerUser(topic: string, streamerAddress: EthAddress, username: string, stamp: BatchId) {
-  try {
-    console.info("Registering user...");
-    const roomId: RoomID = generateUsersFeedId(topic);
-    const wallet = ethers.Wallet.createRandom();
-
-    const address = wallet.address as EthAddress;
-    console.info(`Address for ${username}: ${address}`);
     const timestamp = Date.now();
-    const signature = await wallet.signMessage(JSON.stringify({ username, address, timestamp })) as unknown as Signature;
-    localStorage.setItem(generateUniqId(topic, streamerAddress), address as string);
-    localStorage.setItem(generateUserOwnedFeedId(topic, address), wallet.privateKey);        // We save the private key for this chat (only this chat)
-    
-    const user: User = {
-      username: username,
-      address: address,
-      timestamp: timestamp,
-      signature: signature
+    const signature = (await wallet.signMessage(
+      JSON.stringify({ username, address: wallet.address, timestamp }),
+    )) as unknown as Signature;
+
+    const newUser: User = {
+      address: wallet.address as EthAddress,
+      username,
+      timestamp,
+      signature,
     };
-    
-    const userRef = await uploadObjectToBee(user, stamp);
-    if (!userRef) throw "Could not upload User object to Swarm (reference is null)";
-    console.info("User object uploaded, reference: ", userRef.reference);
-    
-    const feedWriter: FeedWriter = feedWriterFromRoomId(roomId);
-    let feedReference: Reference | null = null;
-    let uploadSuccess = false;
-    const MAX_TRY_ATTEMPT = 10;
 
-    do {                                                                                     // Try to upload User object, if not successful, try again
-      try {
-        let index: string | number = "";
-        try {
-          const res = await feedWriter.download();
-          console.log("REFERENCE: ", res.reference)
-          index = res.feedIndexNext;
-          console.log("res", res)
-        } catch (error) {
-          index = 0;
-          console.log("DOWNLOADING INDEX FAILED")
-        }
-        console.debug("Uploading to feed...")
-        feedReference = await feedWriter.upload(stamp, userRef.reference, { index });   
+    if (!validateUserObject(newUser)) {
+      throw new Error('User object validation failed');
+    }
 
-        for (let i = 0; i < MAX_TRY_ATTEMPT; i++) {
-          try {
-            console.debug("Read back...")
-            const readBackRef = await feedWriter.download({ index });
-            readBackRef.reference
-            console.debug("Download actual data...")
-            const readBack = await bee.downloadData(readBackRef.reference);
-            const json = readBack.json() as unknown as User;
-            console.warn("validateUserObject(json): ", validateUserObject(json));
-            console.warn("json.username == user.username: ", json.username == user.username);
-            uploadSuccess = validateUserObject(json) && json.username == user.username;
-            console.warn("&&: ", uploadSuccess)
-            if (uploadSuccess) break;
-          } catch (error) {
-            console.error(`Readback failed. Attempt count: ${i}`);
-            await sleep(10 * 1000);
-          }
-        }
-      } catch (error) {
-        console.error(`Error registering User ${user.username}, retrying...`, error);
-      }
-    } while (!uploadSuccess);
+    await setUsers([...users, { ...newUser, index: 0 }]);
 
-    return feedReference;
- 
-  } catch (error) {
-    console.error("There was an error while trying to register user (chatroom): ", error);
-    return null;
-  }
-}
+    const uploadableUsers = users.map((user) => ({ ...user, index: undefined }));
+    const userRef = await uploadObjectToBee(uploadableUsers, stamp as any);
+    if (!userRef) throw new Error('Could not upload user to bee');
 
-// This is createUserList as well. If no input user list and index, it will create the user list
-// This is called on the side of the Streamer (aggregator)
-export async function getNewUsers(
-  topic: RoomID,
-  index: number = 0,
-  users: UserWithIndex[] = []
-): Promise<{users: UserWithIndex[], lastReadIndex: number} | null> {
-  try {
-    const roomId: RoomID = generateUsersFeedId(topic);
-    const lastIndex = await getGraffitiFeedIndex(roomId);
-    console.info("Updating user list. Last index: ", lastIndex);
-    const feedReader = feedReaderFromRoomId(roomId);
+    const feedWriter = graffitiFeedWriterFromTopic(topic);
 
-    if (index < 0 || index > lastIndex) throw `Invalid index: ${index}`;
-
-    for (let i = index; i <= lastIndex; i++) {
-      try {
-        const feedEntry = await feedReader.download({ index: i });
-        const data = await bee.downloadData(feedEntry.reference);
-        const json = data.json() as unknown as User;
-        const isValid = validateUserObject(json);
-
-        if (!isValid) {
-          throw("Validation failed");
-        } else {
-          const userExists = users.some((user) => user.address === json.address);
-          if (userExists) {
-            throw "Duplicate User entry";
-          } else {
-            users.push({ ...json, index: 0 });              // We add the User object to the list, if it's not duplicate
-          }
-        }
-      } catch (error) {
-        console.error("Skipping element: ", error);
-        continue;
+    try {
+      await feedWriter.upload(stamp, userRef.reference);
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        await feedWriter.upload(stamp, userRef.reference, { index: 0 });
       }
     }
-    console.log("Users: ", users);
-
-    return { users, lastReadIndex: lastIndex };
-
   } catch (error) {
-    console.error("There was an error while trying to insert new users to users state: ", error);
-    return null;
+    console.error(error);
+    throw new Error(`There was an error while trying to register user (chatroom): ${error}`);
+  } finally {
+    emitStateEvent(EVENTS.LOADING_REGISTRATION, false);
   }
 }
 
-// Write a new message to the feed of the user. Every user has a feed.
-// Index is stored in React state (we are not fetching the feed index from Swarm)
-// This is called client side
-export async function writeToOwnFeed(
+export function startFetchingForNewUsers(topic: string) {
+  if (!usersQueue) {
+    usersQueue = new AsyncQueue({ indexed: true, index: numberToFeedIndex(usersInitIndex!), waitable: true });
+  }
+  return () => usersQueue.enqueue((index) => getNewUsers(topic, parseInt(index as string, HEX_RADIX)));
+}
+
+async function getNewUsers(topic: string, index: number) {
+  emitStateEvent(EVENTS.LOADING_USERS, true);
+
+  const feedReader = graffitiFeedReaderFromTopic(topic);
+  const feedEntry = await feedReader.download({ index });
+
+  const data = await bee.downloadData(feedEntry.reference);
+  const rawUsers = data.json() as unknown as User[];
+
+  if (!Array.isArray(rawUsers)) {
+    console.error('New users is not an array');
+    return;
+  }
+
+  const validUsers = rawUsers.filter((user) => validateUserObject(user));
+  const newUsers = [...users];
+
+  for (const user of validUsers) {
+    const alreadyRegistered = users.find((u) => u.address === user.address);
+    if (!alreadyRegistered) {
+      newUsers.push({ ...user, index: -1 });
+    }
+  }
+
+  await setUsers(newUsers);
+
+  emitStateEvent(EVENTS.LOADING_USERS, false);
+}
+
+export function startLoadingNewMessages(topic: string) {
+  if (!messagesQueue) {
+    messagesQueue = new AsyncQueue({ indexed: false, waitable: true });
+  }
+
+  return async () => {
+    const isWaiting = await messagesQueue.waitForProcessing();
+    if (isWaiting) {
+      return;
+    }
+
+    for (const user of users) {
+      messagesQueue.enqueue(() => readMessage(user, topic));
+    }
+  };
+}
+
+async function readMessage(user: UserWithIndex, rawTopic: string) {
+  const chatID = generateUserOwnedFeedId(rawTopic, user.address);
+  const topic = bee.makeFeedTopic(chatID);
+
+  let currIndex = user.index;
+  if (user.index === -1) {
+    currIndex = await getLatestFeedIndex(topic, user.address);
+  }
+
+  const feedReader = bee.makeFeedReader('sequence', topic, user.address);
+  const recordPointer = await feedReader.download({ index: currIndex });
+  const data = await bee.downloadData(recordPointer.reference);
+
+  const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
+
+  const newUsers = users.map((u) => (u.address === user.address ? { ...u, index: currIndex + 1 } : u));
+  await setUsers(newUsers);
+
+  messages.push(messageData);
+
+  // TODO - discuss with the team
+  if (messages.length > 300) {
+    messages.shift();
+  }
+
+  emitter.emit(EVENTS.LOAD_MESSAGE, messages);
+}
+
+let ownIndex: number;
+export async function sendMessage(
+  address: EthAddress,
   topic: string,
-  streamerAddress: EthAddress,
-  index: number,
   messageObj: MessageData,
-  stamp: BatchId
-): Promise<Reference|null> {
+  stamp: BatchId,
+  privateKey: string,
+): Promise<Reference | null> {
   try {
-    const address: EthAddress | null = localStorage.getItem(generateUniqId(topic, streamerAddress)) as EthAddress;
-    if (!address) throw "Could not get address from local storage!"                       // This suggests that the user haven't registered yet for this chat
+    if (!privateKey) throw 'Private key is missing';
 
     const feedID = generateUserOwnedFeedId(topic, address);
-    const privateKey = localStorage.getItem(feedID);                                      // Private key for this single chat is stored in local storage
     const feedTopicHex = bee.makeFeedTopic(feedID);
-    if (!privateKey) throw "Could not get private key from local storage!";    
 
-    console.time("UploadingObjectToBee");
     const msgData = await uploadObjectToBee(messageObj, stamp);
-    console.timeEnd("UploadingObjectToBee");
-    if (!msgData) throw "Could not upload message data to bee"
+    if (!msgData) throw 'Could not upload message data to bee';
 
-    console.time("makeFeedWriter");
+    if (!ownIndex) {
+      ownIndex = await getLatestFeedIndex(feedTopicHex, address);
+    }
+
     const feedWriter = bee.makeFeedWriter('sequence', feedTopicHex, privateKey);
-    console.timeEnd("makeFeedWriter");
-    console.time("upload");
-    console.log("Index to write: ", index);
-    const ref = await feedWriter.upload(stamp, msgData.reference, { index });           // We write to specific index, index is stored in React state
-    console.timeEnd("upload");
-    console.info("Wrote message to own feed with ref ", ref)
+    const ref = await feedWriter.upload(stamp, msgData.reference, { index: ownIndex });
+    ownIndex++;
 
     return ref;
-
   } catch (error) {
-    console.error(`There was an error while trying to write own feed (chat), index: ${index}, message: ${messageObj.message}: `, error);
+    console.error(
+      `There was an error while trying to write own feed (chat), index: ${ownIndex}, message: ${messageObj.message}: ${error}  `,
+    );
+    throw new Error('Could not send message');
+  }
+}
+
+async function uploadObjectToBee(jsObject: object, stamp: BatchId): Promise<UploadResult | null> {
+  try {
+    const result = await bee.uploadData(stamp as any, serializeGraffitiRecord(jsObject), { redundancyLevel: 4 });
+    return result;
+  } catch (error) {
+    console.error(`There was an error while trying to upload object to Swarm: ${error}`);
     return null;
   }
 }
 
-// Graffiti feed writer from RoomID (can't be used for normal, non-Graffiti reader)
-export function feedWriterFromRoomId(roomId: RoomID) {
-  const privateKey = getConsensualPrivateKey(roomId);
-  const wallet = getGraffitiWallet(privateKey);
-
-  const graffitiSigner: Signer = {
-    address: Utils.hexToBytes(wallet.address.slice(2)), // convert hex string to Uint8Array
-    sign: async (data) => {
-      return await wallet.signMessage(data);
-    },
-  };
-
-  const consensusHash = Utils.keccak256Hash(ConsensusID);
-
+function graffitiFeedWriterFromTopic(topic: string) {
+  const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
   return bee.makeFeedWriter('sequence', consensusHash, graffitiSigner);
 }
 
-// Graffiti feed reader from RoomID (can't be used for normal, non-Graffiti reader)
-export function feedReaderFromRoomId(roomId: RoomID) {
+function graffitiFeedReaderFromTopic(topic: string) {
+  const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
+  return bee.makeFeedReader('sequence', consensusHash, graffitiSigner.address);
+}
+
+function generateGraffitiFeedMetadata(topic: string) {
+  const roomId = generateUsersFeedId(topic);
   const privateKey = getConsensualPrivateKey(roomId);
   const wallet = getGraffitiWallet(privateKey);
 
   const graffitiSigner: Signer = {
-    address: Utils.hexToBytes(wallet.address.slice(2)), // convert hex string to Uint8Array
-    sign: async (data) => {
+    address: Utils.hexToBytes(wallet.address.slice(2)),
+    sign: async (data: any) => {
       return await wallet.signMessage(data);
     },
   };
 
-  const consensusHash = Utils.keccak256Hash(ConsensusID);
+  const consensusHash = Utils.keccak256Hash(CONSENSUS_ID);
 
-  return bee.makeFeedReader('sequence', consensusHash, graffitiSigner.address);
+  return {
+    consensusHash,
+    graffitiSigner,
+  };
 }
 
-// Uploads any JavaScript object to Swarm, gives back reference if successful, null otherwise
-export async function uploadObjectToBee(
-  jsObject: object,
-  stamp: BatchId
-): Promise<UploadResult | null> {
+async function getLatestFeedIndex(topic: string, address: EthAddress) {
+  let latestIndex;
+
   try {
-    const result = await bee.uploadData(stamp as any, serializeGraffitiRecord(jsObject), { redundancyLevel: 4 });
-    
-    return result;
-
+    const feedReader = bee.makeFeedReader('sequence', topic, address);
+    const feedEntry = await feedReader.download();
+    latestIndex = parseInt(feedEntry.feedIndex.toString(), HEX_RADIX);
+    return latestIndex;
   } catch (error) {
-    return null;
-  }
-}
-
-// Reads a message from UserOwnFeed, this should be the same as Graffiti feed version, but input roomId is different
-export async function readSingleMessage(
-  index: number,
-  streamTopic: string,
-  userAddress: EthAddress,
-  callback: (error: Error | null, data: { message: MessageData | null, index: number }, topic: string, participantAddress: EthAddress ) => void
-) {
-  let callbackDone = false;
-  messageQueue.enqueue(() => new Promise((resolve, reject) => {
-    try {
-      const chatID = generateUserOwnedFeedId(streamTopic, userAddress);   // Human readable topic name, for the aggregated chat
-      const topic = bee.makeFeedTopic(chatID);
-  
-      const feedReader: FeedReader = bee.makeFeedReader('sequence', topic, userAddress, { timeout: 50000 });
-      console.info(`address: ${feedReader.owner} topic: ${feedReader.topic}`);
-      
-      feedReader.download({ index })
-        .then(recordPointer => {
-          console.info("RecordPointer: ", recordPointer);
-          return bee.downloadData(recordPointer.reference);       // Fetch data
-        })
-        .then(data => {
-          const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
-          callbackDone = true;
-          callback(null, { message: messageData, index: index + 1 }, streamTopic, userAddress);
-          resolve(true);
-        })
-        .catch(error => {
-          callbackDone = true;
-          callback(error, { message: null, index }, streamTopic, userAddress);
-          reject(error);
-        });
-    } catch (error) {
-      if (!callbackDone) callback(error as Error, { message: null, index }, streamTopic, userAddress);
-      reject(error);
+    if (isNotFoundError(error)) {
+      return 0;
     }
-  }))
-}
-
-// Callback for readSingleMessage
-export async function receiveMessage(
-  error: Error | null,
-  data: { message: MessageData | null, index: number },
-  topic: string,
-  participantAddress: EthAddress
-) {
-  if (!participantAddress) return;
-
-  if (error) {
-    console.error("Error reading message: ", error);
-    console.log("Retrying...");
-    await sleep(100);
-    readSingleMessage(data.index, topic, participantAddress, receiveMessage);
-  } else {
-    if (!data.message) return;
-    messages.push(data.message);
-    messages = removeDuplicate(messages);
-    messages = orderMessages(messages);
-    console.log("Messages: ", messages);
-    readSingleMessage(data.index, topic, participantAddress, receiveMessage);
+    throw error;
   }
 }
 
-// Start message fetching for new participants
-export async function startFetchingForNewUsers(topic: string) {
-  userFetchQueue.enqueue(() => getNewUsers(topic, userListPointer)
-  .then(result => {
-    if (!result) {
-      throw new Error("Error fetching users");
+let usersLoading = false;
+async function setUsers(newUsers: UserWithIndex[]) {
+  return retryAwaitableAsync(async () => {
+    if (usersLoading) {
+      throw new Error('Users are still loading');
     }
-
-    const { users, lastReadIndex } = result;
-
-    // Start message fetching for each new user
-    users.forEach(user => {
-      readSingleMessage(0, topic, user.address, receiveMessage);
-    });
-
-    userListPointer = lastReadIndex;
-  })
-  .catch(error => {
-    console.error("There was an error while starting message fetching for new users: ", error);
-  }));
+    usersLoading = true;
+    users = newUsers;
+    usersLoading = false;
+  });
 }
 
-// Will give back array of messages. Should be used in the UI
-export function loadMessagesToUI(start: number = 0, end?: number) {
-  let messagesToReturn = [];
-
-  if (end) {
-    messagesToReturn = messages.slice(start, end);
-  } else {
-    messagesToReturn = messages.slice(start);
+function emitStateEvent(event: string, value: any) {
+  if (eventStates[event] !== value) {
+    eventStates[event] = value;
+    emitter.emit(event, value);
   }
-
-  return messagesToReturn;
 }
 
-// Current index for Graffiti feed, used by createUserList
-export async function getGraffitiFeedIndex(roomId: RoomID) {
-  try {
-    const feedReader: FeedReader = await feedReaderFromRoomId(roomId);
-    const feedUpdate = await feedReader.download();
-    return parseInt(feedUpdate.feedIndex as string, 16);
-  } catch (error) {
-    console.error('There was an error while trying to get feed index: ', error);
-    return -1;
-  }
+// TODO: why bee-js do this?
+// status is undefined in the error object
+function isNotFoundError(error: any) {
+  return error.stack.includes('404');
 }

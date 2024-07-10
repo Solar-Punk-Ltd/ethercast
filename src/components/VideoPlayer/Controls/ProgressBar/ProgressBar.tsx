@@ -1,25 +1,31 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ColorRing } from 'react-loader-spinner';
 
-import { VideoDuration } from '../../../../libs/player';
 import { convertMillisecondsToTime } from '../../../../utils/date';
-import { debounce } from '../../../../utils/debounce';
+import { SeekData } from '../Controls';
 
 import './ProgressBar.scss';
 
 interface ProgressBarProps {
-  onSeek: (index: number) => void;
-  getDuration: () => Promise<VideoDuration>;
+  seekData: SeekData;
+  onSetProgress?: (value: number) => void;
+  progress?: number;
 }
 
-export function ProgressBar({ onSeek, getDuration }: ProgressBarProps) {
+export function ProgressBar({
+  seekData: { loading, index, duration, seek },
+  progress: externalProgress,
+  onSetProgress,
+}: ProgressBarProps) {
   const progressBarRef = useRef<HTMLDivElement>(null);
   const markerRef = useRef<HTMLDivElement>(null);
 
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [progress, setProgress] = useState<number>(100);
+  const [internalProgress, setInternalProgress] = useState<number>(100);
   const [cursorPercent, setCursorPercent] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(0); // [ms]
-  const [index, setIndex] = useState<number | null>(null);
+
+  const progress = externalProgress || internalProgress;
+  const setProgress = onSetProgress || setInternalProgress;
 
   useEffect(() => {
     const calculateProgress = (clientX: number) => {
@@ -29,15 +35,11 @@ export function ProgressBar({ onSeek, getDuration }: ProgressBarProps) {
       return Math.max(0, Math.min(newProgress, 100));
     };
 
-    // const mouseUpOnProgressBarHandler = (e: MouseEvent) => {
-    //   const progress = calculateProgress(e.clientX);
-    //   seek(Math.ceil(index! * (progress / 100)));
-    // };
-
-    const mouseDownOnProgressBarHandler = (e: MouseEvent) => {
-      const progress = calculateProgress(e.clientX);
-      setProgress(progress);
-      onSeek(Math.ceil(index! * (progress / 100)));
+    const mouseDownOnProgressBarHandler = async (e: MouseEvent) => {
+      if (loading) return;
+      const newProgress = calculateProgress(e.clientX);
+      setProgress(newProgress);
+      seek(Math.ceil(index! * (newProgress / 100)));
     };
 
     const mouseMoveOnProgressBarHandler = (e: MouseEvent) => {
@@ -54,6 +56,7 @@ export function ProgressBar({ onSeek, getDuration }: ProgressBarProps) {
     };
 
     const mouseMoveHandler = (e: MouseEvent) => {
+      if (loading) return;
       setProgress(calculateProgress(e.clientX));
     };
 
@@ -62,7 +65,6 @@ export function ProgressBar({ onSeek, getDuration }: ProgressBarProps) {
     };
 
     if (progressBarRef.current) {
-      // progressBarRef.current.addEventListener('mouseup', mouseUpOnProgressBarHandler);
       progressBarRef.current.addEventListener('mousedown', mouseDownOnProgressBarHandler);
       progressBarRef.current.addEventListener('mousemove', mouseMoveOnProgressBarHandler);
     }
@@ -75,26 +77,17 @@ export function ProgressBar({ onSeek, getDuration }: ProgressBarProps) {
       document.removeEventListener('mousemove', mouseMoveHandler);
       document.removeEventListener('mouseup', mouseUpHandler);
       if (progressBarRef.current) {
-        // progressBarRef.current.addEventListener('mouseup', mouseUpOnProgressBarHandler);
         progressBarRef.current.removeEventListener('mousedown', mouseDownOnProgressBarHandler);
         progressBarRef.current.removeEventListener('mousemove', mouseMoveOnProgressBarHandler);
       }
     };
-  }, [isDragging, index]);
+  }, [isDragging, index, loading]);
 
   const startDrag = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (loading) return;
     e.preventDefault();
     setIsDragging(true);
   };
-
-  const onMouseEnterToProgressBar = useCallback(
-    debounce(async () => {
-      const { duration, index } = await getDuration();
-      setDuration(duration);
-      setIndex(index);
-    }, 500),
-    [],
-  );
 
   const calculateTimeAtCursor = () => {
     const msAtCursor = (duration * cursorPercent) / 100;
@@ -102,9 +95,22 @@ export function ProgressBar({ onSeek, getDuration }: ProgressBarProps) {
   };
 
   return (
-    <div ref={progressBarRef} className="progress-bar" onMouseEnter={onMouseEnterToProgressBar}>
+    <div ref={progressBarRef} className="progress-bar">
       <div ref={markerRef} className="marker">
-        <p>{calculateTimeAtCursor()}</p>
+        <div className="marker-info-container">
+          {loading ? (
+            <ColorRing
+              visible
+              height={36}
+              width={36}
+              ariaLabel="color-ring-loading"
+              wrapperStyle={{}}
+              wrapperClass="loader"
+            />
+          ) : (
+            <p>{calculateTimeAtCursor()}</p>
+          )}
+        </div>
       </div>
       <div className="filler" style={{ width: `${progress}%` }}></div>
       <div className="thumb" style={{ left: `${progress}%` }} onMouseDown={startDrag}></div>

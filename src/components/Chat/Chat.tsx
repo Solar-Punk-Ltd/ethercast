@@ -1,190 +1,173 @@
-import { useEffect, useState, createContext, useContext, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEthers } from '@usedapp/core';
+
+import { useModal } from '../../app/Modal/ModalProvider';
+import {
+  EVENTS,
+  getChatActions,
+  initUsers,
+  MessageData,
+  ParticipantDetails,
+  registerUser,
+  UserWithIndex,
+} from '../../libs/chat';
+import { ChatModal } from '../ChatModal/ChatModal';
+
 import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
-import { TextInput } from '../TextInput/TextInput';
-import { MessageData, loadMessagesToUI, registerUser, startFetchingForNewUsers } from '../../libs/chat';
-import { MainContext } from '../../routes.tsx';
-import EditIcon from '@mui/icons-material/Edit';
-import './Chat.scss';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 
-export const LayoutContext = createContext({ chatBodyHeight: 'auto', setChatBodyHeight: (_: string) => {} });
+import './Chat.scss';
 
 interface ChatProps {
-  feedDataForm: Record<string, any>;
+  topic: string;
 }
 
-export function Chat({ feedDataForm }: ChatProps) {
-  const { nickNames, setNickNames, actualAccount, actualTopic } = useContext(MainContext);
-  const nickName = nickNames[actualAccount] ? nickNames[actualAccount][actualTopic] : '';
-  const [chatBodyHeight, setChatBodyHeight] = useState('auto');
-  const [nickname, setNickname] = useState(nickName);
-  const refreshInterval = 50;
-  const userUpdateInterval = 5000;
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [isNickNameSet, setIsNickNameSet] = useState(nickname ? true : false);
-  const chatBodyRef = useRef<HTMLDivElement | null>(null);
-  const programScrolling = useRef(false);
-  const [newUnseenMessages, setNewUnseenMessages] = useState(false);
-  const [loadedMessages, setLoadedMessages] = useState<MessageData[]>([]);
+enum WriteMode {
+  NICK,
+  MESSAGE,
+}
 
-  // Set a timer, to check for new messages
+const MESSAGE_CHECK_INTERVAL = 4000;
+const USER_UPDATE_INTERVAL = 8000;
+
+export function Chat({ topic }: ChatProps) {
+  const { account, isLoading } = useEthers();
+  const { openModal, closeModal } = useModal();
+
+  const chatBodyRef = useRef<HTMLDivElement>(null);
+
+  const [user, setUser] = useState<UserWithIndex>();
+  const [writeMode, setWriteMode] = useState<WriteMode>(WriteMode.NICK);
+  const [nickName, setNickname] = useState('');
+  const [stamp, setStamp] = useState('');
+  const [key, setKey] = useState('');
+  const [messages, setMessages] = useState<MessageData[]>([]);
+  const [loadingUserInit, setLoadingUserInit] = useState(true);
+
   useEffect(() => {
-    if (true) {
-      const messageLoader = setInterval(() => {
-        const messages = loadMessagesToUI(0);
-        setLoadedMessages(messages);
-      }, refreshInterval);
+    const { on, off } = getChatActions();
 
-      const userUpdater = setInterval(() => {
-        startFetchingForNewUsers(feedDataForm.topic.value);
-      }, userUpdateInterval);
+    const handleMessageLoad = (newMessages: MessageData[]) => {
+      setMessages((prevMessages) => {
+        const uniqueNewMessages = newMessages.filter(
+          (newMsg) => !prevMessages.some((prevMsg) => prevMsg.timestamp === newMsg.timestamp),
+        );
+        return [...prevMessages, ...uniqueNewMessages];
+      });
 
-      return () => {
-        clearInterval(messageLoader);
-        clearInterval(userUpdater);
+      // Schedule a scroll after the state update if we're already at the bottom
+      if (isScrolledToBottom()) {
+        setTimeout(scrollToBottom, 0);
       }
-    }
-  }, []);
-  
-  const scrollToBottom = () => {
-    if (programScrolling.current && chatBodyRef.current) {
-      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
-    }
-  };
-  const handleScroll = () => {
-    if (chatBodyRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = chatBodyRef.current;
+    };
 
-      programScrolling.current = scrollTop + clientHeight + 1 >= scrollHeight;
-      if (programScrolling.current) setNewUnseenMessages(false);
-    }
-  };
-  useEffect(() => {
-    if (chatBodyRef.current) {
-      chatBodyRef.current.addEventListener('scroll', handleScroll);
-    }
+    const handleInitLoad = (l: boolean) => setLoadingUserInit(l);
+
+    on(EVENTS.LOAD_MESSAGE, handleMessageLoad);
+    on(EVENTS.LOADING_INIT_USERS, handleInitLoad);
 
     return () => {
-      if (chatBodyRef.current) {
-        chatBodyRef.current.removeEventListener('scroll', handleScroll);
-      }
+      off(EVENTS.LOAD_MESSAGE, handleMessageLoad);
+      off(EVENTS.LOADING_INIT_USERS, handleInitLoad);
     };
   }, []);
 
   useEffect(() => {
-    if (chatBodyRef.current) {
-      programScrolling.current = true;
-      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
-    }
-  }, []);
-  useEffect(() => {
-    scrollToBottom();
-    if (!programScrolling.current) {
-      setNewUnseenMessages(true);
-    }
-  }, [loadedMessages]);
-
-  const handleClickOutside = (event: any) => {
-    if (event.target.className === 'layout') {
-      setIsEditMode(false);
-    }
-  };
-
-
-  
-  const nicknameChoosed = async () => {
-    if (nickname === '') {
+    if (isLoading) {
       return;
     }
-    setIsNickNameSet(true);
 
-    const result = await registerUser(feedDataForm.topic.value, feedDataForm.address.value, nickname, feedDataForm.stamp.value);
-    if (!result) throw "Error registering user!";
-
-    setNickNames((prevState: any) => ({
-      ...prevState,
-      [actualAccount]: { ...prevState[actualAccount], [actualTopic]: nickname },
-    }));
-  };
+    initUsers(topic).then((users) => {
+      if (users?.length && account) {
+        const user = users.find((u) => u.address.toLocaleLowerCase() === account.toLocaleLowerCase());
+        setUser(user);
+      }
+    });
+  }, [account, topic, isLoading]);
 
   useEffect(() => {
-    document.addEventListener('click', handleClickOutside);
-    console.log(nickNames);
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, [isEditMode, nickNames]);
+    if (!loadingUserInit) {
+      const { startFetchingForNewUsers, startLoadingNewMessages } = getChatActions();
 
+      const userUpdater = setInterval(startFetchingForNewUsers(topic), USER_UPDATE_INTERVAL);
+      const messageLoader = setInterval(startLoadingNewMessages(topic), MESSAGE_CHECK_INTERVAL);
+
+      return () => {
+        clearInterval(userUpdater);
+        clearInterval(messageLoader);
+      };
+    }
+  }, [loadingUserInit, topic]);
+
+  const joinToChat = useCallback(
+    async (participantDetails: ParticipantDetails) => {
+      if (!participantDetails.nickName || !participantDetails.stamp || !participantDetails.participant) {
+        return;
+      }
+
+      if (!user) {
+        await registerUser(topic, participantDetails);
+      }
+
+      setWriteMode(WriteMode.MESSAGE);
+      setStamp(participantDetails.stamp);
+      setNickname(participantDetails.nickName);
+      setKey(participantDetails.key);
+
+      closeModal();
+    },
+    [closeModal, topic, user],
+  );
+
+  const isScrolledToBottom = () => {
+    if (chatBodyRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = chatBodyRef.current;
+      return Math.abs(scrollHeight - clientHeight - scrollTop) < 1;
+    }
+    return false;
+  };
+
+  const scrollToBottom = () => {
+    if (chatBodyRef.current) {
+      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+    }
+  };
+
+  const handleOpenModal = useCallback(
+    () => openModal(<ChatModal user={user} onAction={joinToChat} />),
+    [user, openModal, joinToChat],
+  );
 
   return (
-    <LayoutContext.Provider value={{ chatBodyHeight, setChatBodyHeight }}>
-      <div className="chat">
-        <div>
-          {isNickNameSet ? (
-            <div className="actualNickName">
-              <span>Your Nickname: {nickname}</span>
-            </div>
-          ) : null}
-
-          <div className="body" ref={chatBodyRef}>
-            {loadedMessages.map((m: MessageData, i: number) => {
-              if (!m) return <Message key={i} name={'admin'} message={'loading'} own={false} />;
-              else return <Message key={i} name={m.username} message={m.message} own={nickname == m.username} />;
-            })}
+    <div className="chat">
+      <div>
+        {!!nickName && (
+          <div className="actual-nickname">
+            <span>Your Nickname: {nickName}</span>
           </div>
-        </div>
-
-        {newUnseenMessages ? (
-          <button
-            className="unseenMessages"
-            onClick={() => {
-              if (chatBodyRef.current) {
-                chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
-              }
-              setNewUnseenMessages(false);
-            }}
-          >
-            New messages <ArrowDownwardIcon style={{ fontSize: '15px', marginLeft: '10px' }} />
-          </button>
-        ) : null}
-        {!isNickNameSet ? (
-          <div className="header">
-            {!isEditMode && <span style={{ fontSize: '13px' }}>Enter a Nickname to use chat</span>}
-            {isEditMode && (
-              <TextInput
-                className="set-name"
-                value={nickname}
-                name={'nickname'}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNickname(e.target.value)}
-                placeholder="Choose a nickname"
-              />
-            )}
-            {!isEditMode ? (
-              <button className="nickNameEditButton" onClick={() => setIsEditMode(!isEditMode)}>
-                <EditIcon style={{ fontSize: 16 }} />
-              </button>
-            ) : (
-              <div className="editButtons">
-                <button onClick={() => nicknameChoosed()} className="okButton">
-                  OK
-                </button>
-                <button onClick={() => setIsEditMode(!isEditMode)} className="closeButton">
-                  X
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <Controls
-            topic={feedDataForm.topic.value}
-            nickname={nickname}
-            stamp={feedDataForm.stamp.value}
-            streamerAddress={feedDataForm.address.value}
-            newUnseenMessages={newUnseenMessages}
-          />
         )}
+
+        <div className="body" ref={chatBodyRef}>
+          {messages.map((m: MessageData, i: number) => (
+            <Message
+              key={i}
+              name={m.username || 'admin'}
+              message={m.message || 'loading'}
+              own={nickName == m.username}
+            />
+          ))}
+        </div>
       </div>
-    </LayoutContext.Provider>
+
+      {writeMode === WriteMode.NICK ? (
+        <div className="register-container">
+          <button onClick={handleOpenModal} disabled={loadingUserInit}>
+            Join to chat
+          </button>
+        </div>
+      ) : (
+        <Controls privateKey={key} topic={topic} nickname={nickName} stamp={stamp as any} />
+      )}
+    </div>
   );
 }

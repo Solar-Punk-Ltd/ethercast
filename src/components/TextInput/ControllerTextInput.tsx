@@ -11,9 +11,10 @@ interface ControllerTextInputProps {
   control: Control<any, any>;
   defaultValue: string;
   label: string;
+  disabled?: boolean;
 }
 
-export function ControllerTextInput({ name, rules, control, defaultValue, label }: ControllerTextInputProps) {
+export function ControllerTextInput({ name, rules, control, defaultValue, label, disabled }: ControllerTextInputProps) {
   return (
     <Controller
       name={name}
@@ -21,7 +22,15 @@ export function ControllerTextInput({ name, rules, control, defaultValue, label 
       control={control}
       defaultValue={defaultValue}
       render={({ field: { onChange, value, ref }, fieldState: { error } }) => (
-        <TextInput label={label} name={name} value={value} onChange={onChange} ref={ref} error={error?.message} />
+        <TextInput
+          label={label}
+          name={name}
+          value={value}
+          onChange={onChange}
+          ref={ref}
+          disabled={disabled}
+          error={error?.message}
+        />
       )}
     />
   );

@@ -41,10 +41,25 @@ export function VolumeControl({ initControl }: VolumeControlProps) {
     event.target.style.backgroundSize = percentage + '% 100%';
   };
 
+  const handleVolumeIconClick = () => {
+    const ref = inputRef.current!;
+    if (volume > 0) {
+      setVolume(0);
+      ref.value = '0';
+      inputRef.current?.dispatchEvent(new Event('input', { bubbles: true }));
+      inputRef.current?.style.setProperty('background-size', '0% 100%');
+    } else {
+      setVolume(50);
+      ref.value = '50';
+      inputRef.current?.dispatchEvent(new Event('input', { bubbles: true }));
+      inputRef.current?.style.setProperty('background-size', '50% 100%');
+    }
+  };
+
   return (
     <div className="volume-control">
-      <Button onClick={() => setVolume(0)} variant={ButtonVariant.icon}>
-        <img alt="volume-down" src={getVolumeImgState()}></img>{' '}
+      <Button onClick={handleVolumeIconClick} variant={ButtonVariant.icon}>
+        <img alt="volume-down" src={getVolumeImgState()}></img>
       </Button>
       <input ref={inputRef} type="range" min="0" max="100" value={volume} onChange={handleVolumeChange} />
     </div>
