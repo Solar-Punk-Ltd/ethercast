@@ -1,33 +1,29 @@
-import { sleep } from '../utils/common';
-import { FIRST_SEGMENT_INDEX } from '../utils/constants';
-import { incrementHexString } from '../utils/operations';
+import { FIRST_SEGMENT_INDEX } from "./constants";
+import { incrementHexString, sleep } from "./utils";
 
 export class AsyncQueue {
   private indexed;
   private waitable;
   private clearWaitTime;
+  private index;
   private isProcessing = false;
-  private inProgressCount = 0;
-  private index = FIRST_SEGMENT_INDEX;
+  private currentPromiseProcessing = false;
+  private isWaiting = false;
   private queue: ((index?: string) => Promise<void>)[] = [];
 
-  private readonly maxParallel: number;
-
-  constructor(settings: { indexed?: boolean; waitable?: boolean; clearWaitTime?: number; max?: number } = {}) {
+  constructor(settings: { indexed?: boolean; index?: string; waitable?: boolean; clearWaitTime?: number } = {}) {
     this.indexed = settings.indexed || false;
+    this.index = settings.index || FIRST_SEGMENT_INDEX;
     this.waitable = settings.waitable || false;
     this.clearWaitTime = settings.clearWaitTime || 100;
-    this.maxParallel = settings.max || 5;
   }
 
   private async processQueue() {
-    if (this.inProgressCount >= this.maxParallel) return;
-    console.warn("Current inProgressCount: ", this.inProgressCount);
-    console.warn("Queue length: ", this.queue.length);
+    if (this.isProcessing) return;
     this.isProcessing = true;
 
     while (this.queue.length > 0) {
-      this.inProgressCount = this.inProgressCount+1;
+      this.currentPromiseProcessing = true;
       const promise = this.queue.shift()!;
       const action = this.indexed ? () => promise(this.index) : () => promise();
 
@@ -37,9 +33,8 @@ export class AsyncQueue {
           this.index = incrementHexString(this.index);
         } catch (error) {
           console.error('Error processing promise:', error);
-          throw error;
         } finally {
-          this.inProgressCount = this.inProgressCount-1;
+          this.currentPromiseProcessing = false;
         }
       } else {
         action()
@@ -50,7 +45,7 @@ export class AsyncQueue {
             console.error('Error processing promise:', error);
           })
           .finally(() => {
-            this.inProgressCount = this.inProgressCount-1;
+            this.currentPromiseProcessing = false;
           });
       }
     }
@@ -65,8 +60,20 @@ export class AsyncQueue {
 
   async clearQueue() {
     this.queue = [];
-    while (this.isProcessing || this.inProgressCount > 0) {
+    while (this.isProcessing || this.currentPromiseProcessing) {
       await sleep(this.clearWaitTime);
     }
+  }
+
+  async waitForProcessing() {
+    if (this.isWaiting) return true;
+
+    this.isWaiting = true;
+
+    while (this.isProcessing || this.currentPromiseProcessing) {
+      await sleep(this.clearWaitTime);
+    }
+
+    this.isWaiting = false;
   }
 }

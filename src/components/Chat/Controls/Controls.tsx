@@ -6,7 +6,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { useEthers } from '@usedapp/core';
 import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
 
-import { MessageData, sendMessage } from '../../../libs/chat';
+import { MessageData, sendMessage } from '../../../libs/chat/src/core';
 import { EthAddress } from '../../../utils/beeJs/types';
 
 import { ChatInput } from './ChatInput/ChatInput';

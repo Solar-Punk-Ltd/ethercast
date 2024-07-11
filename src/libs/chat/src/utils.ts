@@ -1,8 +1,7 @@
-import { ethers } from 'ethers';
-
-import { MessageData } from '../libs/chat';
-
-import { EthAddress } from './beeJs/types';
+import { ethers, BytesLike, utils, Wallet } from 'ethers';
+import { Utils } from '@ethersphere/bee-js';
+import { EthAddress, MessageData, Sha3Message } from './types';
+import { HEX_RADIX } from './constants';
 
 // Generate an ID for the feed, that will be connected to the stream, as Users list
 export function generateUsersFeedId(topic: string) {
@@ -79,4 +78,64 @@ export function removeDuplicate(messages: MessageData[]): MessageData[] {
   const uniqueMessagesArray = Object.values(uniqueMessages);
 
   return uniqueMessagesArray;
+}
+
+export function getConsensualPrivateKey(resource: Sha3Message) {
+  if (Utils.isHexString(resource) && resource.length === 64) {
+    return Utils.hexToBytes(resource);
+  }
+
+  return Utils.keccak256Hash(resource);
+}
+
+export function getGraffitiWallet(consensualPrivateKey: BytesLike) {
+  const privateKeyBuffer = utils.hexlify(consensualPrivateKey);
+  return new Wallet(privateKeyBuffer);
+}
+
+export function serializeGraffitiRecord(record: Record<any, any>) {
+  return new TextEncoder().encode(JSON.stringify(record));
+}
+
+export function numberToFeedIndex(index: number) {
+  const bytes = new Uint8Array(8);
+  const dv = new DataView(bytes.buffer);
+  dv.setUint32(4, index);
+
+  return Utils.bytesToHex(bytes);
+}
+
+export function sleep(delay: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, delay);
+  });
+}
+
+export function incrementHexString(hexString: string, i = 1n) {
+  const num = BigInt('0x' + hexString);
+  return (num + i).toString(HEX_RADIX).padStart(HEX_RADIX, '0');
+}
+
+export async function retryAwaitableAsync<T>(
+  fn: () => Promise<T>,
+  retries: number = 3,
+  delay: number = 250,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    fn()
+      .then(resolve)
+      .catch((error) => {
+        if (retries > 0) {
+          console.log(`Retrying... Attempts left: ${retries}. Error: ${error.message}`);
+          setTimeout(() => {
+            retryAwaitableAsync(fn, retries - 1, delay)
+              .then(resolve)
+              .catch(reject);
+          }, delay);
+        } else {
+          console.error(`Failed after ${retries} initial attempts. Last error: ${error.message}`);
+          reject(error);
+        }
+      });
+  });
 }

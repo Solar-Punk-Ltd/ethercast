@@ -10,7 +10,7 @@ import {
   ParticipantDetails,
   registerUser,
   UserWithIndex,
-} from '../../libs/chat';
+} from '../../libs/chat/src/core';
 import { ChatModal } from '../ChatModal/ChatModal';
 
 import { Controls } from './Controls/Controls';

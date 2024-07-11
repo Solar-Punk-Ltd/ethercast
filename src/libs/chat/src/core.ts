@@ -1,43 +1,29 @@
 import { BatchId, Bee, BeeRequestOptions, Reference, Signer, UploadResult, Utils } from '@ethersphere/bee-js';
 import { ethers, Signature } from 'ethers';
 
-import { EthAddress } from '../utils/beeJs/types';
-import { generateUserOwnedFeedId, generateUsersFeedId, validateUserObject } from '../utils/chat';
-import { retryAwaitableAsync } from '../utils/common';
-import { HEX_RADIX } from '../utils/constants';
-import { EventEmitter } from '../utils/eventEmitter';
-import {
-  getConsensualPrivateKey,
-  getGraffitiWallet,
-  numberToFeedIndex,
-  serializeGraffitiRecord,
-} from '../utils/graffitiUtils';
+import { 
+  generateUserOwnedFeedId, 
+  generateUsersFeedId, 
+  getConsensualPrivateKey, 
+  getGraffitiWallet, 
+  numberToFeedIndex, 
+  retryAwaitableAsync, 
+  serializeGraffitiRecord, 
+  validateUserObject 
+} from './utils';
+import { EventEmitter } from './eventEmitter';
+import { AsyncQueue } from './asyncQueueOld';
+//import { AsyncQueue } from './asyncQueueChat';
 
-import { AsyncQueue } from './asyncQueue';
+import { 
+  EthAddress, 
+  MessageData, 
+  ParticipantDetails, 
+  User, 
+  UserWithIndex
+} from './types';
 
-export interface ParticipantDetails {
-  nickName: string;
-  participant: string;
-  key: string;
-  stamp: string;
-}
-export interface MessageData {
-  message: string;
-  username: string;
-  address: EthAddress;
-  timestamp: number;
-}
-
-export interface User {
-  username: string;
-  address: EthAddress;
-  timestamp: number;
-  signature: Signature;
-}
-
-export interface UserWithIndex extends User {
-  index: number;
-}
+import { HEX_RADIX } from './constants';
 
 const CONSENSUS_ID = 'SwarmStream'; // Used for Graffiti feed
 const bee = new Bee('http://195.88.57.155:1633');
@@ -328,22 +314,13 @@ function generateGraffitiFeedMetadata(topic: string) {
 async function getLatestFeedIndex(topic: string, address: EthAddress) {
   try {
     const feedReader = bee.makeFeedReader('sequence', topic, address);
-    console.log('getLatestFeedIndex feedReader', feedReader);
     const feedEntry = await feedReader.download();
-    console.log('getLatestFeedIndex feedEntry', feedEntry);
 
     const latestIndex = parseInt(feedEntry.feedIndex.toString(), HEX_RADIX);
-    console.log('getLatestFeedIndex latestIndex', latestIndex);
     const nextIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
-    console.log('getLatestFeedIndex nextIndex', nextIndex);
 
     return { latestIndex, nextIndex };
   } catch (error) {
-    console.log('error', error);
-    console.log('isNotFoundError(error)', JSON.stringify(error));
-    console.log('error.status', error.status);
-    console.log('error.stack', error.stack);
-
     if (isNotFoundError(error)) {
       console.log('belelép-e: igen');
       return { latestIndex: -1, nextIndex: 0 };
