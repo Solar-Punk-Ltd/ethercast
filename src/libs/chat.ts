@@ -40,8 +40,7 @@ export interface UserWithIndex extends User {
 }
 
 const CONSENSUS_ID = 'SwarmStream'; // Used for Graffiti feed
-//const bee = new Bee('http://45.137.70.219:1833');
-const bee = new Bee('http://localhost:1633');
+const bee = new Bee('http://195.88.57.155:1633');
 const emitter = new EventEmitter();
 const messages: MessageData[] = [];
 
