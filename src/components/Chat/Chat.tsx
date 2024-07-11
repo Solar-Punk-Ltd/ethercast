@@ -6,10 +6,7 @@ import {
   EVENTS,
   getChatActions,
   initUsers,
-  MessageData,
-  ParticipantDetails,
   registerUser,
-  UserWithIndex,
 } from '../../libs/chat/src/core';
 import { ChatModal } from '../ChatModal/ChatModal';
 
@@ -17,6 +14,7 @@ import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
 
 import './Chat.scss';
+import { MessageData, ParticipantDetails, UserWithIndex } from 'src/libs/chat/src/types';
 
 interface ChatProps {
   topic: string;
