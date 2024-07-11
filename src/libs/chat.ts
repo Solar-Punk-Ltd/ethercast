@@ -1,4 +1,4 @@
-import { BatchId, Bee, Reference, Signer, UploadResult, Utils } from '@ethersphere/bee-js';
+import { BatchId, Bee, BeeRequestOptions, Reference, Signer, UploadResult, Utils } from '@ethersphere/bee-js';
 import { ethers, Signature } from 'ethers';
 
 import { EthAddress } from '../utils/beeJs/types';
@@ -118,17 +118,18 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
     }
 
     const wallet = new ethers.Wallet(key);
-    if (wallet.address.toLowerCase() !== participant.toLowerCase()) {
+    const address = wallet.address as EthAddress;
+    if (address.toLowerCase() !== participant.toLowerCase()) {
       throw new Error('The provided address does not match the address derived from the private key');
     }
 
     const timestamp = Date.now();
     const signature = (await wallet.signMessage(
-      JSON.stringify({ username, address: wallet.address, timestamp }),
+      JSON.stringify({ username, address, timestamp }),
     )) as unknown as Signature;
 
     const newUser: User = {
-      address: wallet.address as EthAddress,
+      address,
       username,
       timestamp,
       signature,
@@ -138,7 +139,7 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
       throw new Error('User object validation failed');
     }
 
-    await setUsers([...users, { ...newUser, index: 0 }]);
+    await setUsers([...users, { ...newUser, index: -1 }]);
 
     const uploadableUsers = users.map((user) => ({ ...user, index: undefined }));
     const userRef = await uploadObjectToBee(uploadableUsers, stamp as any);
@@ -171,7 +172,7 @@ export function startFetchingForNewUsers(topic: string) {
 async function getNewUsers(topic: string, index: number) {
   emitStateEvent(EVENTS.LOADING_USERS, true);
 
-  const feedReader = graffitiFeedReaderFromTopic(topic);
+  const feedReader = graffitiFeedReaderFromTopic(topic, { timeout: 500 });
   const feedEntry = await feedReader.download({ index });
 
   const data = await bee.downloadData(feedEntry.reference);
@@ -220,10 +221,11 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
 
   let currIndex = user.index;
   if (user.index === -1) {
-    currIndex = await getLatestFeedIndex(topic, user.address);
+    const { latestIndex, nextIndex } = await getLatestFeedIndex(topic, user.address);
+    currIndex = latestIndex === -1 ? nextIndex : latestIndex;
   }
 
-  const feedReader = bee.makeFeedReader('sequence', topic, user.address);
+  const feedReader = bee.makeFeedReader('sequence', topic, user.address, { timeout: 500 });
   const recordPointer = await feedReader.download({ index: currIndex });
   const data = await bee.downloadData(recordPointer.reference);
 
@@ -256,12 +258,13 @@ export async function sendMessage(
     const feedID = generateUserOwnedFeedId(topic, address);
     const feedTopicHex = bee.makeFeedTopic(feedID);
 
+    if (!ownIndex) {
+      const { nextIndex } = await getLatestFeedIndex(feedTopicHex, address);
+      ownIndex = nextIndex;
+    }
+
     const msgData = await uploadObjectToBee(messageObj, stamp);
     if (!msgData) throw 'Could not upload message data to bee';
-
-    if (!ownIndex) {
-      ownIndex = await getLatestFeedIndex(feedTopicHex, address);
-    }
 
     const feedWriter = bee.makeFeedWriter('sequence', feedTopicHex, privateKey);
     const ref = await feedWriter.upload(stamp, msgData.reference, { index: ownIndex });
@@ -286,14 +289,14 @@ async function uploadObjectToBee(jsObject: object, stamp: BatchId): Promise<Uplo
   }
 }
 
-function graffitiFeedWriterFromTopic(topic: string) {
+function graffitiFeedWriterFromTopic(topic: string, options?: BeeRequestOptions) {
   const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
-  return bee.makeFeedWriter('sequence', consensusHash, graffitiSigner);
+  return bee.makeFeedWriter('sequence', consensusHash, graffitiSigner, options);
 }
 
-function graffitiFeedReaderFromTopic(topic: string) {
+function graffitiFeedReaderFromTopic(topic: string, options?: BeeRequestOptions) {
   const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
-  return bee.makeFeedReader('sequence', consensusHash, graffitiSigner.address);
+  return bee.makeFeedReader('sequence', consensusHash, graffitiSigner.address, options);
 }
 
 function generateGraffitiFeedMetadata(topic: string) {
@@ -317,16 +320,17 @@ function generateGraffitiFeedMetadata(topic: string) {
 }
 
 async function getLatestFeedIndex(topic: string, address: EthAddress) {
-  let latestIndex;
-
   try {
     const feedReader = bee.makeFeedReader('sequence', topic, address);
     const feedEntry = await feedReader.download();
-    latestIndex = parseInt(feedEntry.feedIndex.toString(), HEX_RADIX);
-    return latestIndex;
+
+    const latestIndex = parseInt(feedEntry.feedIndex.toString(), HEX_RADIX);
+    const nextIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
+
+    return { latestIndex, nextIndex };
   } catch (error) {
     if (isNotFoundError(error)) {
-      return 0;
+      return { latestIndex: -1, nextIndex: 0 };
     }
     throw error;
   }
