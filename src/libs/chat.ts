@@ -340,13 +340,13 @@ async function getLatestFeedIndex(topic: string, address: EthAddress) {
 
     return { latestIndex, nextIndex };
   } catch (error) {
-    console.log("error", error)
-    console.log("isNotFoundError(error)", JSON.stringify(error))
-    console.log("error.status", error.status)
-    console.log("error.stack", error.stack)
-  
+    console.log('error', error);
+    console.log('isNotFoundError(error)', JSON.stringify(error));
+    console.log('error.status', error.status);
+    console.log('error.stack', error.stack);
+
     if (isNotFoundError(error)) {
-      console.log("belelép-e: igen")
+      console.log('belelép-e: igen');
       return { latestIndex: -1, nextIndex: 0 };
     }
     throw error;
