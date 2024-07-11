@@ -15,8 +15,8 @@ importers:
         specifier: ^11.11.5
         version: 11.11.5(@emotion/react@11.11.4(@types/react@18.3.3)(react@18.3.1))(@types/react@18.3.3)(react@18.3.1)
       '@ethersphere/bee-js':
-        specifier: ^6.9.1
-        version: 6.9.1
+        specifier: ^7.0.3
+        version: 7.0.3
       '@fairdatasociety/bmt-js':
         specifier: ^2.1.0
         version: 2.1.0
@@ -44,9 +44,6 @@ importers:
       immer:
         specifier: ^10.0.3
         version: 10.1.1
-      lodash:
-        specifier: ^4.17.21
-        version: 4.17.21
       mantaray-js:
         specifier: ^1.0.3
         version: 1.0.3
@@ -66,9 +63,6 @@ importers:
         specifier: ^6.21.1
         version: 6.23.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     devDependencies:
-      '@types/lodash':
-        specifier: ^4.17.0
-        version: 4.17.4
       '@types/react':
         specifier: ^18.2.43
         version: 18.3.3
@@ -431,9 +425,8 @@ packages:
     resolution: {integrity: sha512-Ys+3g2TaW7gADOJzPt83SJtCDhMjndcDMFVQ/Tj9iA1BfJzFKD9mAUXT3OenpuPHbI6P/myECxRJrofUsDx/5g==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
 
-  '@ethersphere/bee-js@6.9.1':
-    resolution: {integrity: sha512-aZaoD4Q9BH2jOPU049vIsN3N/RID/CTrXdpMb593PREU9S9PksZkxVPS95sgLWnUsOK1IzW9a8WtkOIjcRZswA==}
-    engines: {bee: 1.18.2-759f56f, beeApiVersion: 4.0.0, beeDebugApiVersion: 4.0.0, node: '>=14.0.0', npm: '>=6.0.0'}
+  '@ethersphere/bee-js@7.0.3':
+    resolution: {integrity: sha512-1Z19V6AJey6BScvIg7/kb464B9oPS6/nIrvEODWEJTXsaC/DBXAdQhR76ypvhrW3ldbwT5NVDA0HEfc9QekVEw==}
 
   '@ethersphere/swarm-cid@0.1.0':
     resolution: {integrity: sha512-n+n+w5RJBPm7CiPf8TIgNFIRMo4bLh5bYpZxHObgCaxFW8WNZ4UGfqg+qjS/jEr+A3Mmp0lugKDvd8GnfFy7JQ==}
@@ -884,9 +877,6 @@ packages:
   '@types/json5@0.0.29':
     resolution: {integrity: sha512-dRLjCWHYg4oaA77cxO64oO+7JwCwnIzkZPdrrC71jQmQtlhM556pwKo5bUzqvZndkVbeFLIIi+9TC40JNF5hNQ==}
 
-  '@types/lodash@4.17.4':
-    resolution: {integrity: sha512-wYCP26ZLxaT3R39kiN2+HcJ4kTd3U1waI/cY7ivWYqFP6pW3ZNpvi6Wd6PHZx7T/t8z0vlkXMg3QYLa7DZ/IJQ==}
-
   '@types/node@20.12.12':
     resolution: {integrity: sha512-eWLDGF/FOSPtAvEqeRAQ4C8LSA7M1I7i0ky1I8U7kD1J5ITyW3AsRhQrKVoWf5pFKZ2kILsEGJhsI9r93PYnOw==}
 
@@ -1154,6 +1144,9 @@ packages:
 
   cafe-utility@15.0.2:
     resolution: {integrity: sha512-TNKSfA/q/XRd86NwYtF5QImQB8U5n/hKZuWblYFgYW4aveHcSg2RGOfR3+xquXRXF7BCeNoAXe2/snWFKviPzw==}
+
+  cafe-utility@21.5.0:
+    resolution: {integrity: sha512-5u+9cf7fvcH3j2Q3jrd7nA3bUITUBj8b9Arg4eA6almqeA5+dwQA6NKba4GnW6zS9uL1iVCEQqM3z3tQVs2Xjw==}
 
   call-bind@1.0.7:
     resolution: {integrity: sha512-GHTSNSYICQ7scH7sZ+M2rFopRoLh8t2bLSW6BbgrtLsahOIB5iyAVJf9GjWK3cYTDaMj4XdBpM1cA6pIS0Kv2w==}
@@ -1954,9 +1947,6 @@ packages:
 
   lodash.sortby@4.7.0:
     resolution: {integrity: sha512-HDWXG8isMntAyRF5vZ7xKuEvOhT4AhlRt/3czTSjvGUxjYCBVRQY48ViDHyfYz9VIoBkW4TMGQNapx+l3RUwdA==}
-
-  lodash@4.17.21:
-    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
 
   loose-envify@1.4.0:
     resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
@@ -2972,24 +2962,19 @@ snapshots:
 
   '@eslint/js@8.57.0': {}
 
-  '@ethersphere/bee-js@6.9.1':
+  '@ethersphere/bee-js@7.0.3':
     dependencies:
       '@ethersphere/swarm-cid': 0.1.0
-      '@types/readable-stream': 2.3.15
       axios: 0.28.1
-      cafe-utility: 15.0.2
+      cafe-utility: 21.5.0
       elliptic: 6.5.5
-      fetch-blob: 2.1.2
       isomorphic-ws: 4.0.1(ws@8.17.0)
       js-sha3: 0.8.0
       semver: 7.6.2
-      tar-js: 0.3.0
-      web-streams-polyfill: 4.0.0
       ws: 8.17.0
     transitivePeerDependencies:
       - bufferutil
       - debug
-      - domexception
       - utf-8-validate
 
   '@ethersphere/swarm-cid@0.1.0':
@@ -3554,8 +3539,6 @@ snapshots:
 
   '@types/json5@0.0.29': {}
 
-  '@types/lodash@4.17.4': {}
-
   '@types/node@20.12.12':
     dependencies:
       undici-types: 5.26.5
@@ -3929,6 +3912,8 @@ snapshots:
   builtin-status-codes@3.0.0: {}
 
   cafe-utility@15.0.2: {}
+
+  cafe-utility@21.5.0: {}
 
   call-bind@1.0.7:
     dependencies:
@@ -4920,8 +4905,6 @@ snapshots:
   lodash.pickby@4.6.0: {}
 
   lodash.sortby@4.7.0: {}
-
-  lodash@4.17.21: {}
 
   loose-envify@1.4.0:
     dependencies:

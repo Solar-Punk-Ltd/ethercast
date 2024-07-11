@@ -7,7 +7,7 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@solarpunk/bee-js": ["node_modules/@solarpunk/bee-js/dist/types/index.d.ts"]
+      "@ethersphere/bee-js": ["node_modules/@ethersphere/bee-js/dist/types/index.d.ts"]
     },
 
     /* Bundler mode */

@@ -6,13 +6,15 @@ export class AsyncQueue {
   private indexed;
   private waitable;
   private clearWaitTime;
+  private index;
   private isProcessing = false;
   private currentPromiseProcessing = false;
-  private index = FIRST_SEGMENT_INDEX;
+  private isWaiting = false;
   private queue: ((index?: string) => Promise<void>)[] = [];
 
-  constructor(settings: { indexed?: boolean; waitable?: boolean; clearWaitTime?: number } = {}) {
+  constructor(settings: { indexed?: boolean; index?: string; waitable?: boolean; clearWaitTime?: number } = {}) {
     this.indexed = settings.indexed || false;
+    this.index = settings.index || FIRST_SEGMENT_INDEX;
     this.waitable = settings.waitable || false;
     this.clearWaitTime = settings.clearWaitTime || 100;
   }
@@ -32,7 +34,6 @@ export class AsyncQueue {
           this.index = incrementHexString(this.index);
         } catch (error) {
           console.error('Error processing promise:', error);
-          throw error;
         } finally {
           this.currentPromiseProcessing = false;
         }
@@ -63,5 +64,17 @@ export class AsyncQueue {
     while (this.isProcessing || this.currentPromiseProcessing) {
       await sleep(this.clearWaitTime);
     }
+  }
+
+  async waitForProcessing() {
+    if (this.isWaiting) return true;
+
+    this.isWaiting = true;
+
+    while (this.isProcessing || this.currentPromiseProcessing) {
+      await sleep(this.clearWaitTime);
+    }
+
+    this.isWaiting = false;
   }
 }
