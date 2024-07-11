@@ -12,11 +12,6 @@ import './Search.scss';
 interface FormData {
   walletAddress: string;
   streamTopic: string;
-  /*   timeslice: string;
-  minLiveThreshold: string;
-  initBufferTime: string;
-  buffer: string;
-  dynamicBufferIncrement: string; */
 }
 
 const formFields = [
@@ -32,36 +27,6 @@ const formFields = [
     defaultValue: '',
     rules: { required: 'Topic is required', validate: assertAtLeastFourChars },
   },
-  /*   {
-    name: 'timeslice',
-    label: 'Set the timeslice',
-    defaultValue: '2000',
-    rules: { required: 'Timeslice is required', validate: assertPositiveInteger },
-  },
-  {
-    name: 'minLiveThreshold',
-    label: 'Set the min live threshold',
-    defaultValue: '1',
-    rules: { required: 'Min live threshold is required', validate: assertPositiveInteger },
-  },
-  {
-    name: 'initBufferTime',
-    label: 'Set the init buffer time',
-    defaultValue: '5000',
-    rules: { required: 'Init buffer time is required', validate: assertPositiveInteger },
-  },
-  {
-    name: 'buffer',
-    label: 'Set the buffer',
-    defaultValue: '5',
-    rules: { required: 'Buffer is required', validate: assertPositiveInteger },
-  },
-  {
-    name: 'dynamicBufferIncrement',
-    label: 'Set the dynamic buffer increment',
-    defaultValue: '0',
-    rules: { required: 'Dynamic buffer increment is required', validate: assertPositiveInteger },
-  }, */
 ];
 
 export function Search() {
