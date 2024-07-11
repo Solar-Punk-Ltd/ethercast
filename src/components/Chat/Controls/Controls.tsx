@@ -9,8 +9,7 @@ import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-rea
 import { ChatInput } from './ChatInput/ChatInput';
 
 import './Controls.scss';
-import { EthAddress, MessageData } from '../../../libs/chat/src/types';
-import { sendMessage } from '../../../libs/chat/src/core';
+import { EthAddress, MessageData, sendMessage } from '../../../libs/chat';
 
 interface ControlsProps {
   privateKey: string;

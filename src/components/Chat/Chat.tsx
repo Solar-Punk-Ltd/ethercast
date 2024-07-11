@@ -14,7 +14,7 @@ import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
 
 import './Chat.scss';
-import { MessageData, ParticipantDetails, UserWithIndex } from 'src/libs/chat/src/types';
+import { MessageData, ParticipantDetails, UserWithIndex } from '../../libs/chat/'
 
 interface ChatProps {
   topic: string;
