@@ -40,7 +40,8 @@ export interface UserWithIndex extends User {
 }
 
 const CONSENSUS_ID = 'SwarmStream'; // Used for Graffiti feed
-const bee = new Bee('http://45.137.70.219:1833');
+//const bee = new Bee('http://45.137.70.219:1833');
+const bee = new Bee('http://localhost:1633');
 const emitter = new EventEmitter();
 const messages: MessageData[] = [];
 
@@ -258,16 +259,22 @@ export async function sendMessage(
     const feedID = generateUserOwnedFeedId(topic, address);
     const feedTopicHex = bee.makeFeedTopic(feedID);
 
+    console.log('feedTopicHex', feedTopicHex);
     if (!ownIndex) {
+      console.log('ownIndex', ownIndex);
       const { nextIndex } = await getLatestFeedIndex(feedTopicHex, address);
+      console.log('nextIndex', nextIndex);
       ownIndex = nextIndex;
     }
 
     const msgData = await uploadObjectToBee(messageObj, stamp);
+    console.log('msgData', msgData);
     if (!msgData) throw 'Could not upload message data to bee';
 
     const feedWriter = bee.makeFeedWriter('sequence', feedTopicHex, privateKey);
+    console.log('feedWriter', feedWriter);
     const ref = await feedWriter.upload(stamp, msgData.reference, { index: ownIndex });
+    console.log('ref', ref);
     ownIndex++;
 
     return ref;
@@ -322,14 +329,24 @@ function generateGraffitiFeedMetadata(topic: string) {
 async function getLatestFeedIndex(topic: string, address: EthAddress) {
   try {
     const feedReader = bee.makeFeedReader('sequence', topic, address);
+    console.log('getLatestFeedIndex feedReader', feedReader);
     const feedEntry = await feedReader.download();
+    console.log('getLatestFeedIndex feedEntry', feedEntry);
 
     const latestIndex = parseInt(feedEntry.feedIndex.toString(), HEX_RADIX);
+    console.log('getLatestFeedIndex latestIndex', latestIndex);
     const nextIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
+    console.log('getLatestFeedIndex nextIndex', nextIndex);
 
     return { latestIndex, nextIndex };
   } catch (error) {
+    console.log("error", error)
+    console.log("isNotFoundError(error)", JSON.stringify(error))
+    console.log("error.status", error.status)
+    console.log("error.stack", error.stack)
+  
     if (isNotFoundError(error)) {
+      console.log("belelép-e: igen")
       return { latestIndex: -1, nextIndex: 0 };
     }
     throw error;
@@ -358,5 +375,5 @@ function emitStateEvent(event: string, value: any) {
 // TODO: why bee-js do this?
 // status is undefined in the error object
 function isNotFoundError(error: any) {
-  return error.stack.includes('404');
+  return error.stack.includes('404') || error.message.includes('Not Found') || error.message.includes('404');
 }

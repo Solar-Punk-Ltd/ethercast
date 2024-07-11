@@ -53,7 +53,8 @@ interface SegmentBuffer {
 }
 
 // External libs
-const bee = new Bee('http://45.137.70.219:2133'); // Test address
+//const bee = new Bee('http://45.137.70.219:2133'); // Test address
+const bee = new Bee('http://localhost:1633');
 const emitter = new EventEmitter();
 const segmentBuffer: SegmentBuffer = {};
 

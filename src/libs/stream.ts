@@ -20,7 +20,8 @@ interface Options {
   videoBitsPerSecond: number;
 }
 
-const bee = new Bee('http://45.137.70.219:2033'); // Test address
+//const bee = new Bee('http://45.137.70.219:2033'); // Test address
+const bee = new Bee('http://localhost:1633');
 let feedWriter: FeedWriter;
 let mediaRecorder: MediaRecorder;
 let mediaStream: MediaStream;
