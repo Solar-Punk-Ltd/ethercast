@@ -1,7 +1,7 @@
 import { ethers, BytesLike, utils, Wallet } from 'ethers';
-import { Utils } from '@ethersphere/bee-js';
+import { BatchId, Bee, BeeRequestOptions, Signer, UploadResult, Utils } from '@ethersphere/bee-js';
 import { EthAddress, MessageData, Sha3Message } from './types';
-import { HEX_RADIX } from './constants';
+import { CONSENSUS_ID, HEX_RADIX } from './constants';
 
 // Generate an ID for the feed, that will be connected to the stream, as Users list
 export function generateUsersFeedId(topic: string) {
@@ -138,4 +138,67 @@ export async function retryAwaitableAsync<T>(
         }
       });
   });
+}
+
+export async function uploadObjectToBee(bee: Bee, jsObject: object, stamp: BatchId): Promise<UploadResult | null> {
+  try {
+    const result = await bee.uploadData(stamp as any, serializeGraffitiRecord(jsObject), { redundancyLevel: 4 });
+    return result;
+  } catch (error) {
+    console.error(`There was an error while trying to upload object to Swarm: ${error}`);
+    return null;
+  }
+}
+
+export function graffitiFeedWriterFromTopic(bee: Bee, topic: string, options?: BeeRequestOptions) {
+  const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
+  return bee.makeFeedWriter('sequence', consensusHash, graffitiSigner, options);
+}
+
+export function graffitiFeedReaderFromTopic(bee: Bee, topic: string, options?: BeeRequestOptions) {
+  const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
+  return bee.makeFeedReader('sequence', consensusHash, graffitiSigner.address, options);
+}
+
+export function generateGraffitiFeedMetadata(topic: string) {
+  const roomId = generateUsersFeedId(topic);
+  const privateKey = getConsensualPrivateKey(roomId);
+  const wallet = getGraffitiWallet(privateKey);
+
+  const graffitiSigner: Signer = {
+    address: Utils.hexToBytes(wallet.address.slice(2)),
+    sign: async (data: any) => {
+      return await wallet.signMessage(data);
+    },
+  };
+
+  const consensusHash = Utils.keccak256Hash(CONSENSUS_ID);
+
+  return {
+    consensusHash,
+    graffitiSigner,
+  };
+}
+
+export async function getLatestFeedIndex(bee: Bee, topic: string, address: EthAddress) {
+  try {
+    const feedReader = bee.makeFeedReader('sequence', topic, address);
+    const feedEntry = await feedReader.download();
+
+    const latestIndex = parseInt(feedEntry.feedIndex.toString(), HEX_RADIX);
+    const nextIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
+
+    return { latestIndex, nextIndex };
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return { latestIndex: -1, nextIndex: 0 };
+    }
+    throw error;
+  }
+}
+
+// TODO: why bee-js do this?
+// status is undefined in the error object
+export function isNotFoundError(error: any) {
+  return error.stack.includes('404') || error.message.includes('Not Found') || error.message.includes('404');
 }

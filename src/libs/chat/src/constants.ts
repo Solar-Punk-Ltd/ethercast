@@ -1,5 +1,14 @@
 export const FIRST_SEGMENT_INDEX = '0000000000000000';
 
+export const CONSENSUS_ID = 'SwarmStream'; // Used for Graffiti feed
+
+export const EVENTS = {
+    LOADING_INIT_USERS: 'loadingInitUsers',
+    LOADING_USERS: 'loadingUsers',
+    LOADING_REGISTRATION: 'loadingRegistration',
+    LOAD_MESSAGE: 'loadMessage',
+};
+
 export const SECOND = 1000;
 export const MINUTE = SECOND * 60;
 export const HOUR = MINUTE * 60;

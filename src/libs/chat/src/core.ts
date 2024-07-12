@@ -1,14 +1,16 @@
-import { BatchId, Bee, BeeRequestOptions, Reference, Signer, UploadResult, Utils } from '@ethersphere/bee-js';
+import { BatchId, Bee, Reference } from '@ethersphere/bee-js';
 import { ethers, Signature } from 'ethers';
 
 import { 
+  generateGraffitiFeedMetadata,
   generateUserOwnedFeedId, 
-  generateUsersFeedId, 
-  getConsensualPrivateKey, 
-  getGraffitiWallet, 
+  getLatestFeedIndex, 
+  graffitiFeedReaderFromTopic, 
+  graffitiFeedWriterFromTopic, 
+  isNotFoundError, 
   numberToFeedIndex, 
   retryAwaitableAsync, 
-  serializeGraffitiRecord, 
+  uploadObjectToBee, 
   validateUserObject 
 } from './utils';
 import { EventEmitter } from './eventEmitter';
@@ -23,9 +25,8 @@ import {
   UserWithIndex
 } from './types';
 
-import { HEX_RADIX } from './constants';
+import { CONSENSUS_ID, EVENTS, HEX_RADIX } from './constants';
 
-const CONSENSUS_ID = 'SwarmStream'; // Used for Graffiti feed
 const bee = new Bee('http://195.88.57.155:1633');
 const emitter = new EventEmitter();
 const messages: MessageData[] = [];
@@ -33,19 +34,14 @@ const messages: MessageData[] = [];
 let usersQueue: AsyncQueue;
 let messagesQueue: AsyncQueue;
 let users: UserWithIndex[] = [];
+let usersLoading = false;
 let usersInitIndex: number;
+let ownIndex: number;
 
 const eventStates: Record<string, boolean> = {
   loadingInitUsers: false,
   loadingUsers: false,
   loadingRegistration: false,
-};
-
-export const EVENTS = {
-  LOADING_INIT_USERS: 'loadingInitUsers',
-  LOADING_USERS: 'loadingUsers',
-  LOADING_REGISTRATION: 'loadingRegistration',
-  LOAD_MESSAGE: 'loadMessage',
 };
 
 export function getChatActions() {
@@ -71,7 +67,7 @@ export async function initUsers(topic: string): Promise<UserWithIndex[] | null> 
   try {
     emitStateEvent(EVENTS.LOADING_INIT_USERS, true);
 
-    const feedReader = graffitiFeedReaderFromTopic(topic);
+    const feedReader = graffitiFeedReaderFromTopic(bee, topic);
 
     const feedEntry = await feedReader.download();
     usersInitIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
@@ -128,10 +124,10 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
     await setUsers([...users, { ...newUser, index: -1 }]);
 
     const uploadableUsers = users.map((user) => ({ ...user, index: undefined }));
-    const userRef = await uploadObjectToBee(uploadableUsers, stamp as any);
+    const userRef = await uploadObjectToBee(bee, uploadableUsers, stamp as any);
     if (!userRef) throw new Error('Could not upload user to bee');
 
-    const feedWriter = graffitiFeedWriterFromTopic(topic);
+    const feedWriter = graffitiFeedWriterFromTopic(bee, topic);
 
     try {
       await feedWriter.upload(stamp, userRef.reference);
@@ -158,7 +154,7 @@ export function startFetchingForNewUsers(topic: string) {
 async function getNewUsers(topic: string, index: number) {
   emitStateEvent(EVENTS.LOADING_USERS, true);
 
-  const feedReader = graffitiFeedReaderFromTopic(topic, { timeout: 500 });
+  const feedReader = graffitiFeedReaderFromTopic(bee, topic, { timeout: 500 });
   const feedEntry = await feedReader.download({ index });
 
   const data = await bee.downloadData(feedEntry.reference);
@@ -207,7 +203,7 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
 
   let currIndex = user.index;
   if (user.index === -1) {
-    const { latestIndex, nextIndex } = await getLatestFeedIndex(topic, user.address);
+    const { latestIndex, nextIndex } = await getLatestFeedIndex(bee, topic, user.address);
     currIndex = latestIndex === -1 ? nextIndex : latestIndex;
   }
 
@@ -230,7 +226,6 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
   emitter.emit(EVENTS.LOAD_MESSAGE, messages);
 }
 
-let ownIndex: number;
 export async function sendMessage(
   address: EthAddress,
   topic: string,
@@ -247,12 +242,12 @@ export async function sendMessage(
     console.log('feedTopicHex', feedTopicHex);
     if (!ownIndex) {
       console.log('ownIndex', ownIndex);
-      const { nextIndex } = await getLatestFeedIndex(feedTopicHex, address);
+      const { nextIndex } = await getLatestFeedIndex(bee, feedTopicHex, address);
       console.log('nextIndex', nextIndex);
       ownIndex = nextIndex;
     }
 
-    const msgData = await uploadObjectToBee(messageObj, stamp);
+    const msgData = await uploadObjectToBee(bee, messageObj, stamp);
     console.log('msgData', msgData);
     if (!msgData) throw 'Could not upload message data to bee';
 
@@ -271,65 +266,6 @@ export async function sendMessage(
   }
 }
 
-async function uploadObjectToBee(jsObject: object, stamp: BatchId): Promise<UploadResult | null> {
-  try {
-    const result = await bee.uploadData(stamp as any, serializeGraffitiRecord(jsObject), { redundancyLevel: 4 });
-    return result;
-  } catch (error) {
-    console.error(`There was an error while trying to upload object to Swarm: ${error}`);
-    return null;
-  }
-}
-
-function graffitiFeedWriterFromTopic(topic: string, options?: BeeRequestOptions) {
-  const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
-  return bee.makeFeedWriter('sequence', consensusHash, graffitiSigner, options);
-}
-
-function graffitiFeedReaderFromTopic(topic: string, options?: BeeRequestOptions) {
-  const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
-  return bee.makeFeedReader('sequence', consensusHash, graffitiSigner.address, options);
-}
-
-function generateGraffitiFeedMetadata(topic: string) {
-  const roomId = generateUsersFeedId(topic);
-  const privateKey = getConsensualPrivateKey(roomId);
-  const wallet = getGraffitiWallet(privateKey);
-
-  const graffitiSigner: Signer = {
-    address: Utils.hexToBytes(wallet.address.slice(2)),
-    sign: async (data: any) => {
-      return await wallet.signMessage(data);
-    },
-  };
-
-  const consensusHash = Utils.keccak256Hash(CONSENSUS_ID);
-
-  return {
-    consensusHash,
-    graffitiSigner,
-  };
-}
-
-async function getLatestFeedIndex(topic: string, address: EthAddress) {
-  try {
-    const feedReader = bee.makeFeedReader('sequence', topic, address);
-    const feedEntry = await feedReader.download();
-
-    const latestIndex = parseInt(feedEntry.feedIndex.toString(), HEX_RADIX);
-    const nextIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
-
-    return { latestIndex, nextIndex };
-  } catch (error) {
-    if (isNotFoundError(error)) {
-      console.log('belelép-e: igen');
-      return { latestIndex: -1, nextIndex: 0 };
-    }
-    throw error;
-  }
-}
-
-let usersLoading = false;
 async function setUsers(newUsers: UserWithIndex[]) {
   return retryAwaitableAsync(async () => {
     if (usersLoading) {
@@ -346,10 +282,4 @@ function emitStateEvent(event: string, value: any) {
     eventStates[event] = value;
     emitter.emit(event, value);
   }
-}
-
-// TODO: why bee-js do this?
-// status is undefined in the error object
-function isNotFoundError(error: any) {
-  return error.stack.includes('404') || error.message.includes('Not Found') || error.message.includes('404');
 }
