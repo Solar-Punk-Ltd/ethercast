@@ -1,7 +1,9 @@
 export const FIRST_SEGMENT_INDEX = '0000000000000000';
 
-export const CONSENSUS_ID = 'SwarmStream'; // Used for Graffiti feed
+// Consensus ID is used for the Graffiti feed, that is handling user registration
+export const CONSENSUS_ID = 'SwarmStream';
 
+// Chat events, used together with getChatActions
 export const EVENTS = {
     LOADING_INIT_USERS: 'loadingInitUsers',
     LOADING_USERS: 'loadingUsers',
