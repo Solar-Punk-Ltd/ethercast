@@ -14,7 +14,7 @@ import {
   validateUserObject 
 } from './utils';
 import { EventEmitter } from './eventEmitter';
-import { AsyncQueue } from './asyncQueueOld';
+import { AsyncQueue } from './asyncQueue';
 //import { AsyncQueue } from './asyncQueueChat';
 
 import { 
@@ -154,7 +154,7 @@ export function startFetchingForNewUsers(topic: string) {
 async function getNewUsers(topic: string, index: number) {
   emitStateEvent(EVENTS.LOADING_USERS, true);
 
-  const feedReader = graffitiFeedReaderFromTopic(bee, topic, { timeout: 500 });
+  const feedReader = graffitiFeedReaderFromTopic(bee, topic, { timeout: 5000 });
   const feedEntry = await feedReader.download({ index });
 
   const data = await bee.downloadData(feedEntry.reference);
@@ -207,7 +207,7 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
     currIndex = latestIndex === -1 ? nextIndex : latestIndex;
   }
 
-  const feedReader = bee.makeFeedReader('sequence', topic, user.address, { timeout: 500 });
+  const feedReader = bee.makeFeedReader('sequence', topic, user.address, { timeout: 5000 });
   const recordPointer = await feedReader.download({ index: currIndex });
   const data = await bee.downloadData(recordPointer.reference);
 

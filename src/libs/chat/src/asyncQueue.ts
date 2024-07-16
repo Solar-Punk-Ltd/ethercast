@@ -7,23 +7,26 @@ export class AsyncQueue {
   private clearWaitTime;
   private index;
   private isProcessing = false;
-  private currentPromiseProcessing = false;
+  private inProgressCount = 0;
   private isWaiting = false;
   private queue: ((index?: string) => Promise<void>)[] = [];
 
-  constructor(settings: { indexed?: boolean; index?: string; waitable?: boolean; clearWaitTime?: number } = {}) {
+  private readonly maxParallel: number;
+
+  constructor(settings: { indexed?: boolean; index?: string; waitable?: boolean; clearWaitTime?: number; max?: number } = {}) {
     this.indexed = settings.indexed || false;
     this.index = settings.index || FIRST_SEGMENT_INDEX;
     this.waitable = settings.waitable || false;
     this.clearWaitTime = settings.clearWaitTime || 100;
+    this.maxParallel = settings.max || 5;
   }
 
   private async processQueue() {
-    if (this.isProcessing) return;
+    if (this.inProgressCount >= this.maxParallel) return;
     this.isProcessing = true;
 
     while (this.queue.length > 0) {
-      this.currentPromiseProcessing = true;
+      this.inProgressCount = this.inProgressCount+1;
       const promise = this.queue.shift()!;
       const action = this.indexed ? () => promise(this.index) : () => promise();
 
@@ -34,7 +37,7 @@ export class AsyncQueue {
         } catch (error) {
           console.error('Error processing promise:', error);
         } finally {
-          this.currentPromiseProcessing = false;
+          this.inProgressCount = this.inProgressCount-1;
         }
       } else {
         action()
@@ -45,7 +48,7 @@ export class AsyncQueue {
             console.error('Error processing promise:', error);
           })
           .finally(() => {
-            this.currentPromiseProcessing = false;
+            this.inProgressCount = this.inProgressCount-1;
           });
       }
     }
@@ -60,7 +63,7 @@ export class AsyncQueue {
 
   async clearQueue() {
     this.queue = [];
-    while (this.isProcessing || this.currentPromiseProcessing) {
+    while (this.isProcessing || this.inProgressCount > 0) {
       await sleep(this.clearWaitTime);
     }
   }
@@ -70,7 +73,7 @@ export class AsyncQueue {
 
     this.isWaiting = true;
 
-    while (this.isProcessing || this.currentPromiseProcessing) {
+    while (this.isProcessing || this.inProgressCount > 0) {
       await sleep(this.clearWaitTime);
     }
 

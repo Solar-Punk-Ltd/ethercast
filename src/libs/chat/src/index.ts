@@ -1,5 +1,9 @@
-export { EVENTS } from './constants';
+// Constants
+export { 
+    EVENTS 
+} from './constants';
 
+// Types
 export { 
     MessageData, 
     ParticipantDetails, 
@@ -7,6 +11,7 @@ export {
     EthAddress 
 } from './types';
 
+// Functions
 export { 
     sendMessage, 
     getChatActions, 
