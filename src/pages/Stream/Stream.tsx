@@ -10,7 +10,7 @@ import { FormContainer } from '../../components/FormContainer/FormContainer';
 import { LiveIndicator } from '../../components/LiveIndicator/LiveIndicator';
 import { ControllerTextInput } from '../../components/TextInput/ControllerTextInput';
 import { WithAsyncErrorBoundary, WithErrorBoundary } from '../../hooks/WithErrorBoundary';
-import { initChatRoom } from '../../libs/chat/src/core';
+import { initChatRoom } from '../../libs/chat';
 import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
 
 import './Stream.scss';

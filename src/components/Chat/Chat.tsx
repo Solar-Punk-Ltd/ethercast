@@ -7,7 +7,7 @@ import {
   getChatActions,
   initUsers,
   registerUser,
-} from '../../libs/chat/src/core';
+} from '../../libs/chat/';
 import { ChatModal } from '../ChatModal/ChatModal';
 
 import { Controls } from './Controls/Controls';
