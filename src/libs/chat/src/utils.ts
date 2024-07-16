@@ -12,7 +12,7 @@ export function generateUsersFeedId(topic: string) {
 export function generateUserOwnedFeedId(topic: string, userAddress: EthAddress) {
   return `${topic}_EthercastChat_${userAddress}`;
 }
-
+/*
 // UniqID will contain streamer address + topic
 export function generateUniqId(topic: string, streamerAddress: EthAddress) {
   return `${streamerAddress}-${topic}`;
@@ -23,7 +23,7 @@ export function objectToUint8Array(jsObject: object): Uint8Array {
   const json = JSON.stringify(jsObject);
   const encoder = new TextEncoder();
   return encoder.encode(json);
-}
+}*/
 
 // Validates a User object, including incorrect type, and signature
 export function validateUserObject(user: any): boolean {
@@ -40,6 +40,7 @@ export function validateUserObject(user: any): boolean {
       throw `Unexpected properties found: ${extraProperties.join(', ')}`;
     }
 
+    // Create the message that is signed, and validate the signature
     const message = {
       username: user.username,
       address: user.address,
@@ -56,12 +57,12 @@ export function validateUserObject(user: any): boolean {
   }
 }
 
-// Returns timesstamp ordered messages
+// Returns timesstamp ordered messages (currently not used)
 export function orderMessages(messages: MessageData[]) {
   return messages.sort((a, b) => a.timestamp - b.timestamp);
 }
 
-// Removes duplicates, also pays attention to same-timestamp unique messages
+// Removes duplicates, also pays attention to same-timestamp unique messages (currently not used)
 export function removeDuplicate(messages: MessageData[]): MessageData[] {
   const uniqueMessages: { [key: string]: MessageData } = {};
 
@@ -75,7 +76,8 @@ export function removeDuplicate(messages: MessageData[]): MessageData[] {
   return uniqueMessagesArray;
 }
 
-export function getConsensualPrivateKey(resource: Sha3Message) {
+// getConsensualPrivateKey will generate a private key, that is used for the Graffiti-feed (which is a public feed, for user registration)
+function getConsensualPrivateKey(resource: Sha3Message) {
   if (Utils.isHexString(resource) && resource.length === 64) {
     return Utils.hexToBytes(resource);
   }
@@ -83,15 +85,18 @@ export function getConsensualPrivateKey(resource: Sha3Message) {
   return Utils.keccak256Hash(resource);
 }
 
-export function getGraffitiWallet(consensualPrivateKey: BytesLike) {
+// getGraffitiWallet generates a Graffiti wallet, from provided private key (see getConsensualPrivateKey)
+function getGraffitiWallet(consensualPrivateKey: BytesLike) {
   const privateKeyBuffer = utils.hexlify(consensualPrivateKey);
   return new Wallet(privateKeyBuffer);
 }
 
-export function serializeGraffitiRecord(record: Record<any, any>) {
+// Serializes a js object, into Uint8Array
+function serializeGraffitiRecord(record: Record<any, any>) {
   return new TextEncoder().encode(JSON.stringify(record));
 }
 
+// Creates feed-index-format index, from a number
 export function numberToFeedIndex(index: number) {
   const bytes = new Uint8Array(8);
   const dv = new DataView(bytes.buffer);
