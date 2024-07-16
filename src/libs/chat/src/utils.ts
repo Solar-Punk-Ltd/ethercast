@@ -12,18 +12,6 @@ export function generateUsersFeedId(topic: string) {
 export function generateUserOwnedFeedId(topic: string, userAddress: EthAddress) {
   return `${topic}_EthercastChat_${userAddress}`;
 }
-/*
-// UniqID will contain streamer address + topic
-export function generateUniqId(topic: string, streamerAddress: EthAddress) {
-  return `${streamerAddress}-${topic}`;
-}
-
-// Used for message obj serialization
-export function objectToUint8Array(jsObject: object): Uint8Array {
-  const json = JSON.stringify(jsObject);
-  const encoder = new TextEncoder();
-  return encoder.encode(json);
-}*/
 
 // Validates a User object, including incorrect type, and signature
 export function validateUserObject(user: any): boolean {
