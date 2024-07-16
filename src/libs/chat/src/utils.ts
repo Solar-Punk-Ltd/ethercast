@@ -93,17 +93,20 @@ export function numberToFeedIndex(index: number) {
   return Utils.bytesToHex(bytes);
 }
 
+// General sleep function, usage: await sleep(ms)
 export function sleep(delay: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, delay);
   });
 }
 
+// Increment hex string, default value is 1
 export function incrementHexString(hexString: string, i = 1n) {
   const num = BigInt('0x' + hexString);
   return (num + i).toString(HEX_RADIX).padStart(HEX_RADIX, '0');
 }
 
+// retryAwaitableAsync will retry a promise if fails, default retry number is 3, default delay between attempts is 250 ms
 export async function retryAwaitableAsync<T>(
   fn: () => Promise<T>,
   retries: number = 3,
@@ -128,6 +131,7 @@ export async function retryAwaitableAsync<T>(
   });
 }
 
+// Uploads a js object to Swarm, a valid stamp needs to be provided
 export async function uploadObjectToBee(bee: Bee, jsObject: object, stamp: BatchId): Promise<UploadResult | null> {
   try {
     const result = await bee.uploadData(stamp as any, serializeGraffitiRecord(jsObject), { redundancyLevel: 4 });
@@ -138,16 +142,19 @@ export async function uploadObjectToBee(bee: Bee, jsObject: object, stamp: Batch
   }
 }
 
+// Creates a Graffiti feed writer from provided topic, Bee request options can be provided, e.g. timeout
 export function graffitiFeedWriterFromTopic(bee: Bee, topic: string, options?: BeeRequestOptions) {
   const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
   return bee.makeFeedWriter('sequence', consensusHash, graffitiSigner, options);
 }
 
+// Creates a Graffiti feed reader from provided topic, Bee request options can be provided, e.g. timeout
 export function graffitiFeedReaderFromTopic(bee: Bee, topic: string, options?: BeeRequestOptions) {
   const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
   return bee.makeFeedReader('sequence', consensusHash, graffitiSigner.address, options);
 }
 
+// generateGraffitiFeedMetadata will give back a consensus hash, and a Signer, from provided topic
 export function generateGraffitiFeedMetadata(topic: string) {
   const roomId = generateUsersFeedId(topic);
   const privateKey = getConsensualPrivateKey(roomId);
@@ -168,6 +175,7 @@ export function generateGraffitiFeedMetadata(topic: string) {
   };
 }
 
+// getLatestFeedIndex will give back latestIndex and nextIndex, if download succeeds, if not, latestIndex will be -1, and nextIndex is 0
 export async function getLatestFeedIndex(bee: Bee, topic: string, address: EthAddress) {
   try {
     const feedReader = bee.makeFeedReader('sequence', topic, address);
@@ -187,6 +195,7 @@ export async function getLatestFeedIndex(bee: Bee, topic: string, address: EthAd
 
 // TODO: why bee-js do this?
 // status is undefined in the error object
+// Determines if the error is about 'Not Found'
 export function isNotFoundError(error: any) {
   return error.stack.includes('404') || error.message.includes('Not Found') || error.message.includes('404');
 }
