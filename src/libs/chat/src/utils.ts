@@ -8,11 +8,6 @@ export function generateUsersFeedId(topic: string) {
   return `${topic}_EthercastChat_Users`;
 }
 
-// Generate a room ID, for aggregated ChatFeed, that will be connected to a stream
-export function generateRoomId(topic: string) {
-  return `${topic}_EthercastChat_AggregatedChat`;
-}
-
 // Generate an ID for the feed, that is owned by a single user, who is writing messages to the chat
 export function generateUserOwnedFeedId(topic: string, userAddress: EthAddress) {
   return `${topic}_EthercastChat_${userAddress}`;
