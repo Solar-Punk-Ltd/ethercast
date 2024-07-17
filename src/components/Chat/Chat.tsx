@@ -25,7 +25,7 @@ enum WriteMode {
   MESSAGE,
 }
 
-const MESSAGE_CHECK_INTERVAL = 4000;
+const MESSAGE_CHECK_INTERVAL = 1000;
 const USER_UPDATE_INTERVAL = 8000;
 
 export function Chat({ topic }: ChatProps) {
