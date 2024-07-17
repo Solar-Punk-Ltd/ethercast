@@ -208,14 +208,15 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
     currIndex = latestIndex === -1 ? nextIndex : latestIndex;
   }
 
+  // We measure the request time with the first Bee API request, with the second request, we do not do this, because it is very similar
   const feedReader = bee.makeFeedReader('sequence', topic, user.address, { timeout: Math.floor(reqTimeAvg.getAverage() * 1.6) });
   const start = Date.now();
   const recordPointer = await feedReader.download({ index: currIndex });
   const end = Date.now();
   reqTimeAvg.addValue(end-start);
 
+  // We download the actual message data
   const data = await bee.downloadData(recordPointer.reference);
-
   const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
 
   const newUsers = users.map((u) => (u.address === user.address ? { ...u, index: currIndex + 1 } : u));
