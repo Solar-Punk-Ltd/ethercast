@@ -77,7 +77,14 @@ export async function initUsers(topic: string): Promise<UserWithIndex[] | null> 
 
     const rawUsers = data.json() as unknown as User[];
     const validUsers = rawUsers.filter((user) => validateUserObject(user));
-    const users = validUsers.map((user) => ({ ...user, index: 0 }));
+    const usersPromises = validUsers.map(async (user) => {
+      const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(topic), user.address);
+      return { 
+        ...user, 
+        index: res.latestIndex
+      };
+    });
+    const users = await Promise.all(usersPromises);
     await setUsers(users);
 
     return users;
@@ -172,7 +179,8 @@ async function getNewUsers(topic: string, index: number) {
   for (const user of validUsers) {
     const alreadyRegistered = users.find((u) => u.address === user.address);
     if (!alreadyRegistered) {
-      newUsers.push({ ...user, index: -1 });
+      const res = await getLatestFeedIndex(bee, topic, user.address);
+      newUsers.push({ ...user, index: res.latestIndex });
     }
   }
 
@@ -193,6 +201,7 @@ export function startLoadingNewMessages(topic: string) {
     }
 
     for (const user of users) {
+      console.log("User: ", user)
       messagesQueue.enqueue(() => readMessage(user, topic));
     }
   };
