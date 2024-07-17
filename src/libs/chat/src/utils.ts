@@ -199,3 +199,35 @@ export async function getLatestFeedIndex(bee: Bee, topic: string, address: EthAd
 export function isNotFoundError(error: any) {
   return error.stack.includes('404') || error.message.includes('Not Found') || error.message.includes('404');
 }
+
+// Calculates and stores average, used for request time averaging
+export class RunningAverage {
+  private maxSize: number;
+  private values: number[];
+  private sum: number;
+
+  constructor(maxSize: number) {
+    this.maxSize = maxSize;
+    this.values = [];
+    this.sum = 0;
+  }
+
+  addValue(newValue: number) {
+    if (this.values.length === this.maxSize) {
+      const removedValue = this.values.shift();
+      if (removedValue !== undefined) {
+        this.sum -= removedValue;
+      }
+    }
+
+    this.values.push(newValue);
+    this.sum += newValue;
+  }
+
+  getAverage() {
+    if (this.values.length === 0) {
+      return 500;
+    }
+    return this.sum / this.values.length;
+  }
+}

@@ -10,12 +10,12 @@ import {
   isNotFoundError, 
   numberToFeedIndex, 
   retryAwaitableAsync, 
+  RunningAverage, 
   uploadObjectToBee, 
   validateUserObject 
 } from './utils';
 import { EventEmitter } from './eventEmitter';
 import { AsyncQueue } from './asyncQueue';
-//import { AsyncQueue } from './asyncQueueChat';
 
 import { 
   EthAddress, 
@@ -30,6 +30,7 @@ import { CONSENSUS_ID, EVENTS, HEX_RADIX } from './constants';
 const bee = new Bee('http://195.88.57.155:1633');
 const emitter = new EventEmitter();
 const messages: MessageData[] = [];
+const reqTimeAvg = new RunningAverage(100);
 
 let usersQueue: AsyncQueue;
 let messagesQueue: AsyncQueue;
@@ -154,7 +155,7 @@ export function startFetchingForNewUsers(topic: string) {
 async function getNewUsers(topic: string, index: number) {
   emitStateEvent(EVENTS.LOADING_USERS, true);
 
-  const feedReader = graffitiFeedReaderFromTopic(bee, topic, { timeout: 500 });
+  const feedReader = graffitiFeedReaderFromTopic(bee, topic, { timeout: Math.floor(reqTimeAvg.getAverage() * 1.6) });
   const feedEntry = await feedReader.download({ index });
 
   const data = await bee.downloadData(feedEntry.reference);
@@ -207,8 +208,12 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
     currIndex = latestIndex === -1 ? nextIndex : latestIndex;
   }
 
-  const feedReader = bee.makeFeedReader('sequence', topic, user.address, { timeout: 500 });
+  const feedReader = bee.makeFeedReader('sequence', topic, user.address, { timeout: Math.floor(reqTimeAvg.getAverage() * 1.6) });
+  const start = Date.now();
   const recordPointer = await feedReader.download({ index: currIndex });
+  const end = Date.now();
+  reqTimeAvg.addValue(end-start);
+
   const data = await bee.downloadData(recordPointer.reference);
 
   const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
