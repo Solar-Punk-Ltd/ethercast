@@ -22,7 +22,7 @@ export function validateUserObject(user: any): boolean {
     if (typeof user.signature !== 'string') throw 'signature should be a string';
 
     // Check for absence of extra properties
-    const allowedProperties = ['username', 'address', 'timestamp', 'signature'];
+    const allowedProperties = ['username', 'address', 'timestamp', 'signature', 'index'];
     const extraProperties = Object.keys(user).filter((key) => !allowedProperties.includes(key));
     if (extraProperties.length > 0) {
       throw `Unexpected properties found: ${extraProperties.join(', ')}`;

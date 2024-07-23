@@ -30,6 +30,7 @@ import {
   CONSENSUS_ID, 
   EVENTS, 
   HEX_RADIX, 
+  IDLE_TIME, 
   REMOVE_INACTIVE_USERS_INTERVAL, 
   STREAMER_MESSAGE_CHECK_INTERVAL 
 } from './constants';
@@ -71,21 +72,21 @@ export async function initChatRoom(topic: string, stamp: BatchId) {
     const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
     await bee.createFeedManifest(stamp, 'sequence', consensusHash, graffitiSigner.address);
 
-    startActivityAnalyzes(topic);
+    startActivityAnalyzes(topic, stamp);
   } catch (error) {
     console.error(error);
     throw new Error('Could not create Users feed');
   }
 }
 
-async function startActivityAnalyzes(topic: string) {
+async function startActivityAnalyzes(topic: string, stamp: BatchId) {
   try {
     const { startFetchingForNewUsers, startLoadingNewMessages } = getChatActions();
     const { on, off } = getChatActions();
 
     streamerUserFetchInterval = setInterval(startFetchingForNewUsers(topic), STREAMER_MESSAGE_CHECK_INTERVAL);            // startFetchingForNewUsers is returning a function
     streamerMessageFetchInterval = setInterval(startLoadingNewMessages(topic), STREAMER_MESSAGE_CHECK_INTERVAL);          // startLoadingNewMessages is returning a function
-    removeIdleUsersInterval = setInterval(() => removeIdleUsers(topic), REMOVE_INACTIVE_USERS_INTERVAL);
+    removeIdleUsersInterval = setInterval(() => removeIdleUsers(topic, stamp), REMOVE_INACTIVE_USERS_INTERVAL);
     // cleanup needs to happen somewhere, possibly in stop(). But that's not part of this library
 
     on(EVENTS.LOAD_MESSAGE, notifyStreamerAboutNewMessage);
@@ -131,9 +132,50 @@ async function notifyStreamerAboutNewMessage(messages: MessageData[]) {
   }
 }
 
-async function removeIdleUsers(topic: string) {
+async function removeIdleUsers(topic: string, stamp: BatchId) {
   try {
     console.log("UserActivity table inside removeIdleUsers: ", userActivityTable);
+    const idleMs: UserActivity = {};
+
+    for (const rawKey in userActivityTable) {
+      const key = rawKey as unknown as EthAddress;
+      const now = Date.now();
+      idleMs[key] = now - userActivityTable[key];
+    }
+
+    const activeUsers = users.filter((user) => {
+      const userAddr = user.address;
+      console.log(`(activeUsers filter) userAddr: ${userAddr}, idle ms: ${idleMs[userAddr]} value: ${idleMs[userAddr] < IDLE_TIME}`)
+      return idleMs[userAddr] < IDLE_TIME;
+    });
+
+    // This will be removed later, this is just for testing
+    const inactiveUsers = users.filter((user) => {
+      const userAddr = user.address;
+      return idleMs[userAddr] > IDLE_TIME;
+    });
+
+    console.log("idle times: ", idleMs)
+    console.log("Active users: ", activeUsers);
+    console.log("Inactive users: ", inactiveUsers);
+
+    const activeListChanged = false;
+    //TODO: This could be a function (uploadUserList)
+    if (activeListChanged) {
+      const userRef = await uploadObjectToBee(bee, activeUsers, stamp as any);
+      if (!userRef) throw new Error('Could not upload user list to bee');
+  
+      const feedWriter = graffitiFeedWriterFromTopic(bee, topic);
+  
+      try {
+        await feedWriter.upload(stamp, userRef.reference);
+      } catch (error) {
+        if (isNotFoundError(error)) {
+          await feedWriter.upload(stamp, userRef.reference, { index: 0 });
+        }
+      }
+    }
+
   } catch (error) {
     console.error(error);
     throw new Error('There was an error while removing idle users from the Users feed');
@@ -211,6 +253,7 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
     await setUsers([...users, { ...newUser, index: -1 }]);
 
     const uploadableUsers = users.map((user) => ({ ...user, index: undefined }));
+    console.log("UPLOADABLE USERS: ", uploadableUsers)
     const userRef = await uploadObjectToBee(bee, uploadableUsers, stamp as any);
     if (!userRef) throw new Error('Could not upload user to bee');
 
