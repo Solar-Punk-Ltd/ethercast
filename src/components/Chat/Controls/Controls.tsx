@@ -9,36 +9,53 @@ import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-rea
 import { ChatInput } from './ChatInput/ChatInput';
 
 import './Controls.scss';
-import { EthAddress, MessageData, sendMessage } from '../../../libs/chat';
+import { EthAddress, MessageData, sendMessage, ParticipantDetails, IDLE_TIME } from '../../../libs/chat';
 
 interface ControlsProps {
   privateKey: string;
   topic: string;
   nickname: string;
   stamp: BatchId;
+  reJoin: (participantDetails: ParticipantDetails) => Promise<void>;
 }
 
-export function Controls({ topic, nickname, stamp, privateKey }: ControlsProps) {
+export function Controls({ topic, nickname, stamp, privateKey, reJoin }: ControlsProps) {
   const { account } = useEthers();
 
   const [showIcons, setShowIcons] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [newMessage, setNewMessage] = useState('');
+  const [lastMessageSent, setLastMessageSent] = useState(0);                  // Timestamp of last message that we sent
 
   function handleSmileyClick() {
     setShowIcons(!showIcons);
   }
 
   async function handleSubmit() {
+    const now = Date.now();
+
+    if (lastMessageSent + IDLE_TIME < now) {
+      if (!account) throw 'Could not get Eth address';
+      const details: ParticipantDetails = {
+        nickName: nickname,
+        stamp: stamp,
+        participant: account,
+        key: privateKey
+      }
+      console.info("Rejoining chat...");
+      await reJoin(details);
+      console.info("Rejoined chat!");
+    }
     if (newMessage === '' || isSendingMessage || !account) return;
     setIsSendingMessage(true);
     setShowIcons(false);
+    setLastMessageSent(now);
 
     const messageObj: MessageData = {
       address: account as EthAddress,
       message: newMessage,
       username: nickname,
-      timestamp: Date.now(),
+      timestamp: now,
     };
 
     const result = await sendMessage(account as EthAddress, topic, messageObj, stamp, privateKey);

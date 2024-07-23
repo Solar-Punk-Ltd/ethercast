@@ -164,7 +164,13 @@ export function Chat({ topic }: ChatProps) {
           </button>
         </div>
       ) : (
-        <Controls privateKey={key} topic={topic} nickname={nickName} stamp={stamp as any} />
+        <Controls 
+          privateKey={key} 
+          topic={topic}
+          nickname={nickName}
+          stamp={stamp as any}
+          reJoin={joinToChat}
+        />
       )}
     </div>
   );

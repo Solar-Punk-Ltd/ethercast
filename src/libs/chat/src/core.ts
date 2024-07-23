@@ -151,6 +151,15 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
       return idleMs[userAddr] < IDLE_TIME;
     });
 
+    for (let i = 0; i < users.length; i++) {
+      // This User is not on the UserActivity list, probably recently registered
+      //TODO or did not send any message. That would be bad, that would mean, we would keep a lot of users on the list, this way
+      //TODO it is not sure, that this is the root of the problem. But something that is very related. I think.
+      if (!userActivityTable.hasOwnProperty(users[i].address)) {
+        activeUsers.push(users[i]);
+      }
+    }
+
     // This will be removed later, this is just for testing
     const inactiveUsers = users.filter((user) => {
       const userAddr = user.address;

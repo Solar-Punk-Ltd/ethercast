@@ -1,6 +1,7 @@
 // Constants
 export { 
-    EVENTS 
+    EVENTS,
+    IDLE_TIME
 } from './constants';
 
 // Types

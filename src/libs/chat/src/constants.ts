@@ -23,4 +23,4 @@ export const ETH_ADDRESS_LENGTH = 42;
 export const STREAMER_MESSAGE_CHECK_INTERVAL = 1 * SECOND;
 export const STREAMER_USER_UPDATE_INTERVAL = 8 * SECOND;
 export const REMOVE_INACTIVE_USERS_INTERVAL = 10*SECOND//3 * MINUTE;
-export const IDLE_TIME = 20*SECOND//5 * MINUTE;                                            // What does a user considered 'idle' (not active)
+export const IDLE_TIME = 60*SECOND//5 * MINUTE;                                            // What does a user considered 'idle' (not active)
