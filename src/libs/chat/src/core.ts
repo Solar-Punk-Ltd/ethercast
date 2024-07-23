@@ -22,10 +22,17 @@ import {
   MessageData, 
   ParticipantDetails, 
   User, 
+  UserActivity, 
   UserWithIndex
 } from './types';
 
-import { CONSENSUS_ID, EVENTS, HEX_RADIX } from './constants';
+import { 
+  CONSENSUS_ID, 
+  EVENTS, 
+  HEX_RADIX, 
+  REMOVE_INACTIVE_USERS_INTERVAL, 
+  STREAMER_MESSAGE_CHECK_INTERVAL 
+} from './constants';
 
 const bee = new Bee('http://195.88.57.155:1633');
 const emitter = new EventEmitter();
@@ -38,6 +45,11 @@ let users: UserWithIndex[] = [];
 let usersLoading = false;
 let usersInitIndex: number;
 let ownIndex: number;
+let streamerMessageFetchInterval = null;
+let streamerUserFetchInterval = null;
+let removeIdleUsersInterval = null;
+let messagesIndex = 0;
+let userActivityTable: UserActivity = {};
 
 const eventStates: Record<string, boolean> = {
   loadingInitUsers: false,
@@ -58,9 +70,73 @@ export async function initChatRoom(topic: string, stamp: BatchId) {
   try {
     const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
     await bee.createFeedManifest(stamp, 'sequence', consensusHash, graffitiSigner.address);
+
+    startActivityAnalyzes(topic);
   } catch (error) {
     console.error(error);
     throw new Error('Could not create Users feed');
+  }
+}
+
+async function startActivityAnalyzes(topic: string) {
+  try {
+    const { startFetchingForNewUsers, startLoadingNewMessages } = getChatActions();
+    const { on, off } = getChatActions();
+
+    //streamerUserFetchInterval = setInterval(startFetchingForNewUsers(topic), USER_UPDATE_INTERVAL);
+    streamerMessageFetchInterval = setInterval(() => startLoadingNewMessages(topic), STREAMER_MESSAGE_CHECK_INTERVAL);
+    removeIdleUsersInterval = setInterval(() => removeIdleUsers(topic), REMOVE_INACTIVE_USERS_INTERVAL);
+    // cleanup needs to happen somewhere, possibly in stop(). But that's not part of this library
+
+    on(EVENTS.LOAD_MESSAGE, notifyStreamerAboutNewMessage);
+    //on(EVENTS.LOADING_INIT_USERS, notifyStreamerAboutUserRegistration);
+
+  } catch (error) {
+    console.error(error);
+    throw new Error('Could not start activity analysis');
+  }
+}
+
+async function notifyStreamerAboutUserRegistration() {
+  try {
+    console.log("ENTERED INTO USER NOTIFY")
+    // new user is added to the user activity table
+    // clean up inactive users
+    // re-publish active users list
+    // THIS IS NOT NEEDED!
+    // But maybe it is needed after all, so we are not deleting it just now yet
+
+  } catch (error) {
+    console.error(error);
+    throw new Error('There was an error while processing new user registration on streamer side');
+  }
+}
+
+async function notifyStreamerAboutNewMessage(messages: MessageData[]) {
+  try {
+    console.log("ENTERED INTO MESSAGE NOTIFY")
+    console.log("Last message: ", messages[messagesIndex])
+
+
+    userActivityTable[messages[messagesIndex].address] = messages[messagesIndex].timestamp;
+    console.log("User Activity Table: ", userActivityTable);
+    messagesIndex = messages.length;
+    // message will change the user activity table
+    // clean up inactive users
+    // re-publish active users list
+
+  } catch (error) {
+    console.error(error);
+    throw new Error('There wasn an error while processing new message on streamer side');
+  }
+}
+
+async function removeIdleUsers(topic: string) {
+  try {
+    console.log("UserActivity table inside removeIdleUsers: ", userActivityTable);
+  } catch (error) {
+    console.error(error);
+    throw new Error('There was an error while removing idle users from the Users feed');
   }
 }
 
@@ -182,7 +258,8 @@ async function getNewUsers(topic: string, index: number) {
   for (const user of validUsers) {
     const alreadyRegistered = users.find((u) => u.address === user.address);
     if (!alreadyRegistered) {
-      const res = await getLatestFeedIndex(bee, topic, user.address);
+      const userTopicString = generateUserOwnedFeedId(topic, user.address);
+      const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);
       newUsers.push({ ...user, index: res.nextIndex });
     }
   }
@@ -204,7 +281,6 @@ export function startLoadingNewMessages(topic: string) {
     }
 
     for (const user of users) {
-      console.log("User: ", user)
       messagesQueue.enqueue(() => readMessage(user, topic));
     }
   };
@@ -241,6 +317,7 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
     messages.shift();
   }
 
+  console.log("EMIT is happening (LOAD_MESSAGE)");
   emitter.emit(EVENTS.LOAD_MESSAGE, messages);
 }
 

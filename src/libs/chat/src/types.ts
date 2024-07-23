@@ -29,6 +29,11 @@ export interface User {
     timestamp: number;
     signature: Signature;
 }
+
+// UserActivity shows last message timestamp for each user
+export interface UserActivity {
+    [address: EthAddress]: number;
+}
   
 export interface UserWithIndex extends User {
     index: number;

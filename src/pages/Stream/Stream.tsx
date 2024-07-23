@@ -87,6 +87,7 @@ export function Stream() {
 
   const stop = WithErrorBoundary(() => {
     stopStream();
+    // clear timeouts
     setIsLive(false);
   });
 

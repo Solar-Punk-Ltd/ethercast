@@ -228,7 +228,7 @@ export class RunningAverage {
 
   getAverage() {
     if (this.values.length === 0) {
-      return 500;
+      return 5000;
     }
     return this.sum / this.values.length;
   }
