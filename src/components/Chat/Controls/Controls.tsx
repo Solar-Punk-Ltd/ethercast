@@ -10,6 +10,8 @@ import { ChatInput } from './ChatInput/ChatInput';
 
 import './Controls.scss';
 import { EthAddress, MessageData, sendMessage, ParticipantDetails, IDLE_TIME } from '../../../libs/chat';
+import { LinearProgress } from '@mui/material';
+import { sleep } from '../../../utils/common';
 
 interface ControlsProps {
   privateKey: string;
@@ -24,6 +26,7 @@ export function Controls({ topic, nickname, stamp, privateKey, reJoin }: Control
 
   const [showIcons, setShowIcons] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [isRejoining, setIsRejoining] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [lastMessageSent, setLastMessageSent] = useState(0);                  // Timestamp of last message that we sent
 
@@ -34,7 +37,7 @@ export function Controls({ topic, nickname, stamp, privateKey, reJoin }: Control
   async function handleSubmit() {
     const now = Date.now();
 
-    if (lastMessageSent + IDLE_TIME < now) {
+    if (lastMessageSent + IDLE_TIME < now && lastMessageSent > 0) {
       if (!account) throw 'Could not get Eth address';
       const details: ParticipantDetails = {
         nickName: nickname,
@@ -42,9 +45,12 @@ export function Controls({ topic, nickname, stamp, privateKey, reJoin }: Control
         participant: account,
         key: privateKey
       }
+      setIsRejoining(true);
       console.info("Rejoining chat...");
       await reJoin(details);
+      await sleep(10 * 1000);     // this is a workaround, we should know if User is already on the list on the other side, or not
       console.info("Rejoined chat!");
+      setIsRejoining(false);
     }
     if (newMessage === '' || isSendingMessage || !account) return;
     setIsSendingMessage(true);
@@ -79,16 +85,26 @@ export function Controls({ topic, nickname, stamp, privateKey, reJoin }: Control
 
   return (
     <div className="controls">
-      <ChatInput
-        className="chat-input"
-        value={newMessage}
-        onKeyPressed={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyPress(e)}
-        setValue={setNewMessage}
-        name={nickname}
-        disabled={isSendingMessage}
-        placeholder={'Type your message here'}
-        textareaClassName={isSendingMessage}
-      />
+      {!isRejoining ? (
+        <ChatInput
+          className="chat-input"
+          value={newMessage}
+          onKeyPressed={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyPress(e)}
+          setValue={setNewMessage}
+          name={nickname}
+          disabled={isSendingMessage}
+          placeholder={'Type your message here'}
+          textareaClassName={isSendingMessage}
+        />
+      ) : 
+      (
+        <LinearProgress sx={{
+          width: '100%',
+          maxHeight: '120px',
+          overflow: 'auto',}}
+        />
+      )
+      }
       {showIcons && (
         <div className="text-input-icons">
           <EmojiPicker

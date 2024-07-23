@@ -4,7 +4,7 @@ import { CircularProgress } from '@mui/material';
 import { useEthers } from '@usedapp/core';
 
 import { WithAsyncErrorBoundary } from '../../hooks/WithErrorBoundary';
-import { ParticipantDetails, UserWithIndex } from '../../libs/chat/src/core';
+import { ParticipantDetails, UserWithIndex } from '../../libs/chat';
 import { assertBatchId } from '../../utils/formValidation';
 import { Button } from '../Button/Button';
 import { FormContainer } from '../FormContainer/FormContainer';
