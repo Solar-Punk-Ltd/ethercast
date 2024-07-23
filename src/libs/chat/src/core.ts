@@ -1,5 +1,6 @@
 import { BatchId, Bee, Reference } from '@ethersphere/bee-js';
 import { ethers, Signature } from 'ethers';
+import { isEqual } from 'lodash';
 
 import { 
   generateGraffitiFeedMetadata,
@@ -44,13 +45,14 @@ let usersQueue: AsyncQueue;
 let messagesQueue: AsyncQueue;
 let users: UserWithIndex[] = [];
 let usersLoading = false;
-let usersInitIndex: number;
+let usersFeedIndex: number = 0;                               // Will be overwritten on user-side, by initUsers
 let ownIndex: number;
 let streamerMessageFetchInterval = null;
 let streamerUserFetchInterval = null;
 let removeIdleUsersInterval = null;
 let messagesIndex = 0;
 let userActivityTable: UserActivity = {};
+let previousActiveUsers: UserWithIndex[] = [];
 
 const eventStates: Record<string, boolean> = {
   loadingInitUsers: false,
@@ -159,9 +161,10 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
     console.log("Active users: ", activeUsers);
     console.log("Inactive users: ", inactiveUsers);
 
-    const activeListChanged = false;
+    const activeListChanged = !isEqual(previousActiveUsers, activeUsers);
     //TODO: This could be a function (uploadUserList)
     if (activeListChanged) {
+      console.log("LIST CHANGED! Rewritting user list...");
       const userRef = await uploadObjectToBee(bee, activeUsers, stamp as any);
       if (!userRef) throw new Error('Could not upload user list to bee');
   
@@ -169,12 +172,15 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
   
       try {
         await feedWriter.upload(stamp, userRef.reference);
+        console.log("Upload was successful!")
       } catch (error) {
         if (isNotFoundError(error)) {
           await feedWriter.upload(stamp, userRef.reference, { index: 0 });
         }
       }
     }
+
+    previousActiveUsers = activeUsers;
 
   } catch (error) {
     console.error(error);
@@ -189,7 +195,7 @@ export async function initUsers(topic: string): Promise<UserWithIndex[] | null> 
     const feedReader = graffitiFeedReaderFromTopic(bee, topic);
 
     const feedEntry = await feedReader.download();
-    usersInitIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
+    usersFeedIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
 
     const data = await bee.downloadData(feedEntry.reference);
 
@@ -276,40 +282,60 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
 
 export function startFetchingForNewUsers(topic: string) {
   if (!usersQueue) {
-    usersQueue = new AsyncQueue({ indexed: true, index: numberToFeedIndex(usersInitIndex!), waitable: true, max: 1 });
+    //TODO we have to think about how index is exactly working here, and if it is connected to the Graffiti feed's index itself.
+    usersQueue = new AsyncQueue({ indexed: true, index: numberToFeedIndex(usersFeedIndex!), waitable: true, max: 1 });
   }
-  return () => usersQueue.enqueue((index) => getNewUsers(topic, parseInt(index as string, HEX_RADIX)));
+  return () => usersQueue.enqueue((index) => getNewUsers(topic/*, parseInt(index as string, HEX_RADIX)*/));
 }
 
-async function getNewUsers(topic: string, index: number) {
-  emitStateEvent(EVENTS.LOADING_USERS, true);
-
-  const feedReader = graffitiFeedReaderFromTopic(bee, topic, { timeout: Math.floor(reqTimeAvg.getAverage() * 1.6) });
-  const feedEntry = await feedReader.download({ index });
-
-  const data = await bee.downloadData(feedEntry.reference);
-  const rawUsers = data.json() as unknown as User[];
-
-  if (!Array.isArray(rawUsers)) {
-    console.error('New users is not an array');
-    return;
-  }
-
-  const validUsers = rawUsers.filter((user) => validateUserObject(user));
-  const newUsers = [...users];
-
-  for (const user of validUsers) {
-    const alreadyRegistered = users.find((u) => u.address === user.address);
-    if (!alreadyRegistered) {
-      const userTopicString = generateUserOwnedFeedId(topic, user.address);
-      const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);
-      newUsers.push({ ...user, index: res.nextIndex });
+async function getNewUsers(topic: string) {
+  try {
+  console.log("INDEX for Users feed: ", usersFeedIndex)
+    emitStateEvent(EVENTS.LOADING_USERS, true);
+  
+    const feedReader = graffitiFeedReaderFromTopic(bee, topic, { timeout: Math.floor(reqTimeAvg.getAverage() * 1.6) });
+    const feedEntry = await feedReader.download({ index: usersFeedIndex });
+  
+    const data = await bee.downloadData(feedEntry.reference);
+    const rawUsers = data.json() as unknown as User[];
+  
+    if (!Array.isArray(rawUsers)) {
+      console.error('New users is not an array');
+      return;
+    }
+  
+    const validUsers = rawUsers.filter((user) => validateUserObject(user));
+  console.log("validUsers (this is getNewUsers cycle): ", validUsers)  
+    const newUsers = [];
+  
+    for (const user of validUsers) {
+      //const alreadyRegistered = users.find((u) => u.address === user.address);
+      //TODO it would be best, if somewhere we would store inactive users, and would be able to reactivate them, when they send a new message
+      //TODO this current solution is more expensive, but it will still work
+      const alreadyRegistered = false
+      if (!alreadyRegistered) {
+        const userTopicString = generateUserOwnedFeedId(topic, user.address);
+        const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);
+        newUsers.push({ ...user, index: res.nextIndex });
+      }
+    }
+  
+    await setUsers(newUsers);
+    console.log("INCREMENTING usersFeedIndex");
+    usersFeedIndex = usersFeedIndex + 1;              // We assume that download was successful. Next time we are checking next index.
+  
+    emitStateEvent(EVENTS.LOADING_USERS, false);
+    
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes("timeout")) {
+        console.info(`Timeout of ${Math.floor(reqTimeAvg.getAverage()*1.6)} exceeded.`);
+      } else {
+        console.error(error);
+        throw new Error('There was an error in the getNewUsers function');
+      }
     }
   }
-
-  await setUsers(newUsers);
-
-  emitStateEvent(EVENTS.LOADING_USERS, false);
 }
 
 export function startLoadingNewMessages(topic: string) {
@@ -323,7 +349,7 @@ export function startLoadingNewMessages(topic: string) {
     if (isWaiting) {
       return;
     }
-
+console.log("Users (startLoadingNewMessages): ", users)
     for (const user of users) {
       messagesQueue.enqueue(() => readMessage(user, topic));
     }
