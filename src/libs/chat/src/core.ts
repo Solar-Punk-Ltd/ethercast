@@ -83,13 +83,13 @@ async function startActivityAnalyzes(topic: string) {
     const { startFetchingForNewUsers, startLoadingNewMessages } = getChatActions();
     const { on, off } = getChatActions();
 
-    //streamerUserFetchInterval = setInterval(startFetchingForNewUsers(topic), USER_UPDATE_INTERVAL);
-    streamerMessageFetchInterval = setInterval(() => startLoadingNewMessages(topic), STREAMER_MESSAGE_CHECK_INTERVAL);
+    streamerUserFetchInterval = setInterval(startFetchingForNewUsers(topic), STREAMER_MESSAGE_CHECK_INTERVAL);            // startFetchingForNewUsers is returning a function
+    streamerMessageFetchInterval = setInterval(startLoadingNewMessages(topic), STREAMER_MESSAGE_CHECK_INTERVAL);          // startLoadingNewMessages is returning a function
     removeIdleUsersInterval = setInterval(() => removeIdleUsers(topic), REMOVE_INACTIVE_USERS_INTERVAL);
     // cleanup needs to happen somewhere, possibly in stop(). But that's not part of this library
 
     on(EVENTS.LOAD_MESSAGE, notifyStreamerAboutNewMessage);
-    //on(EVENTS.LOADING_INIT_USERS, notifyStreamerAboutUserRegistration);
+    on(EVENTS.LOADING_INIT_USERS, notifyStreamerAboutUserRegistration);
 
   } catch (error) {
     console.error(error);
@@ -233,7 +233,7 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
 
 export function startFetchingForNewUsers(topic: string) {
   if (!usersQueue) {
-    usersQueue = new AsyncQueue({ indexed: true, index: numberToFeedIndex(usersInitIndex!), waitable: true });
+    usersQueue = new AsyncQueue({ indexed: true, index: numberToFeedIndex(usersInitIndex!), waitable: true, max: 1 });
   }
   return () => usersQueue.enqueue((index) => getNewUsers(topic, parseInt(index as string, HEX_RADIX)));
 }
@@ -270,6 +270,7 @@ async function getNewUsers(topic: string, index: number) {
 }
 
 export function startLoadingNewMessages(topic: string) {
+  console.log("ENTERED startLoadingNewMessages")
   if (!messagesQueue) {
     messagesQueue = new AsyncQueue({ indexed: false, waitable: true, max: 8 });
   }
