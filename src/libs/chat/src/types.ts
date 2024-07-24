@@ -42,6 +42,12 @@ export interface UserActivity {
 export interface IdleMs {
     [address: EthAddress]: number;
 }
+
+// This object will be pushed to the Users feed
+export interface UsersFeedCommit {
+    users: User[];
+    overwrite: boolean;
+}
   
 export interface UserWithIndex extends User {
     index: number;

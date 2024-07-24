@@ -25,6 +25,7 @@ import {
   ParticipantDetails, 
   User, 
   UserActivity, 
+  UsersFeedCommit, 
   UserWithIndex
 } from './types';
 
@@ -46,7 +47,6 @@ const reqTimeAvg = new RunningAverage(100);
 let usersQueue: AsyncQueue;
 let messagesQueue: AsyncQueue;
 let users: UserWithIndex[] = [];
-let streamerMode = false;                                     // The application is running on the Streamer side, who is doing the Users feed clean up
 let inactiveUsers: UserWithIndex[] = [];                      // Currently not polling messages from these users
 let usersLoading = false;
 let usersFeedIndex: number = 0;                               // Will be overwritten on user-side, by initUsers
@@ -78,7 +78,6 @@ export async function initChatRoom(topic: string, stamp: BatchId) {
   try {
     const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
     await bee.createFeedManifest(stamp, 'sequence', consensusHash, graffitiSigner.address);
-    streamerMode = true;
 
     startActivityAnalyzes(topic, stamp);
   } catch (error) {
@@ -174,7 +173,6 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
     }
 
     console.log("Users inside removeIdle: ", users)
-    //TODO rename activeUsers to users
     const activeUsers = users.filter((user) => {
       const userAddr = user.address;
       if (!userActivityTable[userAddr]) {
@@ -196,7 +194,11 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
     //TODO: This could be a function (uploadUserList)
     if (activeListChanged) {
       console.log("LIST CHANGED! Rewritting user list...");
-      const userRef = await uploadObjectToBee(bee, activeUsers, stamp as any);
+      const uploadObject: UsersFeedCommit = {
+        users: activeUsers,
+        overwrite: true
+      }
+      const userRef = await uploadObjectToBee(bee, uploadObject, stamp as any);
       if (!userRef) throw new Error('Could not upload user list to bee');
   
       const feedWriter = graffitiFeedWriterFromTopic(bee, topic);
@@ -231,8 +233,8 @@ export async function initUsers(topic: string): Promise<UserWithIndex[] | null> 
 
     const data = await bee.downloadData(feedEntry.reference);
 
-    const rawUsers = data.json() as unknown as User[];
-    const validUsers = rawUsers.filter((user) => validateUserObject(user));
+    const objectFromFeed = data.json() as unknown as UsersFeedCommit;
+    const validUsers = objectFromFeed.users.filter((user) => validateUserObject(user));
     const usersPromises = validUsers.map(async (user) => {
       const userTopicString = generateUserOwnedFeedId(topic, user.address);
       const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);
@@ -289,7 +291,11 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
     await setUsers([...users, { ...newUser, index: -1 }]);
 
     const uploadableUsers = users.map((user) => ({ ...user, index: undefined }));
-    const userRef = await uploadObjectToBee(bee, uploadableUsers, stamp as any);
+    const uploadObject: UsersFeedCommit = {
+      users: uploadableUsers,
+      overwrite: false
+    }
+    const userRef = await uploadObjectToBee(bee, uploadObject, stamp as any);
     if (!userRef) throw new Error('Could not upload user to bee');
 
     const feedWriter = graffitiFeedWriterFromTopic(bee, topic);
@@ -322,36 +328,36 @@ async function getNewUsers(topic: string) {
     emitStateEvent(EVENTS.LOADING_USERS, true);
   
     const feedReader = graffitiFeedReaderFromTopic(bee, topic/*, { timeout: Math.floor(reqTimeAvg.getAverage() * 1.6) }*/);
-    const feedEntry = await feedReader.download();
+    console.log("usersFeedIndex: ", usersFeedIndex)
+    const feedEntry = await feedReader.download({ index: usersFeedIndex });
   
     const data = await bee.downloadData(feedEntry.reference);
-    const rawUsers = data.json() as unknown as User[];
+    const objectFromFeed = data.json() as unknown as UsersFeedCommit;
+    console.log("New UsersFeedCommit received! ", objectFromFeed)
   
-    if (!Array.isArray(rawUsers)) {
-      console.error('New users is not an array');
-      return;
-    }
-  
-    const validUsers = rawUsers.filter((user) => validateUserObject(user));
+    const validUsers = objectFromFeed.users.filter((user) => validateUserObject(user));
     const newUsersSet = new Set(validUsers.map((user) => user.address));
     inactiveUsers = [...inactiveUsers, ...users.filter((user) => !newUsersSet.has(user.address))];
 
     let newUsers: UserWithIndex[] = [];
-    if (streamerMode) newUsers = [...users];            // If it's on Streamer side, we accumulate, and removeIdleUsers will clean it up
+    if (!objectFromFeed.overwrite) newUsers = [...users];                                        // In this case, we accumulate User objects, othetwise, we owerwrite it
 
     for (const user of validUsers) {
       const alreadyRegistered = users.find((u) => u.address === user.address);
-      if (alreadyRegistered) continue;
-      const deactivatedUser = inactiveUsers.find((u) => u.address === user.address);
+      if (alreadyRegistered && objectFromFeed.overwrite) {                                       // If we are in overwrite mode, we need to add back these users to the feed
+        newUsers.push(alreadyRegistered);
+        continue;
+      }
+      const deactivatedUser = inactiveUsers.find((u) => u.address === user.address);             // This is a rejoin (user registers again, after being idle)
       
       if (deactivatedUser) {
         // Re-add user to active users
         newUsers.push(deactivatedUser);
-        inactiveUsers = inactiveUsers.filter((user) => user !== deactivatedUser);
+        inactiveUsers = inactiveUsers.filter((user) => user !== deactivatedUser);                // We remove the User from the inactive list
         continue;
       } else {
-        const userTopicString = generateUserOwnedFeedId(topic, user.address);
-        const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);
+        const userTopicString = generateUserOwnedFeedId(topic, user.address);                    // First registration, initalization
+        const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);    // probably { 0, 1 } would just work fine
         newUsers.push({ ...user, index: res.nextIndex });
       }
     }
@@ -385,7 +391,7 @@ export function startLoadingNewMessages(topic: string) {
     if (isWaiting) {
       return;
     }
-console.log("Users (startLoadingNewMessages): ", users)
+
     for (const user of users) {
       messagesQueue.enqueue(() => readMessage(user, topic));
     }
