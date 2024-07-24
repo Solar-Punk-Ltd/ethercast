@@ -227,26 +227,33 @@ export async function initUsers(topic: string): Promise<UserWithIndex[] | null> 
     emitStateEvent(EVENTS.LOADING_INIT_USERS, true);
 
     const feedReader = graffitiFeedReaderFromTopic(bee, topic);
+    let aggregatedList: UserWithIndex[] = [];
 
     const feedEntry = await feedReader.download();
     usersFeedIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
 
-    const data = await bee.downloadData(feedEntry.reference);
+    for (let i = usersFeedIndex; i > 0 ; i--) {
+      const feedEntry = await feedReader.download();
+      const data = await bee.downloadData(feedEntry.reference);
+      const objectFromFeed = data.json() as unknown as UsersFeedCommit;
+      const validUsers = objectFromFeed.users.filter((user) => validateUserObject(user));
+      if (objectFromFeed.overwrite) {                             // They will have index that was already written to the object by Streamer
+        const usersBatch: UserWithIndex[] = validUsers as unknown as UserWithIndex[];
+        aggregatedList = [...aggregatedList, ...usersBatch];
+      } else {                                                    // These do not have index, but we can initialize them to 0
+        const usersBatch = validUsers.map((user) => {
+          return { 
+            ...user, 
+            index: 0
+          };
+        });
+        aggregatedList = [...aggregatedList, ...usersBatch];
+      }
+    }
 
-    const objectFromFeed = data.json() as unknown as UsersFeedCommit;
-    const validUsers = objectFromFeed.users.filter((user) => validateUserObject(user));
-    const usersPromises = validUsers.map(async (user) => {
-      const userTopicString = generateUserOwnedFeedId(topic, user.address);
-      const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);
-      return { 
-        ...user, 
-        index: res.nextIndex
-      };
-    });
-    const users = await Promise.all(usersPromises);
-    await setUsers(users);
+    await setUsers(aggregatedList);
 
-    return users;
+    return aggregatedList;
   } catch (error) {
     console.error('Init users error: ', error);
     throw error;
@@ -425,10 +432,10 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
     const data = await bee.downloadData(recordPointer.reference);
     const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
   
-    //const newUsers = users.map((u) => (u.address === user.address ? { ...u, index: currIndex + 1 } : u));
-    const uIndex = users.findIndex((u) => (u.address === user.address));
-    users[uIndex].index = currIndex + 1;
-    //await setUsers(newUsers);     // this might give some safety, but we will turn it off for now
+    const newUsers = users.map((u) => (u.address === user.address ? { ...u, index: currIndex + 1 } : u));
+    //const uIndex = users.findIndex((u) => (u.address === user.address));
+    //users[uIndex].index = currIndex + 1;
+    await setUsers(newUsers);     // this might give some safety, but we will turn it off for now
   
     messages.push(messageData);
   
