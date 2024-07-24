@@ -356,9 +356,14 @@ async function getNewUsers(topic: string) {
         inactiveUsers = inactiveUsers.filter((user) => user !== deactivatedUser);                // We remove the User from the inactive list
         continue;
       } else {
-        const userTopicString = generateUserOwnedFeedId(topic, user.address);                    // First registration, initalization
-        const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);    // probably { 0, 1 } would just work fine
-        newUsers.push({ ...user, index: res.nextIndex });
+        const didApplicationReload = false;                                                      // Placeholder for that scenario, if the Stream would be restartable. Then we would lose the state.
+        if (!didApplicationReload) {
+          newUsers.push({...user, index: 0 });                                                   // Freshly registered User, not in inactiveUsers list, not already registered
+        } else {
+          const userTopicString = generateUserOwnedFeedId(topic, user.address);                  // First registration, initalization
+          const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);
+          newUsers.push({...user, index: res.nextIndex});
+        }
       }
     }
   
