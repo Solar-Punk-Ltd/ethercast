@@ -20,6 +20,7 @@ import { AsyncQueue } from './asyncQueue';
 
 import { 
   EthAddress, 
+  IdleMs, 
   MessageData, 
   ParticipantDetails, 
   User, 
@@ -33,7 +34,8 @@ import {
   HEX_RADIX, 
   IDLE_TIME, 
   REMOVE_INACTIVE_USERS_INTERVAL, 
-  STREAMER_MESSAGE_CHECK_INTERVAL 
+  STREAMER_MESSAGE_CHECK_INTERVAL, 
+  STREAMER_USER_UPDATE_INTERVAL
 } from './constants';
 
 const bee = new Bee('http://195.88.57.155:1633');
@@ -44,6 +46,7 @@ const reqTimeAvg = new RunningAverage(100);
 let usersQueue: AsyncQueue;
 let messagesQueue: AsyncQueue;
 let users: UserWithIndex[] = [];
+let streamerMode = false;                                     // The application is running on the Streamer side, who is doing the Users feed clean up
 let inactiveUsers: UserWithIndex[] = [];                      // Currently not polling messages from these users
 let usersLoading = false;
 let usersFeedIndex: number = 0;                               // Will be overwritten on user-side, by initUsers
@@ -75,6 +78,7 @@ export async function initChatRoom(topic: string, stamp: BatchId) {
   try {
     const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
     await bee.createFeedManifest(stamp, 'sequence', consensusHash, graffitiSigner.address);
+    streamerMode = true;
 
     startActivityAnalyzes(topic, stamp);
   } catch (error) {
@@ -88,7 +92,7 @@ async function startActivityAnalyzes(topic: string, stamp: BatchId) {
     const { startFetchingForNewUsers, startLoadingNewMessages } = getChatActions();
     const { on, off } = getChatActions();
 
-    streamerUserFetchInterval = setInterval(startFetchingForNewUsers(topic), STREAMER_MESSAGE_CHECK_INTERVAL);            // startFetchingForNewUsers is returning a function
+    streamerUserFetchInterval = setInterval(startFetchingForNewUsers(topic), STREAMER_USER_UPDATE_INTERVAL);              // startFetchingForNewUsers is returning a function
     streamerMessageFetchInterval = setInterval(startLoadingNewMessages(topic), STREAMER_MESSAGE_CHECK_INTERVAL);          // startLoadingNewMessages is returning a function
     removeIdleUsersInterval = setInterval(() => removeIdleUsers(topic, stamp), REMOVE_INACTIVE_USERS_INTERVAL);
     // cleanup needs to happen somewhere, possibly in stop(). But that's not part of this library
@@ -105,7 +109,6 @@ async function startActivityAnalyzes(topic: string, stamp: BatchId) {
 
 async function notifyStreamerAboutUserRegistration() {
   try {
-    console.log("ENTERED INTO USER NOTIFY")
     
     if (previousActiveUsers.length >= users.length) {
       console.info("previousActiveUsers list is bigger or equal to current users list. Exiting function.");
@@ -118,7 +121,7 @@ async function notifyStreamerAboutUserRegistration() {
       for (let i = start; i < users.length; i++) {
         const address = users[i].address;
         console.info(`Inserting Date.now() to ${address}`);
-        userActivityTable[address] = Date.now();
+        userActivityTable[address].timestamp = Date.now();
       }
     }
 
@@ -135,8 +138,19 @@ async function notifyStreamerAboutNewMessage(messages: MessageData[]) {
     console.log("ENTERED INTO MESSAGE NOTIFY")
     console.log("Last message: ", messages[messagesIndex])
 
+    // Initializing UserActivity table entry
+    if (!userActivityTable[messages[messagesIndex].address]) {
+      userActivityTable[messages[messagesIndex].address] = {
+        timestamp: Date.now(),
+        readFails: 0
+      }
+    }
 
-    userActivityTable[messages[messagesIndex].address] = messages[messagesIndex].timestamp;
+    userActivityTable[messages[messagesIndex].address] = {
+      timestamp: messages[messagesIndex].timestamp,
+      readFails: 0
+    }
+
     console.log("User Activity Table: ", userActivityTable);
     messagesIndex = messages.length;
 
@@ -151,17 +165,25 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
     console.log("UserActivity table inside removeIdleUsers: ", userActivityTable);
     if (removeIdleIsRunning) return;
     removeIdleIsRunning = true;
-    const idleMs: UserActivity = {};
+    const idleMs: IdleMs = {};
     const now = Date.now();
 
     for (const rawKey in userActivityTable) {
       const key = rawKey as unknown as EthAddress;
-      idleMs[key] = now - userActivityTable[key];
+      idleMs[key] = now - userActivityTable[key].timestamp;
     }
 
+    console.log("Users inside removeIdle: ", users)
+    //TODO rename activeUsers to users
     const activeUsers = users.filter((user) => {
       const userAddr = user.address;
-      console.log(`(activeUsers filter) userAddr: ${userAddr}, idle ms: ${idleMs[userAddr]} value: ${idleMs[userAddr] < IDLE_TIME}`)
+      if (!userActivityTable[userAddr]) {
+        userActivityTable[userAddr] = { timestamp: Date.now(), readFails: 0 }
+        return true;
+      }
+      const lastActivityTime = idleMs[userAddr];
+      const effectiveIdleTime = IDLE_TIME - (userActivityTable[userAddr].readFails * STREAMER_MESSAGE_CHECK_INTERVAL);
+      
       return idleMs[userAddr] < IDLE_TIME;
     });
 
@@ -180,20 +202,19 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
       const feedWriter = graffitiFeedWriterFromTopic(bee, topic);
   
       try {
-        await feedWriter.upload(stamp, userRef.reference);      // we don't we do { index } here?
+        await feedWriter.upload(stamp, userRef.reference);
         console.log("Upload was successful!")
       } catch (error) {
         console.log("UPLOAD ERROR (removeIdleUsers)");
-        /*if (isNotFoundError(error)) {
-          await feedWriter.upload(stamp, userRef.reference, { index: 0 });
-        }*/
       }
     }
 
     previousActiveUsers = activeUsers.map((user) => user.address);
+    users = activeUsers;
     removeIdleIsRunning = false;
 
   } catch (error) {
+    removeIdleIsRunning = false;
     console.error(error);
     throw new Error('There was an error while removing idle users from the Users feed');
   }
@@ -213,10 +234,8 @@ export async function initUsers(topic: string): Promise<UserWithIndex[] | null> 
     const rawUsers = data.json() as unknown as User[];
     const validUsers = rawUsers.filter((user) => validateUserObject(user));
     const usersPromises = validUsers.map(async (user) => {
-      console.log("the user: ", user)
       const userTopicString = generateUserOwnedFeedId(topic, user.address);
       const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);
-      console.log("init user res: ", res)
       return { 
         ...user, 
         index: res.nextIndex
@@ -270,7 +289,6 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
     await setUsers([...users, { ...newUser, index: -1 }]);
 
     const uploadableUsers = users.map((user) => ({ ...user, index: undefined }));
-    console.log("UPLOADABLE USERS: ", uploadableUsers)
     const userRef = await uploadObjectToBee(bee, uploadableUsers, stamp as any);
     if (!userRef) throw new Error('Could not upload user to bee');
 
@@ -296,16 +314,15 @@ export function startFetchingForNewUsers(topic: string) {
     //TODO we have to think about how index is exactly working here, and if it is connected to the Graffiti feed's index itself.
     usersQueue = new AsyncQueue({ indexed: true, index: numberToFeedIndex(usersFeedIndex!), waitable: true, max: 1 });
   }
-  return () => usersQueue.enqueue((index) => getNewUsers(topic/*, parseInt(index as string, HEX_RADIX)*/));
+  return () => usersQueue.enqueue((index) => getNewUsers(topic));
 }
 
 async function getNewUsers(topic: string) {
   try {
-  console.log("INDEX for Users feed: ", usersFeedIndex)
     emitStateEvent(EVENTS.LOADING_USERS, true);
   
-    const feedReader = graffitiFeedReaderFromTopic(bee, topic, { timeout: Math.floor(reqTimeAvg.getAverage() * 1.6) });
-    const feedEntry = await feedReader.download({ index: usersFeedIndex });
+    const feedReader = graffitiFeedReaderFromTopic(bee, topic/*, { timeout: Math.floor(reqTimeAvg.getAverage() * 1.6) }*/);
+    const feedEntry = await feedReader.download();
   
     const data = await bee.downloadData(feedEntry.reference);
     const rawUsers = data.json() as unknown as User[];
@@ -317,21 +334,22 @@ async function getNewUsers(topic: string) {
   
     const validUsers = rawUsers.filter((user) => validateUserObject(user));
     const newUsersSet = new Set(validUsers.map((user) => user.address));
-    inactiveUsers = users.filter((user) => !newUsersSet.has(user.address));
+    inactiveUsers = [...inactiveUsers, ...users.filter((user) => !newUsersSet.has(user.address))];
 
-    const newUsers = [];
+    let newUsers: UserWithIndex[] = [];
+    if (streamerMode) newUsers = [...users];            // If it's on Streamer side, we accumulate, and removeIdleUsers will clean it up
 
     for (const user of validUsers) {
-      const alreadyRegistered = users.find((u) => u.address === user.address);              // Not sure if this is needed. Probably only the other condition is needed.
+      const alreadyRegistered = users.find((u) => u.address === user.address);
+      if (alreadyRegistered) continue;
       const deactivatedUser = inactiveUsers.find((u) => u.address === user.address);
       
       if (deactivatedUser) {
         // Re-add user to active users
-        users.push(deactivatedUser);
+        newUsers.push(deactivatedUser);
+        inactiveUsers = inactiveUsers.filter((user) => user !== deactivatedUser);
         continue;
       } else {
-
-      //if (!alreadyRegistered) {
         const userTopicString = generateUserOwnedFeedId(topic, user.address);
         const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);
         newUsers.push({ ...user, index: res.nextIndex });
@@ -339,7 +357,6 @@ async function getNewUsers(topic: string) {
     }
   
     await setUsers(newUsers);
-    console.log("INCREMENTING usersFeedIndex");
     usersFeedIndex++;                                                                       // We assume that download was successful. Next time we are checking next index.
   
     emitStateEvent(EVENTS.LOADING_USERS, false);
@@ -349,15 +366,16 @@ async function getNewUsers(topic: string) {
       if (error.message.includes("timeout")) {
         console.info(`Timeout of ${Math.floor(reqTimeAvg.getAverage()*1.6)} exceeded.`);
       } else {
-        console.error(error);
-        throw new Error('There was an error in the getNewUsers function');
+        if (!isNotFoundError(error)) {
+          console.error(error);
+          throw new Error('There was an error in the getNewUsers function');
+        }
       }
     }
   }
 }
 
 export function startLoadingNewMessages(topic: string) {
-  console.log("ENTERED startLoadingNewMessages")
   if (!messagesQueue) {
     messagesQueue = new AsyncQueue({ indexed: false, waitable: true, max: 8 });
   }
@@ -396,8 +414,10 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
     const data = await bee.downloadData(recordPointer.reference);
     const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
   
-    const newUsers = users.map((u) => (u.address === user.address ? { ...u, index: currIndex + 1 } : u));
-    await setUsers(newUsers);
+    //const newUsers = users.map((u) => (u.address === user.address ? { ...u, index: currIndex + 1 } : u));
+    const uIndex = users.findIndex((u) => (u.address === user.address));
+    users[uIndex].index = currIndex + 1;
+    //await setUsers(newUsers);     // this might give some safety, but we will turn it off for now
   
     messages.push(messageData);
   
@@ -406,15 +426,17 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
       messages.shift();
     }
   
-    console.log("EMIT is happening (LOAD_MESSAGE)");
     emitter.emit(EVENTS.LOAD_MESSAGE, messages);
   } catch (error) {
     if (error instanceof Error) {
       if (error.message.includes("timeout")) {
         console.info(`Timeout of ${Math.floor(reqTimeAvg.getAverage()*1.6)} exceeded for readMessage.`);
       } else {
-        console.error(error);
-        throw new Error('There was an error in the readMessage function');
+        if (!isNotFoundError(error)) {
+          if (userActivityTable[user.address]) userActivityTable[user.address].readFails++;                  // We increment read fail count
+          console.error(error);
+          throw new Error('There was an error in the readMessage function');
+        }
       }
     }
   }
@@ -433,11 +455,8 @@ export async function sendMessage(
     const feedID = generateUserOwnedFeedId(topic, address);
     const feedTopicHex = bee.makeFeedTopic(feedID);
 
-    console.log('feedTopicHex', feedTopicHex);
     if (!ownIndex) {
-      console.log('ownIndex', ownIndex);
       const { nextIndex } = await getLatestFeedIndex(bee, feedTopicHex, address);
-      console.log('nextIndex', nextIndex);
       ownIndex = nextIndex;
     }
 

@@ -20,7 +20,7 @@ export const HEX_RADIX = 16;
 export const ETH_ADDRESS_LENGTH = 42;
 
 // These are used for removing the inactive users from the message fetch loop
-export const STREAMER_MESSAGE_CHECK_INTERVAL = 1 * SECOND;
+export const STREAMER_MESSAGE_CHECK_INTERVAL = 2 * SECOND;
 export const STREAMER_USER_UPDATE_INTERVAL = 8 * SECOND;
 export const REMOVE_INACTIVE_USERS_INTERVAL = 10*SECOND//3 * MINUTE;
 export const IDLE_TIME = 60*SECOND//5 * MINUTE;                                            // When does a user considered 'idle' (not active)

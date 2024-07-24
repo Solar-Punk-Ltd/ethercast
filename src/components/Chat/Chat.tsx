@@ -15,7 +15,7 @@ import { Message } from './Message/Message';
 
 import './Chat.scss';
 import { MessageData, ParticipantDetails, UserWithIndex } from '../../libs/chat/'
-import { retryAsync, retryAwaitableAsync } from '../../utils/common';
+import { retryAwaitableAsync } from '../../utils/common';
 
 interface ChatProps {
   topic: string;
@@ -26,7 +26,7 @@ enum WriteMode {
   MESSAGE,
 }
 
-const MESSAGE_CHECK_INTERVAL = 1000;
+const MESSAGE_CHECK_INTERVAL = 2000;
 const USER_UPDATE_INTERVAL = 8000;
 
 export function Chat({ topic }: ChatProps) {
@@ -76,12 +76,12 @@ export function Chat({ topic }: ChatProps) {
       return;
     }
 
-    retryAsync(() => initUsers(topic).then((users) => {
+    initUsers(topic).then((users) => {
       if (users?.length && account) {
         const user = users.find((u) => u.address.toLocaleLowerCase() === account.toLocaleLowerCase());
         setUser(user);
       }
-    }));
+    });
   }, [account, topic, isLoading]);
 
   useEffect(() => {

@@ -32,6 +32,14 @@ export interface User {
 
 // UserActivity shows last message timestamp for each user
 export interface UserActivity {
+    [address: EthAddress]: {
+        timestamp: number,
+        readFails: number                   // how many times read failed for this user
+    };
+}
+
+// IdleMs shows how much was a user idle, in ms
+export interface IdleMs {
     [address: EthAddress]: number;
 }
   
