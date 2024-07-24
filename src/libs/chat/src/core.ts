@@ -44,6 +44,7 @@ const reqTimeAvg = new RunningAverage(100);
 let usersQueue: AsyncQueue;
 let messagesQueue: AsyncQueue;
 let users: UserWithIndex[] = [];
+let inactiveUsers: UserWithIndex[] = [];                      // Currently not polling messages from these users
 let usersLoading = false;
 let usersFeedIndex: number = 0;                               // Will be overwritten on user-side, by initUsers
 let ownIndex: number;
@@ -51,8 +52,9 @@ let streamerMessageFetchInterval = null;
 let streamerUserFetchInterval = null;
 let removeIdleUsersInterval = null;
 let messagesIndex = 0;
+let removeIdleIsRunning = false;                              // Avoid race conditions
 let userActivityTable: UserActivity = {};
-let previousActiveUsers: UserWithIndex[] = [];
+let previousActiveUsers: EthAddress[] = [];
 
 const eventStates: Record<string, boolean> = {
   loadingInitUsers: false,
@@ -92,7 +94,8 @@ async function startActivityAnalyzes(topic: string, stamp: BatchId) {
     // cleanup needs to happen somewhere, possibly in stop(). But that's not part of this library
 
     on(EVENTS.LOAD_MESSAGE, notifyStreamerAboutNewMessage);
-    on(EVENTS.LOADING_INIT_USERS, notifyStreamerAboutUserRegistration);
+    on(EVENTS.LOADING_INIT_USERS, notifyStreamerAboutUserRegistration);   // this might not be needed
+    off(EVENTS.LOADING_USERS, notifyStreamerAboutUserRegistration);       // Rejoin
 
   } catch (error) {
     console.error(error);
@@ -103,11 +106,23 @@ async function startActivityAnalyzes(topic: string, stamp: BatchId) {
 async function notifyStreamerAboutUserRegistration() {
   try {
     console.log("ENTERED INTO USER NOTIFY")
-    // new user is added to the user activity table
-    // clean up inactive users
-    // re-publish active users list
-    // THIS IS NOT NEEDED!
-    // But maybe it is needed after all, so we are not deleting it just now yet
+    
+    if (previousActiveUsers.length >= users.length) {
+      console.info("previousActiveUsers list is bigger or equal to current users list. Exiting function.");
+      return;
+    } else {
+      const start = previousActiveUsers.length;
+      //TODO this probably does not works
+      console.log("USERREG previousActiveUsers.length", previousActiveUsers.length)
+      console.log("USERREG users.length", users.length)
+      for (let i = start; i < users.length; i++) {
+        const address = users[i].address;
+        console.info(`Inserting Date.now() to ${address}`);
+        userActivityTable[address] = Date.now();
+      }
+    }
+
+    console.log("User Activity Table: ", userActivityTable);
 
   } catch (error) {
     console.error(error);
@@ -124,9 +139,6 @@ async function notifyStreamerAboutNewMessage(messages: MessageData[]) {
     userActivityTable[messages[messagesIndex].address] = messages[messagesIndex].timestamp;
     console.log("User Activity Table: ", userActivityTable);
     messagesIndex = messages.length;
-    // message will change the user activity table
-    // clean up inactive users
-    // re-publish active users list
 
   } catch (error) {
     console.error(error);
@@ -137,11 +149,13 @@ async function notifyStreamerAboutNewMessage(messages: MessageData[]) {
 async function removeIdleUsers(topic: string, stamp: BatchId) {
   try {
     console.log("UserActivity table inside removeIdleUsers: ", userActivityTable);
+    if (removeIdleIsRunning) return;
+    removeIdleIsRunning = true;
     const idleMs: UserActivity = {};
+    const now = Date.now();
 
     for (const rawKey in userActivityTable) {
       const key = rawKey as unknown as EthAddress;
-      const now = Date.now();
       idleMs[key] = now - userActivityTable[key];
     }
 
@@ -151,26 +165,12 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
       return idleMs[userAddr] < IDLE_TIME;
     });
 
-    for (let i = 0; i < users.length; i++) {
-      // This User is not on the UserActivity list, probably recently registered
-      //TODO or did not send any message. That would be bad, that would mean, we would keep a lot of users on the list, this way
-      //TODO it is not sure, that this is the root of the problem. But something that is very related. I think.
-      if (!userActivityTable.hasOwnProperty(users[i].address)) {
-        activeUsers.push(users[i]);
-      }
-    }
-
-    // This will be removed later, this is just for testing
-    const inactiveUsers = users.filter((user) => {
-      const userAddr = user.address;
-      return idleMs[userAddr] > IDLE_TIME;
-    });
+    const activeUserAddresses = activeUsers.map((user) => user.address);
 
     console.log("idle times: ", idleMs)
     console.log("Active users: ", activeUsers);
-    console.log("Inactive users: ", inactiveUsers);
 
-    const activeListChanged = !isEqual(previousActiveUsers, activeUsers);
+    const activeListChanged = !isEqual(previousActiveUsers.sort((a,b) => a.localeCompare(b)), activeUserAddresses.sort((a,b) => a.localeCompare(b)));
     //TODO: This could be a function (uploadUserList)
     if (activeListChanged) {
       console.log("LIST CHANGED! Rewritting user list...");
@@ -180,16 +180,18 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
       const feedWriter = graffitiFeedWriterFromTopic(bee, topic);
   
       try {
-        await feedWriter.upload(stamp, userRef.reference);
+        await feedWriter.upload(stamp, userRef.reference);      // we don't we do { index } here?
         console.log("Upload was successful!")
       } catch (error) {
-        if (isNotFoundError(error)) {
+        console.log("UPLOAD ERROR (removeIdleUsers)");
+        /*if (isNotFoundError(error)) {
           await feedWriter.upload(stamp, userRef.reference, { index: 0 });
-        }
+        }*/
       }
     }
 
-    previousActiveUsers = activeUsers;
+    previousActiveUsers = activeUsers.map((user) => user.address);
+    removeIdleIsRunning = false;
 
   } catch (error) {
     console.error(error);
@@ -314,15 +316,22 @@ async function getNewUsers(topic: string) {
     }
   
     const validUsers = rawUsers.filter((user) => validateUserObject(user));
-  console.log("validUsers (this is getNewUsers cycle): ", validUsers)  
+    const newUsersSet = new Set(validUsers.map((user) => user.address));
+    inactiveUsers = users.filter((user) => !newUsersSet.has(user.address));
+
     const newUsers = [];
-  
+
     for (const user of validUsers) {
-      //const alreadyRegistered = users.find((u) => u.address === user.address);
-      //TODO it would be best, if somewhere we would store inactive users, and would be able to reactivate them, when they send a new message
-      //TODO this current solution is more expensive, but it will still work
-      const alreadyRegistered = false
-      if (!alreadyRegistered) {
+      const alreadyRegistered = users.find((u) => u.address === user.address);              // Not sure if this is needed. Probably only the other condition is needed.
+      const deactivatedUser = inactiveUsers.find((u) => u.address === user.address);
+      
+      if (deactivatedUser) {
+        // Re-add user to active users
+        users.push(deactivatedUser);
+        continue;
+      } else {
+
+      //if (!alreadyRegistered) {
         const userTopicString = generateUserOwnedFeedId(topic, user.address);
         const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);
         newUsers.push({ ...user, index: res.nextIndex });
@@ -331,7 +340,7 @@ async function getNewUsers(topic: string) {
   
     await setUsers(newUsers);
     console.log("INCREMENTING usersFeedIndex");
-    usersFeedIndex = usersFeedIndex + 1;              // We assume that download was successful. Next time we are checking next index.
+    usersFeedIndex++;                                                                       // We assume that download was successful. Next time we are checking next index.
   
     emitStateEvent(EVENTS.LOADING_USERS, false);
     
@@ -366,38 +375,49 @@ console.log("Users (startLoadingNewMessages): ", users)
 }
 
 async function readMessage(user: UserWithIndex, rawTopic: string) {
-  const chatID = generateUserOwnedFeedId(rawTopic, user.address);
-  const topic = bee.makeFeedTopic(chatID);
-
-  let currIndex = user.index;
-  if (user.index === -1) {
-    const { latestIndex, nextIndex } = await getLatestFeedIndex(bee, topic, user.address);
-    currIndex = latestIndex === -1 ? nextIndex : latestIndex;
+  try {
+    const chatID = generateUserOwnedFeedId(rawTopic, user.address);
+    const topic = bee.makeFeedTopic(chatID);
+  
+    let currIndex = user.index;
+    if (user.index === -1) {
+      const { latestIndex, nextIndex } = await getLatestFeedIndex(bee, topic, user.address);
+      currIndex = latestIndex === -1 ? nextIndex : latestIndex;
+    }
+  
+    // We measure the request time with the first Bee API request, with the second request, we do not do this, because it is very similar
+    const feedReader = bee.makeFeedReader('sequence', topic, user.address, { timeout: Math.floor(reqTimeAvg.getAverage() * 1.6) });
+    const start = Date.now();
+    const recordPointer = await feedReader.download({ index: currIndex });
+    const end = Date.now();
+    reqTimeAvg.addValue(end-start);
+  
+    // We download the actual message data
+    const data = await bee.downloadData(recordPointer.reference);
+    const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
+  
+    const newUsers = users.map((u) => (u.address === user.address ? { ...u, index: currIndex + 1 } : u));
+    await setUsers(newUsers);
+  
+    messages.push(messageData);
+  
+    // TODO - discuss with the team
+    if (messages.length > 300) {
+      messages.shift();
+    }
+  
+    console.log("EMIT is happening (LOAD_MESSAGE)");
+    emitter.emit(EVENTS.LOAD_MESSAGE, messages);
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes("timeout")) {
+        console.info(`Timeout of ${Math.floor(reqTimeAvg.getAverage()*1.6)} exceeded for readMessage.`);
+      } else {
+        console.error(error);
+        throw new Error('There was an error in the readMessage function');
+      }
+    }
   }
-
-  // We measure the request time with the first Bee API request, with the second request, we do not do this, because it is very similar
-  const feedReader = bee.makeFeedReader('sequence', topic, user.address, { timeout: Math.floor(reqTimeAvg.getAverage() * 1.6) });
-  const start = Date.now();
-  const recordPointer = await feedReader.download({ index: currIndex });
-  const end = Date.now();
-  reqTimeAvg.addValue(end-start);
-
-  // We download the actual message data
-  const data = await bee.downloadData(recordPointer.reference);
-  const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
-
-  const newUsers = users.map((u) => (u.address === user.address ? { ...u, index: currIndex + 1 } : u));
-  await setUsers(newUsers);
-
-  messages.push(messageData);
-
-  // TODO - discuss with the team
-  if (messages.length > 300) {
-    messages.shift();
-  }
-
-  console.log("EMIT is happening (LOAD_MESSAGE)");
-  emitter.emit(EVENTS.LOAD_MESSAGE, messages);
 }
 
 export async function sendMessage(

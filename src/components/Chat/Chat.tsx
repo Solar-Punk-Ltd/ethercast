@@ -15,6 +15,7 @@ import { Message } from './Message/Message';
 
 import './Chat.scss';
 import { MessageData, ParticipantDetails, UserWithIndex } from '../../libs/chat/'
+import { retryAsync, retryAwaitableAsync } from '../../utils/common';
 
 interface ChatProps {
   topic: string;
@@ -75,12 +76,12 @@ export function Chat({ topic }: ChatProps) {
       return;
     }
 
-    initUsers(topic).then((users) => {
+    retryAsync(() => initUsers(topic).then((users) => {
       if (users?.length && account) {
         const user = users.find((u) => u.address.toLocaleLowerCase() === account.toLocaleLowerCase());
         setUser(user);
       }
-    });
+    }));
   }, [account, topic, isLoading]);
 
   useEffect(() => {
@@ -104,7 +105,7 @@ export function Chat({ topic }: ChatProps) {
       }
 
       if (!user) {
-        await registerUser(topic, participantDetails);
+        await retryAwaitableAsync(() => registerUser(topic, participantDetails));
       }
 
       setWriteMode(WriteMode.MESSAGE);

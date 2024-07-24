@@ -11,7 +11,7 @@ import { ChatInput } from './ChatInput/ChatInput';
 import './Controls.scss';
 import { EthAddress, MessageData, sendMessage, ParticipantDetails, IDLE_TIME } from '../../../libs/chat';
 import { LinearProgress } from '@mui/material';
-import { sleep } from '../../../utils/common';
+import { retryAwaitableAsync } from '../../../utils/common';
 
 interface ControlsProps {
   privateKey: string;
@@ -47,8 +47,7 @@ export function Controls({ topic, nickname, stamp, privateKey, reJoin }: Control
       }
       setIsRejoining(true);
       console.info("Rejoining chat...");
-      await reJoin(details);
-      await sleep(10 * 1000);     // this is a workaround, we should know if User is already on the list on the other side, or not
+      await retryAwaitableAsync(() => reJoin(details));
       console.info("Rejoined chat!");
       setIsRejoining(false);
     }
