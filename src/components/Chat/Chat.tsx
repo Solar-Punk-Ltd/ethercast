@@ -14,7 +14,7 @@ import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
 
 import './Chat.scss';
-import { MessageData, ParticipantDetails, UserWithIndex } from '../../libs/chat/'
+import { MessageData, ParticipantDetails, UserWithIndex, USER_UPDATE_INTERVAL, MESSAGE_CHECK_INTERVAL } from '../../libs/chat/'
 import { retryAwaitableAsync } from '../../utils/common';
 
 interface ChatProps {
@@ -25,9 +25,6 @@ enum WriteMode {
   NICK,
   MESSAGE,
 }
-
-const MESSAGE_CHECK_INTERVAL = 2000;
-const USER_UPDATE_INTERVAL = 8000;
 
 export function Chat({ topic }: ChatProps) {
   const { account, isLoading } = useEthers();

@@ -3,6 +3,7 @@ import { ethers, Signature } from 'ethers';
 import { isEqual } from 'lodash';
 
 import { 
+  calculateTimeout,
   generateGraffitiFeedMetadata,
   generateUserOwnedFeedId, 
   getLatestFeedIndex, 
@@ -31,9 +32,12 @@ import {
 
 import { 
   CONSENSUS_ID, 
+  DECREASE_LIMIT, 
   EVENTS, 
   HEX_RADIX, 
   IDLE_TIME, 
+  INCREASE_LIMIT, 
+  MAX_TIMEOUT, 
   REMOVE_INACTIVE_USERS_INTERVAL, 
   STREAMER_MESSAGE_CHECK_INTERVAL, 
   STREAMER_USER_UPDATE_INTERVAL
@@ -42,7 +46,7 @@ import {
 const bee = new Bee('http://195.88.57.155:1633');
 const emitter = new EventEmitter();
 const messages: MessageData[] = [];
-const reqTimeAvg = new RunningAverage(100);
+const reqTimeAvg = new RunningAverage(1000);
 
 let usersQueue: AsyncQueue;
 let messagesQueue: AsyncQueue;
@@ -58,6 +62,9 @@ let messagesIndex = 0;
 let removeIdleIsRunning = false;                              // Avoid race conditions
 let userActivityTable: UserActivity = {};
 let previousActiveUsers: EthAddress[] = [];
+
+// Diagnostic
+let reqCount = 0;
 
 const eventStates: Record<string, boolean> = {
   loadingInitUsers: false,
@@ -179,12 +186,11 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
         userActivityTable[userAddr] = { timestamp: Date.now(), readFails: 0 }
         return true;
       }
-      const lastActivityTime = idleMs[userAddr];
-      const effectiveIdleTime = IDLE_TIME - (userActivityTable[userAddr].readFails * STREAMER_MESSAGE_CHECK_INTERVAL);
       
       return idleMs[userAddr] < IDLE_TIME;
     });
 
+    //TODO remove
     const activeUserAddresses = activeUsers.map((user) => user.address);
 
     console.log("idle times: ", idleMs)
@@ -192,8 +198,11 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
 
     const activeListChanged = !isEqual(previousActiveUsers.sort((a,b) => a.localeCompare(b)), activeUserAddresses.sort((a,b) => a.localeCompare(b)));
     //TODO: This could be a function (uploadUserList)
-    if (activeListChanged) {
-      console.log("LIST CHANGED! Rewritting user list...");
+    //if (activeListChanged) {
+      //console.log("LIST CHANGED! Rewritting user list...");
+      // we deactivate activeListChanged, because we need periodic anchor for new users to join
+      // this is a checkpoint
+      // here they can read ownFeedIndex
       const uploadObject: UsersFeedCommit = {
         users: activeUsers,
         overwrite: true
@@ -209,7 +218,7 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
       } catch (error) {
         console.log("UPLOAD ERROR (removeIdleUsers)");
       }
-    }
+    //}
 
     previousActiveUsers = activeUsers.map((user) => user.address);
     users = activeUsers;
@@ -351,8 +360,10 @@ async function getNewUsers(topic: string) {
 
     for (const user of validUsers) {
       const alreadyRegistered = users.find((u) => u.address === user.address);
+      console.log("alreadyRegistered line ", newUsers)
       if (alreadyRegistered && objectFromFeed.overwrite) {                                       // If we are in overwrite mode, we need to add back these users to the feed
         newUsers.push(alreadyRegistered);
+      console.log("if (alreadyRegistered && objectFromFeed.overwrite) ", newUsers)
         continue;
       }
       const deactivatedUser = inactiveUsers.find((u) => u.address === user.address);             // This is a rejoin (user registers again, after being idle)
@@ -360,12 +371,14 @@ async function getNewUsers(topic: string) {
       if (deactivatedUser) {
         // Re-add user to active users
         newUsers.push(deactivatedUser);
+      console.log("add back deactivated ", newUsers)
         inactiveUsers = inactiveUsers.filter((user) => user !== deactivatedUser);                // We remove the User from the inactive list
         continue;
       } else {
         const didApplicationReload = false;                                                      // Placeholder for that scenario, if the Stream would be restartable. Then we would lose the state.
         if (!didApplicationReload) {
           newUsers.push({...user, index: 0 });                                                   // Freshly registered User, not in inactiveUsers list, not already registered
+      console.log("if (!didApplicationReload) ", newUsers)
         } else {
           const userTopicString = generateUserOwnedFeedId(topic, user.address);                  // First registration, initalization
           const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);
@@ -382,7 +395,8 @@ async function getNewUsers(topic: string) {
   } catch (error) {
     if (error instanceof Error) {
       if (error.message.includes("timeout")) {
-        console.info(`Timeout of ${Math.floor(reqTimeAvg.getAverage()*1.6)} exceeded.`);
+        console.info(`Timeout exceeded.`);
+        reqTimeAvg.addValue(MAX_TIMEOUT);
       } else {
         if (!isNotFoundError(error)) {
           console.error(error);
@@ -395,7 +409,7 @@ async function getNewUsers(topic: string) {
 
 export function startLoadingNewMessages(topic: string) {
   if (!messagesQueue) {
-    messagesQueue = new AsyncQueue({ indexed: false, waitable: true, max: 8 });
+    messagesQueue = new AsyncQueue({ indexed: false, waitable: true, max: 4 });
   }
 
   return async () => {
@@ -405,6 +419,8 @@ export function startLoadingNewMessages(topic: string) {
     }
 
     for (const user of users) {
+      reqCount++;
+      console.info(`Request enqueued. Total request count: ${reqCount}`);
       messagesQueue.enqueue(() => readMessage(user, topic));
     }
   };
@@ -417,25 +433,32 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
   
     let currIndex = user.index;
     if (user.index === -1) {
+      console.warn("WARNING! No index found!")
       const { latestIndex, nextIndex } = await getLatestFeedIndex(bee, topic, user.address);
       currIndex = latestIndex === -1 ? nextIndex : latestIndex;
     }
   
+    // Adjust max parallel request count, based on avg request time, which indicates, how much the node is overloaded
+    if (reqTimeAvg.getAverage() > DECREASE_LIMIT) messagesQueue.decreaseMax();
+    if (reqTimeAvg.getAverage() < INCREASE_LIMIT) messagesQueue.increaseMax(users.length * 4);  // *4 is just for simulation purposes, it should be exactly users.length
+
     // We measure the request time with the first Bee API request, with the second request, we do not do this, because it is very similar
-    const feedReader = bee.makeFeedReader('sequence', topic, user.address, { timeout: Math.floor(reqTimeAvg.getAverage() * 1.6) });
+    const feedReader = bee.makeFeedReader('sequence', topic, user.address, { timeout: MAX_TIMEOUT });
     const start = Date.now();
     const recordPointer = await feedReader.download({ index: currIndex });
     const end = Date.now();
     reqTimeAvg.addValue(end-start);
-  
+    
+
     // We download the actual message data
     const data = await bee.downloadData(recordPointer.reference);
     const messageData = JSON.parse(new TextDecoder().decode(data)) as MessageData;
   
-    const newUsers = users.map((u) => (u.address === user.address ? { ...u, index: currIndex + 1 } : u));
-    //const uIndex = users.findIndex((u) => (u.address === user.address));
-    //users[uIndex].index = currIndex + 1;
-    await setUsers(newUsers);     // this might give some safety, but we will turn it off for now
+    //const newUsers = users.map((u) => (u.address === user.address ? { ...u, index: currIndex + 1 } : u));
+    const uIndex = users.findIndex((u) => (u.address === user.address));
+    const newUsers = users;
+    if (newUsers[uIndex]) newUsers[uIndex].index = currIndex + 1;         // If this User was dropped, we won't increment it's index, but Streamer will
+    await setUsers(newUsers);
   
     messages.push(messageData);
   
@@ -448,7 +471,8 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
   } catch (error) {
     if (error instanceof Error) {
       if (error.message.includes("timeout")) {
-        console.info(`Timeout of ${Math.floor(reqTimeAvg.getAverage()*1.6)} exceeded for readMessage.`);
+        console.info(`Timeout of ${MAX_TIMEOUT} exceeded for readMessage.`);
+        reqTimeAvg.addValue(MAX_TIMEOUT);
       } else {
         if (!isNotFoundError(error)) {
           if (userActivityTable[user.address]) userActivityTable[user.address].readFails++;                  // We increment read fail count

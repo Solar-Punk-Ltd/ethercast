@@ -10,8 +10,7 @@ export class AsyncQueue {
   private inProgressCount = 0;
   private isWaiting = false;
   private queue: ((index?: string) => Promise<void>)[] = [];
-
-  private readonly maxParallel: number;
+  private maxParallel: number;
 
   constructor(settings: { indexed?: boolean; index?: string; waitable?: boolean; clearWaitTime?: number; max?: number } = {}) {
     this.indexed = settings.indexed || false;
@@ -59,6 +58,20 @@ export class AsyncQueue {
   enqueue(promiseFunction: (index?: string) => Promise<any>) {
     this.queue.push(promiseFunction);
     this.processQueue();
+  }
+
+  increaseMax(limit: number) {
+    if (this.maxParallel+1 <= limit) {
+      this.maxParallel++;
+    }
+    console.log("Max parallel request set to ", this.maxParallel);
+  }
+
+  decreaseMax() {
+    if (this.maxParallel > 1) {
+      this.maxParallel--;
+      console.log("Max parallel request set to ", this.maxParallel);
+    }
   }
 
   async clearQueue() {

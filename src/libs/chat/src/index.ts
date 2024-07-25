@@ -1,7 +1,9 @@
 // Constants
 export { 
     EVENTS,
-    IDLE_TIME
+    IDLE_TIME,
+    MESSAGE_CHECK_INTERVAL,
+    USER_UPDATE_INTERVAL
 } from './constants';
 
 // Types

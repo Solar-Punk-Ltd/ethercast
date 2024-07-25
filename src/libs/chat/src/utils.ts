@@ -1,7 +1,7 @@
 import { ethers, BytesLike, utils, Wallet } from 'ethers';
 import { BatchId, Bee, BeeRequestOptions, Signer, UploadResult, Utils } from '@ethersphere/bee-js';
 import { EthAddress, MessageData, Sha3Message } from './types';
-import { CONSENSUS_ID, HEX_RADIX } from './constants';
+import { CONSENSUS_ID, HEX_RADIX, MAX_TIMEOUT } from './constants';
 
 // Generate an ID for the feed, that will be connected to the stream, as Users list
 export function generateUsersFeedId(topic: string) {
@@ -224,12 +224,20 @@ export class RunningAverage {
 
     this.values.push(newValue);
     this.sum += newValue;
+
+    console.log("Current average: ", this.getAverage())
   }
 
   getAverage() {
     if (this.values.length === 0) {
-      return 300;
+      return 200;
     }
     return this.sum / this.values.length;
   }
+}
+
+// Calculate the timeout, based an average, and some max value
+export function calculateTimeout(avg: RunningAverage) {
+  const multiplier = 1.6;
+  return Math.floor(avg.getAverage() * multiplier) || MAX_TIMEOUT;
 }
