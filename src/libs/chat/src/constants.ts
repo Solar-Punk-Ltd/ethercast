@@ -36,4 +36,4 @@ export const FETCH_INTERVAL_INCREASE_LIMIT = 1000;                              
 export const FETCH_INTERVAL_DECREASE_LIMIT = 800;                               // Higher frequency for message fetch
 export const MESSAGE_FETCH_MIN = 300;                                           // Lowest message fetch frequency (ms)
 export const MESSAGE_FETCH_MAX = 8 * SECOND;                                    // Highest message fetch frequency (ms)
-export const F_STEP = 100;                                                      // Message fetch step (ms) 
+export const F_STEP = 100;                                                      // Message fetch step (ms)
