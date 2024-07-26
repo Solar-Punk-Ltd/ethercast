@@ -1,7 +1,7 @@
 import { ethers, BytesLike, utils, Wallet } from 'ethers';
 import { BatchId, Bee, BeeRequestOptions, Signer, UploadResult, Utils } from '@ethersphere/bee-js';
 import { EthAddress, MessageData, Sha3Message } from './types';
-import { CONSENSUS_ID, HEX_RADIX, MAX_TIMEOUT } from './constants';
+import { CONSENSUS_ID, F_STEP, HEX_RADIX, MAX_TIMEOUT, MESSAGE_FETCH_MAX, MESSAGE_FETCH_MIN } from './constants';
 
 // Generate an ID for the feed, that will be connected to the stream, as Users list
 export function generateUsersFeedId(topic: string) {
@@ -240,4 +240,49 @@ export class RunningAverage {
 export function calculateTimeout(avg: RunningAverage) {
   const multiplier = 1.6;
   return Math.floor(avg.getAverage() * multiplier) || MAX_TIMEOUT;
+}
+
+// Start interval for adjustable interval function, used for message fetch
+function startInterval(
+  intervalId: NodeJS.Timeout, 
+  intervalDuration: number, 
+  fn: (input?: any) => Promise<any>
+) {
+  if (intervalId) {
+    clearInterval(intervalId)
+  }
+
+  intervalId = setInterval(fn, intervalDuration);
+
+  return intervalId;
+}
+
+// increaseInterval will increase the interval by F_STEP (will clear the interval, and create a new one)
+export function increaseInterval(
+  intervalId: NodeJS.Timeout, 
+  currentDuration: number, 
+  fn: (input?: any) => Promise<any>
+): NodeJS.Timeout {
+  let intervalDuration = currentDuration;
+  if (currentDuration + F_STEP <= MESSAGE_FETCH_MAX) {
+    intervalDuration = currentDuration + F_STEP;
+  }
+  const newInterval = startInterval(intervalId, intervalDuration, fn);
+
+  return newInterval;
+}
+
+// decreaseInterval will decrease the interval by F_STEP (will clear the interval, and create a new one)
+export function decreaseInterval(
+  intervalId: NodeJS.Timeout, 
+  currentDuration: number, 
+  fn: (input?: any) => Promise<any>
+): NodeJS.Timeout {
+  let intervalDuration = currentDuration;
+  if (currentDuration - F_STEP >= MESSAGE_FETCH_MIN) {
+    intervalDuration = currentDuration - F_STEP;
+  }
+  const newInterval = startInterval(intervalId, intervalDuration, fn);
+
+  return newInterval;
 }

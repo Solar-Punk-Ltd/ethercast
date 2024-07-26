@@ -14,8 +14,17 @@ import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
 
 import './Chat.scss';
-import { MessageData, ParticipantDetails, UserWithIndex, USER_UPDATE_INTERVAL, MESSAGE_CHECK_INTERVAL } from '../../libs/chat/'
+import { 
+  MessageData, 
+  ParticipantDetails, 
+  UserWithIndex, 
+  startMessageFetchProcess, 
+  startUserFetchProcess, 
+  stopMessageFetchProcess, 
+  stopUserFetchProcess 
+} from '../../libs/chat/'
 import { retryAwaitableAsync } from '../../utils/common';
+
 
 interface ChatProps {
   topic: string;
@@ -83,14 +92,12 @@ export function Chat({ topic }: ChatProps) {
 
   useEffect(() => {
     if (!loadingUserInit) {
-      const { startFetchingForNewUsers, startLoadingNewMessages } = getChatActions();
-
-      const userUpdater = setInterval(startFetchingForNewUsers(topic), USER_UPDATE_INTERVAL);
-      const messageLoader = setInterval(startLoadingNewMessages(topic), MESSAGE_CHECK_INTERVAL);
+      startMessageFetchProcess(topic);
+      startUserFetchProcess(topic);
 
       return () => {
-        clearInterval(userUpdater);
-        clearInterval(messageLoader);
+        stopUserFetchProcess()
+        stopMessageFetchProcess();
       };
     }
   }, [loadingUserInit, topic]);

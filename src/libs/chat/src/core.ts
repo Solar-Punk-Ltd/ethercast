@@ -38,9 +38,11 @@ import {
   IDLE_TIME, 
   INCREASE_LIMIT, 
   MAX_TIMEOUT, 
+  MESSAGE_CHECK_INTERVAL, 
   REMOVE_INACTIVE_USERS_INTERVAL, 
   STREAMER_MESSAGE_CHECK_INTERVAL, 
-  STREAMER_USER_UPDATE_INTERVAL
+  STREAMER_USER_UPDATE_INTERVAL,
+  USER_UPDATE_INTERVAL
 } from './constants';
 
 const bee = new Bee('http://195.88.57.155:1633');
@@ -51,19 +53,21 @@ const reqTimeAvg = new RunningAverage(1000);
 let usersQueue: AsyncQueue;
 let messagesQueue: AsyncQueue;
 let users: UserWithIndex[] = [];
-let inactiveUsers: UserWithIndex[] = [];                      // Currently not polling messages from these users
+let inactiveUsers: UserWithIndex[] = [];                              // Currently not polling messages from these users
 let usersLoading = false;
-let usersFeedIndex: number = 0;                               // Will be overwritten on user-side, by initUsers
+let usersFeedIndex: number = 0;                                       // Will be overwritten on user-side, by initUsers
 let ownIndex: number;
-let streamerMessageFetchInterval = null;
-let streamerUserFetchInterval = null;
-let removeIdleUsersInterval = null;
+let streamerMessageFetchInterval: NodeJS.Timeout | null = null;       // Streamer-side interval, for message fetching
+let streamerUserFetchInterval: NodeJS.Timeout | null = null;          // Streamer-side interval, for user fetching
+let removeIdleUsersInterval: NodeJS.Timeout | null = null;            // Streamer-side interval, for idle user removing
+let userFetchInterval: NodeJS.Timeout | null = null;                  // User-side interval, for user fetching
+let messageFetchInterval: NodeJS.Timeout | null = null;               // User-side interval, for message fetching
 let messagesIndex = 0;
-let removeIdleIsRunning = false;                              // Avoid race conditions
-let userActivityTable: UserActivity = {};
-let previousActiveUsers: EthAddress[] = [];
+let removeIdleIsRunning = false;                                      // Avoid race conditions
+let userActivityTable: UserActivity = {};                             // Used to remove inactive users
+let previousActiveUsers: EthAddress[] = [];                           //TODO possibly obsolate
 
-// Diagnostic
+// Diagnostics
 let reqCount = 0;
 
 const eventStates: Record<string, boolean> = {
@@ -90,6 +94,38 @@ export async function initChatRoom(topic: string, stamp: BatchId) {
   } catch (error) {
     console.error(error);
     throw new Error('Could not create Users feed');
+  }
+}
+
+// Should be called from outside the library, for example React, will start the user fetch process
+export function startUserFetchProcess(topic: string) {
+  if (userFetchInterval) {
+    clearInterval(userFetchInterval);
+  }
+  userFetchInterval = setInterval(startFetchingForNewUsers(topic), USER_UPDATE_INTERVAL);
+}
+
+// Should be called from outside the library, for example React, will stop the user fetch process
+export function stopUserFetchProcess() {
+  if (userFetchInterval) {
+    clearInterval(userFetchInterval);
+    userFetchInterval = null;
+  }
+}
+
+// Should be called from outside the library, for example React, will start message fetch process
+export function startMessageFetchProcess(topic: string) {
+  if (messageFetchInterval) {
+    clearInterval(messageFetchInterval);
+  }
+  messageFetchInterval = setInterval(startLoadingNewMessages(topic), MESSAGE_CHECK_INTERVAL);
+}
+
+// Should be called from outside the library, for example React, will stop the message fetch process
+export function stopMessageFetchProcess() {
+  if (messageFetchInterval) {
+    clearInterval(messageFetchInterval);
+    messageFetchInterval = null;
   }
 }
 

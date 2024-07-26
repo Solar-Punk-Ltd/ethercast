@@ -20,5 +20,9 @@ export {
     getChatActions, 
     initChatRoom, 
     initUsers, 
-    registerUser
+    registerUser,
+    startMessageFetchProcess,
+    startUserFetchProcess,
+    stopMessageFetchProcess,
+    stopUserFetchProcess
 } from './core';
