@@ -4,11 +4,13 @@ import { isEqual } from 'lodash';
 
 import { 
   calculateTimeout,
+  decreaseInterval,
   generateGraffitiFeedMetadata,
   generateUserOwnedFeedId, 
   getLatestFeedIndex, 
   graffitiFeedReaderFromTopic, 
   graffitiFeedWriterFromTopic, 
+  increaseInterval, 
   isNotFoundError, 
   numberToFeedIndex, 
   retryAwaitableAsync, 
@@ -34,11 +36,16 @@ import {
   CONSENSUS_ID, 
   DECREASE_LIMIT, 
   EVENTS, 
+  F_STEP, 
+  FETCH_INTERVAL_DECREASE_LIMIT, 
+  FETCH_INTERVAL_INCREASE_LIMIT, 
   HEX_RADIX, 
   IDLE_TIME, 
   INCREASE_LIMIT, 
   MAX_TIMEOUT, 
   MESSAGE_CHECK_INTERVAL, 
+  MESSAGE_FETCH_MAX, 
+  MESSAGE_FETCH_MIN, 
   REMOVE_INACTIVE_USERS_INTERVAL, 
   STREAMER_MESSAGE_CHECK_INTERVAL, 
   STREAMER_USER_UPDATE_INTERVAL,
@@ -62,6 +69,7 @@ let streamerUserFetchInterval: NodeJS.Timeout | null = null;          // Streame
 let removeIdleUsersInterval: NodeJS.Timeout | null = null;            // Streamer-side interval, for idle user removing
 let userFetchInterval: NodeJS.Timeout | null = null;                  // User-side interval, for user fetching
 let messageFetchInterval: NodeJS.Timeout | null = null;               // User-side interval, for message fetching
+let mInterval: number = MESSAGE_FETCH_MIN * 3;                        // We initialize message fetch interval to higher than min, we don't know network conditions yet
 let messagesIndex = 0;
 let removeIdleIsRunning = false;                                      // Avoid race conditions
 let userActivityTable: UserActivity = {};                             // Used to remove inactive users
@@ -118,7 +126,7 @@ export function startMessageFetchProcess(topic: string) {
   if (messageFetchInterval) {
     clearInterval(messageFetchInterval);
   }
-  messageFetchInterval = setInterval(startLoadingNewMessages(topic), MESSAGE_CHECK_INTERVAL);
+  messageFetchInterval = setInterval(startLoadingNewMessages(topic), mInterval);
 }
 
 // Should be called from outside the library, for example React, will stop the message fetch process
@@ -477,6 +485,24 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
     // Adjust max parallel request count, based on avg request time, which indicates, how much the node is overloaded
     if (reqTimeAvg.getAverage() > DECREASE_LIMIT) messagesQueue.decreaseMax();
     if (reqTimeAvg.getAverage() < INCREASE_LIMIT) messagesQueue.increaseMax(users.length * 4);  // *4 is just for simulation purposes, it should be exactly users.length
+
+    // Adjust message fetch interval
+    if (reqTimeAvg.getAverage() > FETCH_INTERVAL_INCREASE_LIMIT) {
+      if (mInterval + F_STEP <= MESSAGE_FETCH_MAX) {
+        mInterval = mInterval + F_STEP;
+        if (messageFetchInterval) clearInterval(messageFetchInterval);
+        messageFetchInterval = setInterval(startLoadingNewMessages(rawTopic), mInterval);
+        console.info(`Increased message fetch interval to ${mInterval} ms`);
+      }
+    }
+    if (reqTimeAvg.getAverage() < FETCH_INTERVAL_DECREASE_LIMIT) {
+      if (mInterval - F_STEP > MESSAGE_FETCH_MIN) {
+        mInterval = mInterval - F_STEP;
+        if (messageFetchInterval) clearInterval(messageFetchInterval);
+        messageFetchInterval = setInterval(startLoadingNewMessages(rawTopic), mInterval);
+        console.info(`Decreased message fetch interval to ${mInterval-F_STEP} ms`);
+      }
+    }
 
     // We measure the request time with the first Bee API request, with the second request, we do not do this, because it is very similar
     const feedReader = bee.makeFeedReader('sequence', topic, user.address, { timeout: MAX_TIMEOUT });

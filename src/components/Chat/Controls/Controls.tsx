@@ -37,7 +37,7 @@ export function Controls({ topic, nickname, stamp, privateKey, reJoin }: Control
   async function handleSubmit() {
     const now = Date.now();
 
-    if (lastMessageSent + IDLE_TIME < now && lastMessageSent > 0) {
+    if ((lastMessageSent + IDLE_TIME - 30 * 1000) < now && lastMessageSent > 0) {
       if (!account) throw 'Could not get Eth address';
       const details: ParticipantDetails = {
         nickName: nickname,
