@@ -66,6 +66,7 @@ let messagesIndex = 0;
 let removeIdleIsRunning = false;                                      // Avoid race conditions
 let userActivityTable: UserActivity = {};                             // Used to remove inactive users
 let previousActiveUsers: EthAddress[] = [];                           //TODO possibly obsolate
+let newlyResigeredUsers: UserWithIndex[] = [];                        // keep track of fresh users
 
 // Diagnostics
 let reqCount = 0;
@@ -381,25 +382,21 @@ async function getNewUsers(topic: string) {
     if (!objectFromFeed.overwrite) {
       // Registration
       newUsers = [...users];
-      export async function insertNewUserFromFeed() {
-        try {
-          
-        } catch (error) {
-          console.error(error);
-          throw new Error('Error while inserting new user from feed');
-        }
-      }
       const userTopicString = generateUserOwnedFeedId(topic, validUsers[0].address);
       const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), validUsers[0].address);
-      newUsers.push({
+      const theNewUser = {
         ...validUsers[0],
         index: res.latestIndex
-      });
+      };
+      newUsers.push(theNewUser);
+      newlyResigeredUsers.push(theNewUser);
     } else {
       // Overwrite
-      newUsers = validUsers as unknown as UserWithIndex[];                                  // Overwrite commit was received, we simply overwrite the users object
-
+      newUsers = removeDuplicateUsers([...newlyResigeredUsers, ...validUsers as unknown as UserWithIndex[]]);
+      newlyResigeredUsers = [];
     }
+
+
   
     await setUsers(removeDuplicateUsers(newUsers));
     usersFeedIndex++;                                                                       // We assume that download was successful. Next time we are checking next index.
