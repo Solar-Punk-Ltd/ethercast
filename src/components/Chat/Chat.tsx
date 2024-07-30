@@ -24,6 +24,7 @@ import {
   stopUserFetchProcess 
 } from '../../libs/chat/'
 import { retryAwaitableAsync } from '../../utils/common';
+import { BatchId } from '@ethersphere/bee-js';
 
 
 interface ChatProps {
@@ -82,7 +83,7 @@ export function Chat({ topic }: ChatProps) {
       return;
     }
 
-    initUsers(topic, stamp).then((users) => {
+    initUsers(topic, account, stamp as BatchId).then((users) => {
       if (users?.length && account) {
         const user = users.find((u) => u.address.toLocaleLowerCase() === account.toLocaleLowerCase());
         setUser(user);

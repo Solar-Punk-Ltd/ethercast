@@ -1,6 +1,6 @@
 import { BatchId, Bee, Reference } from '@ethersphere/bee-js';
 import { ethers, Signature } from 'ethers';
-import { isEqual } from 'lodash';
+import * as crypto from 'crypto';
 
 import { 
   calculateTimeout,
@@ -47,8 +47,7 @@ import {
   MESSAGE_FETCH_MAX, 
   MESSAGE_FETCH_MIN, 
   REMOVE_INACTIVE_USERS_INTERVAL, 
-  STREAMER_MESSAGE_CHECK_INTERVAL, 
-  STREAMER_USER_UPDATE_INTERVAL,
+  SECOND,
   USER_UPDATE_INTERVAL
 } from './constants';
 
@@ -64,8 +63,6 @@ let inactiveUsers: UserWithIndex[] = [];                              // Current
 let usersLoading = false;
 let usersFeedIndex: number = 0;                                       // Will be overwritten on user-side, by initUsers
 let ownIndex: number;
-let streamerMessageFetchInterval: NodeJS.Timeout | null = null;       // Streamer-side interval, for message fetching
-let streamerUserFetchInterval: NodeJS.Timeout | null = null;          // Streamer-side interval, for user fetching
 let removeIdleUsersInterval: NodeJS.Timeout | null = null;            // Streamer-side interval, for idle user removing
 let userFetchInterval: NodeJS.Timeout | null = null;                  // User-side interval, for user fetching
 let messageFetchInterval: NodeJS.Timeout | null = null;               // User-side interval, for message fetching
@@ -137,19 +134,20 @@ export function stopMessageFetchProcess() {
 }
 
 // Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
-async function startActivityAnalyzes(topic: string, stamp: BatchId) {
+async function startActivityAnalyzes(topic: string, ownAddress: EthAddress, stamp: BatchId) {
   try {
-    const { startFetchingForNewUsers, startLoadingNewMessages } = getChatActions();
-    const { on, off } = getChatActions();
+    console.info("Starting Activity Analysis...");
+    //const { startFetchingForNewUsers, startLoadingNewMessages } = getChatActions();
+    //const { on, off } = getChatActions();
 
-    streamerUserFetchInterval = setInterval(startFetchingForNewUsers(topic), STREAMER_USER_UPDATE_INTERVAL);              // startFetchingForNewUsers is returning a function
-    streamerMessageFetchInterval = setInterval(startLoadingNewMessages(topic), STREAMER_MESSAGE_CHECK_INTERVAL);          // startLoadingNewMessages is returning a function
-    removeIdleUsersInterval = setInterval(() => removeIdleUsers(topic, stamp), REMOVE_INACTIVE_USERS_INTERVAL);
+    //streamerUserFetchInterval = setInterval(startFetchingForNewUsers(topic), STREAMER_USER_UPDATE_INTERVAL);              // startFetchingForNewUsers is returning a function
+    //streamerMessageFetchInterval = setInterval(startLoadingNewMessages(topic), STREAMER_MESSAGE_CHECK_INTERVAL);          // startLoadingNewMessages is returning a function
+    removeIdleUsersInterval = setInterval(() => removeIdleUsers(topic, ownAddress, stamp), REMOVE_INACTIVE_USERS_INTERVAL);
     // cleanup needs to happen somewhere, possibly in stop(). But that's not part of this library
 
-    on(EVENTS.LOAD_MESSAGE, notifyAboutNewMessage);
-    on(EVENTS.LOADING_INIT_USERS, notifyAboutUserRegistration);   // this might not be needed
-    off(EVENTS.LOADING_USERS, notifyAboutUserRegistration);       // Rejoin
+    //on(EVENTS.LOAD_MESSAGE, notifyAboutNewMessage);
+    //on(EVENTS.LOADING_INIT_USERS, notifyAboutUserRegistration);   // this might not be needed
+    //off(EVENTS.LOADING_USERS, notifyAboutUserRegistration);       // Rejoin
 
   } catch (error) {
     console.error(error);
@@ -166,13 +164,10 @@ async function notifyAboutUserRegistration() {
       return;
     } else {
       const start = previousActiveUsers.length;
-      //TODO this probably does not works
-      console.log("USERREG previousActiveUsers.length", previousActiveUsers.length)
-      console.log("USERREG users.length", users.length)
       for (let i = start; i < users.length; i++) {
         const address = users[i].address;
-        console.info(`Inserting Date.now() to ${address}`);
-        userActivityTable[address].timestamp = Date.now();
+        console.info(`New users registered. Inserting ${users[i].timestamp} to ${address}`);
+        userActivityTable[address].timestamp = users[i].timestamp;
       }
     }
 
@@ -185,18 +180,20 @@ async function notifyAboutUserRegistration() {
 }
 
 // Used for Activity Analysis
+//TODO rename
 async function notifyAboutNewMessage(messages: MessageData[]) {
   try {
     console.log("ENTERED INTO MESSAGE NOTIFY")
     console.log("Last message: ", messages[messagesIndex])
 
     // Initializing UserActivity table entry
-    if (!userActivityTable[messages[messagesIndex].address]) {
+    //TODO possibly one of these is not needed
+    /*if (!userActivityTable[messages[messagesIndex].address]) {
       userActivityTable[messages[messagesIndex].address] = {
-        timestamp: Date.now(),
+        timestamp: messages[messagesIndex].timestamp,
         readFails: 0
       }
-    }
+    }*/
 
     userActivityTable[messages[messagesIndex].address] = {
       timestamp: messages[messagesIndex].timestamp,
@@ -212,7 +209,7 @@ async function notifyAboutNewMessage(messages: MessageData[]) {
   }
 }
 
-async function removeIdleUsers(topic: string, stamp: BatchId) {
+async function removeIdleUsers(topic: string, ownAddress: EthAddress, stamp: BatchId) {
   try {
     console.log("UserActivity table inside removeIdleUsers: ", userActivityTable);
     if (removeIdleIsRunning) return;
@@ -232,23 +229,27 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
         userActivityTable[userAddr] = { timestamp: Date.now(), readFails: 0 }
         return true;
       }
-      
+            
       return idleMs[userAddr] < IDLE_TIME;
     });
+    if (activeUsers.length === 0) {
+      console.info("There are no active users, Activity Analysis will continue when a user registers.");
+    }
+    const minUsersToSelect = 1;
+    const numUsersToselect = Math.max(Math.ceil(activeUsers.length * 0.3), minUsersToSelect);     // Select top 30% of activeUsers, but minimum 1
+    const sortedActiveUsers = activeUsers.sort((a, b) => b.timestamp - a.timestamp);              // Sort activeUsers by timestamp
+    const mostActiveUsers = sortedActiveUsers.slice(0, numUsersToselect);                         // Top 30% but minimum 1 
 
-    //TODO remove
-    const activeUserAddresses = activeUsers.map((user) => user.address);
+    // Lottery about UsersFeedCommit
+    console.log("Most active users: ", mostActiveUsers);
+    const sortedMostActiveAddresses = mostActiveUsers.map((user) => user.address).sort();
+    const seedString = sortedMostActiveAddresses.join(',');
+    const hash = crypto.createHash('sha256').update(seedString).digest('hex');
+    const randomIndex = parseInt(hash, 16) % mostActiveUsers.length;
+    const selectedUser = mostActiveUsers[randomIndex].address;
 
-    console.log("idle times: ", idleMs)
-    console.log("Active users: ", activeUsers);
-
-    const activeListChanged = !isEqual(previousActiveUsers.sort((a,b) => a.localeCompare(b)), activeUserAddresses.sort((a,b) => a.localeCompare(b)));
-    //TODO: This could be a function (uploadUserList)
-    //if (activeListChanged) {
-      //console.log("LIST CHANGED! Rewritting user list...");
-      // we deactivate activeListChanged, because we need periodic anchor for new users to join
-      // this is a checkpoint
-      // here they can read ownFeedIndex
+    if (selectedUser === ownAddress) {
+      console.info("The user was selected for submitting the UsersFeedCommit!");
       const uploadObject: UsersFeedCommit = {
         users: activeUsers,
         overwrite: true
@@ -264,10 +265,11 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
       } catch (error) {
         console.log("UPLOAD ERROR (removeIdleUsers)");
       }
-    //}
+      
+      previousActiveUsers = activeUsers.map((user) => user.address);
+      users = activeUsers;
+    }
 
-    previousActiveUsers = activeUsers.map((user) => user.address);
-    users = activeUsers;
     removeIdleIsRunning = false;
 
   } catch (error) {
@@ -277,7 +279,7 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
   }
 }
 
-export async function initUsers(topic: string, stamp: BatchId): Promise<UserWithIndex[] | null> {
+export async function initUsers(topic: string, ownAddress: EthAddress, stamp: BatchId): Promise<UserWithIndex[] | null> {
   try {
     emitStateEvent(EVENTS.LOADING_INIT_USERS, true);
 
@@ -307,7 +309,6 @@ export async function initUsers(topic: string, stamp: BatchId): Promise<UserWith
     }
 
     await setUsers(aggregatedList);
-    startActivityAnalyzes(topic, stamp);                          // Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
 
     return aggregatedList;
   } catch (error) {
@@ -353,11 +354,13 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
 
     await setUsers([...users, { ...newUser, index: -1 }]);
 
-    const uploadableUsers = users.map((user) => ({ ...user, index: undefined }));
+    //const uploadableUsers = users.map((user) => ({ ...user, index: undefined }));
+    //TODO above line should be deleted, here, we only upload a user object (this is registration), and getNewUsers will concatenate this with the other users.
     const uploadObject: UsersFeedCommit = {
-      users: uploadableUsers,
+      users: [newUser],
       overwrite: false
     }
+
     const userRef = await uploadObjectToBee(bee, uploadObject, stamp as any);
     if (!userRef) throw new Error('Could not upload user to bee');
 
@@ -365,9 +368,11 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
 
     try {
       await feedWriter.upload(stamp, userRef.reference);
+      startActivityAnalyzes(topic, address, stamp as BatchId);                    // Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
     } catch (error) {
       if (isNotFoundError(error)) {
         await feedWriter.upload(stamp, userRef.reference, { index: 0 });
+        startActivityAnalyzes(topic, address, stamp as BatchId);                  // Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
       }
     }
   } catch (error) {
@@ -390,8 +395,7 @@ async function getNewUsers(topic: string) {
   try {
     emitStateEvent(EVENTS.LOADING_USERS, true);
   
-    const feedReader = graffitiFeedReaderFromTopic(bee, topic/*, { timeout: Math.floor(reqTimeAvg.getAverage() * 1.6) }*/);
-    console.log("usersFeedIndex: ", usersFeedIndex)
+    const feedReader = graffitiFeedReaderFromTopic(bee, topic);
     const feedEntry = await feedReader.download({ index: usersFeedIndex });
   
     const data = await bee.downloadData(feedEntry.reference);
@@ -407,10 +411,8 @@ async function getNewUsers(topic: string) {
 
     for (const user of validUsers) {
       const alreadyRegistered = users.find((u) => u.address === user.address);
-      console.log("alreadyRegistered line ", newUsers)
       if (alreadyRegistered && objectFromFeed.overwrite) {                                       // If we are in overwrite mode, we need to add back these users to the feed
         newUsers.push(alreadyRegistered);
-      console.log("if (alreadyRegistered && objectFromFeed.overwrite) ", newUsers)
         continue;
       }
       const deactivatedUser = inactiveUsers.find((u) => u.address === user.address);             // This is a rejoin (user registers again, after being idle)
@@ -418,25 +420,20 @@ async function getNewUsers(topic: string) {
       if (deactivatedUser) {
         // Re-add user to active users
         newUsers.push(deactivatedUser);
-      console.log("add back deactivated ", newUsers)
         inactiveUsers = inactiveUsers.filter((user) => user !== deactivatedUser);                // We remove the User from the inactive list
         continue;
       } else {
-        const didApplicationReload = false;                                                      // Placeholder for that scenario, if the Stream would be restartable. Then we would lose the state.
-        if (!didApplicationReload) {
-          newUsers.push({...user, index: 0 });                                                   // Freshly registered User, not in inactiveUsers list, not already registered
-      console.log("if (!didApplicationReload) ", newUsers)
-        } else {
-          const userTopicString = generateUserOwnedFeedId(topic, user.address);                  // First registration, initalization
-          const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);
-          newUsers.push({...user, index: res.nextIndex});
-        }
+        const userTopicString = generateUserOwnedFeedId(topic, user.address);                    // First registration, initalization
+        const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);
+        newUsers.push({...user, index: res.nextIndex});
       }
     }
   
     await setUsers(newUsers);
     usersFeedIndex++;                                                                       // We assume that download was successful. Next time we are checking next index.
   
+    // update userActivityTable
+    notifyAboutUserRegistration();
     emitStateEvent(EVENTS.LOADING_USERS, false);
     
   } catch (error) {
@@ -484,6 +481,9 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
       const { latestIndex, nextIndex } = await getLatestFeedIndex(bee, topic, user.address);
       currIndex = latestIndex === -1 ? nextIndex : latestIndex;
     }
+
+    // Update userActivityTable
+    notifyAboutNewMessage(messages);
   
     // Adjust max parallel request count, based on avg request time, which indicates, how much the node is overloaded
     if (reqTimeAvg.getAverage() > DECREASE_LIMIT) messagesQueue.decreaseMax();

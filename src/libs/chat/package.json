@@ -8,8 +8,7 @@
     },
     "dependencies": {
         "@ethersphere/bee-js": "^6.9.1",
-        "ethers": "^5.7.2",
-        "lodash": "^4.17.21"
+        "ethers": "^5.7.2"
     },
     "devDependencies": {
         "@types/lodash": "^4.17.7",
