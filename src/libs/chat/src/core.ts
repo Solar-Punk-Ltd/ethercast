@@ -13,6 +13,7 @@ import {
   increaseInterval, 
   isNotFoundError, 
   numberToFeedIndex, 
+  removeDuplicateUsers, 
   retryAwaitableAsync, 
   RunningAverage, 
   uploadObjectToBee, 
@@ -33,7 +34,6 @@ import {
 } from './types';
 
 import { 
-  CONSENSUS_ID, 
   DECREASE_LIMIT, 
   EVENTS, 
   F_STEP, 
@@ -43,11 +43,9 @@ import {
   IDLE_TIME, 
   INCREASE_LIMIT, 
   MAX_TIMEOUT, 
-  MESSAGE_CHECK_INTERVAL, 
   MESSAGE_FETCH_MAX, 
   MESSAGE_FETCH_MIN, 
   REMOVE_INACTIVE_USERS_INTERVAL, 
-  SECOND,
   USER_UPDATE_INTERVAL
 } from './constants';
 
@@ -59,7 +57,7 @@ const reqTimeAvg = new RunningAverage(1000);
 let usersQueue: AsyncQueue;
 let messagesQueue: AsyncQueue;
 let users: UserWithIndex[] = [];
-let inactiveUsers: UserWithIndex[] = [];                              // Currently not polling messages from these users
+//let inactiveUsers: UserWithIndex[] = [];                              // Currently not polling messages from these users
 let usersLoading = false;
 let usersFeedIndex: number = 0;                                       // Will be overwritten on user-side, by initUsers
 let ownIndex: number;
@@ -137,17 +135,7 @@ export function stopMessageFetchProcess() {
 async function startActivityAnalyzes(topic: string, ownAddress: EthAddress, stamp: BatchId) {
   try {
     console.info("Starting Activity Analysis...");
-    //const { startFetchingForNewUsers, startLoadingNewMessages } = getChatActions();
-    //const { on, off } = getChatActions();
-
-    //streamerUserFetchInterval = setInterval(startFetchingForNewUsers(topic), STREAMER_USER_UPDATE_INTERVAL);              // startFetchingForNewUsers is returning a function
-    //streamerMessageFetchInterval = setInterval(startLoadingNewMessages(topic), STREAMER_MESSAGE_CHECK_INTERVAL);          // startLoadingNewMessages is returning a function
     removeIdleUsersInterval = setInterval(() => removeIdleUsers(topic, ownAddress, stamp), REMOVE_INACTIVE_USERS_INTERVAL);
-    // cleanup needs to happen somewhere, possibly in stop(). But that's not part of this library
-
-    //on(EVENTS.LOAD_MESSAGE, notifyAboutNewMessage);
-    //on(EVENTS.LOADING_INIT_USERS, notifyAboutUserRegistration);   // this might not be needed
-    //off(EVENTS.LOADING_USERS, notifyAboutUserRegistration);       // Rejoin
 
   } catch (error) {
     console.error(error);
@@ -156,7 +144,7 @@ async function startActivityAnalyzes(topic: string, ownAddress: EthAddress, stam
 }
 
 // Used for Activity Analysis
-async function notifyAboutUserRegistration() {
+async function updateUserActivityAtRegistration() {
   try {
     
     if (previousActiveUsers.length >= users.length) {
@@ -180,27 +168,17 @@ async function notifyAboutUserRegistration() {
 }
 
 // Used for Activity Analysis
-//TODO rename
-async function notifyAboutNewMessage(messages: MessageData[]) {
+async function updateUserActivityAtNewMessage(messages: MessageData[]) {
   try {
     console.log("ENTERED INTO MESSAGE NOTIFY")
     console.log("Last message: ", messages[messagesIndex])
-
-    // Initializing UserActivity table entry
-    //TODO possibly one of these is not needed
-    /*if (!userActivityTable[messages[messagesIndex].address]) {
-      userActivityTable[messages[messagesIndex].address] = {
-        timestamp: messages[messagesIndex].timestamp,
-        readFails: 0
-      }
-    }*/
 
     userActivityTable[messages[messagesIndex].address] = {
       timestamp: messages[messagesIndex].timestamp,
       readFails: 0
     }
 
-    console.log("User Activity Table: ", userActivityTable);
+    console.log("User Activity Table (new message received): ", userActivityTable);
     messagesIndex = messages.length;
 
   } catch (error) {
@@ -225,7 +203,7 @@ async function removeIdleUsers(topic: string, ownAddress: EthAddress, stamp: Bat
     console.log("Users inside removeIdle: ", users)
     const activeUsers = users.filter((user) => {
       const userAddr = user.address;
-      if (!userActivityTable[userAddr]) {
+      if (!userActivityTable[userAddr]) { //TODO why we are doing this exactly?
         userActivityTable[userAddr] = { timestamp: Date.now(), readFails: 0 }
         return true;
       }
@@ -235,7 +213,7 @@ async function removeIdleUsers(topic: string, ownAddress: EthAddress, stamp: Bat
     if (activeUsers.length === 0) {
       console.info("There are no active users, Activity Analysis will continue when a user registers.");
     }
-    const minUsersToSelect = 1;
+    const minUsersToSelect = 3;
     const numUsersToselect = Math.max(Math.ceil(activeUsers.length * 0.3), minUsersToSelect);     // Select top 30% of activeUsers, but minimum 1
     const sortedActiveUsers = activeUsers.sort((a, b) => b.timestamp - a.timestamp);              // Sort activeUsers by timestamp
     const mostActiveUsers = sortedActiveUsers.slice(0, numUsersToselect);                         // Top 30% but minimum 1 
@@ -251,7 +229,7 @@ async function removeIdleUsers(topic: string, ownAddress: EthAddress, stamp: Bat
     if (selectedUser === ownAddress) {
       console.info("The user was selected for submitting the UsersFeedCommit!");
       const uploadObject: UsersFeedCommit = {
-        users: activeUsers,
+        users: activeUsers as UserWithIndex[],
         overwrite: true
       }
       const userRef = await uploadObjectToBee(bee, uploadObject, stamp as any);
@@ -404,36 +382,28 @@ async function getNewUsers(topic: string) {
   
     const validUsers = objectFromFeed.users.filter((user) => validateUserObject(user));
     const newUsersSet = new Set(validUsers.map((user) => user.address));
-    inactiveUsers = [...inactiveUsers, ...users.filter((user) => !newUsersSet.has(user.address))];
+    //inactiveUsers = [...inactiveUsers, ...users.filter((user) => !newUsersSet.has(user.address))];
 
     let newUsers: UserWithIndex[] = [];
-    if (!objectFromFeed.overwrite) newUsers = [...users];                                        // In this case, we accumulate User objects, othetwise, we owerwrite it
-
-    for (const user of validUsers) {
-      const alreadyRegistered = users.find((u) => u.address === user.address);
-      if (alreadyRegistered && objectFromFeed.overwrite) {                                       // If we are in overwrite mode, we need to add back these users to the feed
-        newUsers.push(alreadyRegistered);
-        continue;
-      }
-      const deactivatedUser = inactiveUsers.find((u) => u.address === user.address);             // This is a rejoin (user registers again, after being idle)
-      
-      if (deactivatedUser) {
-        // Re-add user to active users
-        newUsers.push(deactivatedUser);
-        inactiveUsers = inactiveUsers.filter((user) => user !== deactivatedUser);                // We remove the User from the inactive list
-        continue;
-      } else {
-        const userTopicString = generateUserOwnedFeedId(topic, user.address);                    // First registration, initalization
-        const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), user.address);
-        newUsers.push({...user, index: res.nextIndex});
-      }
+    if (!objectFromFeed.overwrite) {
+      // Registration
+      newUsers = [...users];
+      const userTopicString = generateUserOwnedFeedId(topic, validUsers[0].address);
+      const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), validUsers[0].address);
+      newUsers.push({
+        ...validUsers[0],
+        index: res.nextIndex
+      });
+    } else {
+      // Overwrite
+      newUsers = validUsers as unknown as UserWithIndex[];                                  // Overwrite commit was received, we simply overwrite the users object
     }
   
-    await setUsers(newUsers);
+    await setUsers(removeDuplicateUsers(newUsers));
     usersFeedIndex++;                                                                       // We assume that download was successful. Next time we are checking next index.
   
     // update userActivityTable
-    notifyAboutUserRegistration();
+    updateUserActivityAtRegistration();
     emitStateEvent(EVENTS.LOADING_USERS, false);
     
   } catch (error) {
@@ -483,7 +453,7 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
     }
 
     // Update userActivityTable
-    notifyAboutNewMessage(messages);
+    updateUserActivityAtNewMessage(messages);
   
     // Adjust max parallel request count, based on avg request time, which indicates, how much the node is overloaded
     if (reqTimeAvg.getAverage() > DECREASE_LIMIT) messagesQueue.decreaseMax();

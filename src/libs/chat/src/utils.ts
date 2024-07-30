@@ -1,6 +1,6 @@
 import { ethers, BytesLike, utils, Wallet } from 'ethers';
 import { BatchId, Bee, BeeRequestOptions, Signer, UploadResult, Utils } from '@ethersphere/bee-js';
-import { EthAddress, MessageData, Sha3Message } from './types';
+import { EthAddress, MessageData, Sha3Message, UserWithIndex } from './types';
 import { CONSENSUS_ID, F_STEP, HEX_RADIX, MAX_TIMEOUT, MESSAGE_FETCH_MAX, MESSAGE_FETCH_MIN } from './constants';
 
 // Generate an ID for the feed, that will be connected to the stream, as Users list
@@ -62,6 +62,27 @@ export function removeDuplicate(messages: MessageData[]): MessageData[] {
   const uniqueMessagesArray = Object.values(uniqueMessages);
 
   return uniqueMessagesArray;
+}
+
+// Remove duplicated elements from users object
+export function removeDuplicateUsers(users: UserWithIndex[]): UserWithIndex[] {
+  const userMap: Record<string, UserWithIndex> = {};
+
+  users.forEach(user => {
+      if (!userMap[user.address]) {
+          userMap[user.address] = user;
+      } else {
+          const existingUser = userMap[user.address];
+          if (
+              user.timestamp > existingUser.timestamp || 
+              (user.timestamp === existingUser.timestamp && user.index > existingUser.index)
+          ) {
+              userMap[user.address] = user;
+          }
+      }
+  });
+
+  return Object.values(userMap);
 }
 
 // getConsensualPrivateKey will generate a private key, that is used for the Graffiti-feed (which is a public feed, for user registration)
@@ -237,6 +258,7 @@ export class RunningAverage {
 }
 
 // Calculate the timeout, based an average, and some max value
+//TODO possibly obsolate
 export function calculateTimeout(avg: RunningAverage) {
   const multiplier = 1.6;
   return Math.floor(avg.getAverage() * multiplier) || MAX_TIMEOUT;
