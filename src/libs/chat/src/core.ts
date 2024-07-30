@@ -3,14 +3,11 @@ import { ethers, Signature } from 'ethers';
 import * as crypto from 'crypto';
 
 import { 
-  calculateTimeout,
-  decreaseInterval,
   generateGraffitiFeedMetadata,
   generateUserOwnedFeedId, 
   getLatestFeedIndex, 
   graffitiFeedReaderFromTopic, 
   graffitiFeedWriterFromTopic, 
-  increaseInterval, 
   isNotFoundError, 
   numberToFeedIndex, 
   removeDuplicateUsers, 
