@@ -151,7 +151,7 @@ async function updateUserActivityAtRegistration() {
       const start = previousActiveUsers.length;
       for (let i = start; i < users.length; i++) {
         const address = users[i].address;
-        console.info(`New users registered. Inserting ${users[i].timestamp} to ${address}`);
+        console.info(`New user registered. Inserting ${users[i].timestamp} to ${address}`);
         userActivityTable[address].timestamp = users[i].timestamp;
       }
     }
@@ -167,8 +167,7 @@ async function updateUserActivityAtRegistration() {
 // Used for Activity Analysis
 async function updateUserActivityAtNewMessage(messages: MessageData[]) {
   try {
-    console.log("ENTERED INTO MESSAGE NOTIFY")
-    console.log("Last message: ", messages[messagesIndex])
+    console.log("New message: ", messages[messagesIndex])
 
     userActivityTable[messages[messagesIndex].address] = {
       timestamp: messages[messagesIndex].timestamp,
@@ -264,8 +263,9 @@ export async function initUsers(topic: string, ownAddress: EthAddress, stamp: Ba
     const feedEntry = await feedReader.download();
     usersFeedIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
 
-    for (let i = usersFeedIndex; i > 0 ; i--) {
-      const feedEntry = await feedReader.download();
+    // was changed with minus one
+    for (let i = usersFeedIndex-1; i >= 0 ; i--) {
+      const feedEntry = await feedReader.download({ index: i});
       const data = await bee.downloadData(feedEntry.reference);
       const objectFromFeed = data.json() as unknown as UsersFeedCommit;
       const validUsers = objectFromFeed.users.filter((user) => validateUserObject(user));
@@ -329,8 +329,6 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
 
     await setUsers([...users, { ...newUser, index: -1 }]);
 
-    //const uploadableUsers = users.map((user) => ({ ...user, index: undefined }));
-    //TODO above line should be deleted, here, we only upload a user object (this is registration), and getNewUsers will concatenate this with the other users.
     const uploadObject: UsersFeedCommit = {
       users: [newUser],
       overwrite: false
@@ -361,7 +359,7 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
 export function startFetchingForNewUsers(topic: string) {
   if (!usersQueue) {
     //TODO we have to think about how index is exactly working here, and if it is connected to the Graffiti feed's index itself.
-    usersQueue = new AsyncQueue({ indexed: true, index: numberToFeedIndex(usersFeedIndex!), waitable: true, max: 1 });
+    usersQueue = new AsyncQueue({ indexed: false/*, index: numberToFeedIndex(usersFeedIndex!)*/, waitable: true, max: 1 });
   }
   return () => usersQueue.enqueue((index) => getNewUsers(topic));
 }
@@ -378,22 +376,29 @@ async function getNewUsers(topic: string) {
     console.log("New UsersFeedCommit received! ", objectFromFeed)
   
     const validUsers = objectFromFeed.users.filter((user) => validateUserObject(user));
-    const newUsersSet = new Set(validUsers.map((user) => user.address));
-    //inactiveUsers = [...inactiveUsers, ...users.filter((user) => !newUsersSet.has(user.address))];
 
     let newUsers: UserWithIndex[] = [];
     if (!objectFromFeed.overwrite) {
       // Registration
       newUsers = [...users];
+      export async function insertNewUserFromFeed() {
+        try {
+          
+        } catch (error) {
+          console.error(error);
+          throw new Error('Error while inserting new user from feed');
+        }
+      }
       const userTopicString = generateUserOwnedFeedId(topic, validUsers[0].address);
       const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), validUsers[0].address);
       newUsers.push({
         ...validUsers[0],
-        index: res.nextIndex
+        index: res.latestIndex
       });
     } else {
       // Overwrite
       newUsers = validUsers as unknown as UserWithIndex[];                                  // Overwrite commit was received, we simply overwrite the users object
+
     }
   
     await setUsers(removeDuplicateUsers(newUsers));
@@ -539,9 +544,7 @@ export async function sendMessage(
     if (!msgData) throw 'Could not upload message data to bee';
 
     const feedWriter = bee.makeFeedWriter('sequence', feedTopicHex, privateKey);
-    console.log('feedWriter', feedWriter);
     const ref = await feedWriter.upload(stamp, msgData.reference, { index: ownIndex });
-    console.log('ref', ref);
     ownIndex++;
 
     return ref;
@@ -569,4 +572,11 @@ function emitStateEvent(event: string, value: any) {
     eventStates[event] = value;
     emitter.emit(event, value);
   }
+}
+
+export function isRegistered(userAddress: EthAddress): boolean {
+  const findResult = users.findIndex((user) => user.address === userAddress);
+
+  if (findResult === -1) return false;
+  else return true;
 }

@@ -17,7 +17,8 @@ import './Chat.scss';
 import { 
   MessageData, 
   ParticipantDetails, 
-  UserWithIndex, 
+  UserWithIndex,
+  orderMessages,
   startMessageFetchProcess, 
   startUserFetchProcess, 
   stopMessageFetchProcess, 
@@ -58,7 +59,7 @@ export function Chat({ topic }: ChatProps) {
         const uniqueNewMessages = newMessages.filter(
           (newMsg) => !prevMessages.some((prevMsg) => prevMsg.timestamp === newMsg.timestamp),
         );
-        return [...prevMessages, ...uniqueNewMessages];
+        return orderMessages([...prevMessages, ...uniqueNewMessages]);
       });
 
       // Schedule a scroll after the state update if we're already at the bottom

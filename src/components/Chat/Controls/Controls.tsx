@@ -9,7 +9,14 @@ import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-rea
 import { ChatInput } from './ChatInput/ChatInput';
 
 import './Controls.scss';
-import { EthAddress, MessageData, sendMessage, ParticipantDetails, IDLE_TIME } from '../../../libs/chat';
+import { 
+  EthAddress, 
+  MessageData, 
+  sendMessage, 
+  isRegistered,
+  ParticipantDetails, 
+  IDLE_TIME
+} from '../../../libs/chat';
 import { LinearProgress } from '@mui/material';
 import { retryAwaitableAsync } from '../../../utils/common';
 
@@ -37,7 +44,7 @@ export function Controls({ topic, nickname, stamp, privateKey, reJoin }: Control
   async function handleSubmit() {
     const now = Date.now();
 
-    if ((lastMessageSent + IDLE_TIME - 30 * 1000) < now && lastMessageSent > 0) {
+    if (((lastMessageSent + IDLE_TIME - 8 * 1000) < now && lastMessageSent > 0) || !isRegistered(account)) {
       if (!account) throw 'Could not get Eth address';
       const details: ParticipantDetails = {
         nickName: nickname,

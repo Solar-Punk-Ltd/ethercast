@@ -21,8 +21,14 @@ export {
     initChatRoom, 
     initUsers, 
     registerUser,
+    isRegistered,
     startMessageFetchProcess,
     startUserFetchProcess,
     stopMessageFetchProcess,
     stopUserFetchProcess
 } from './core';
+
+// Utils
+export {
+    orderMessages
+} from './utils';
