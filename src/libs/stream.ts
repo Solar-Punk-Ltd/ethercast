@@ -1,5 +1,8 @@
-import { BatchId, Bee, FeedWriter } from '@solarpunk/bee-js';
+import { BatchId, Bee, FeedWriter, Reference } from '@ethersphere/bee-js';
+import { makeChunkedFile } from '@fairdatasociety/bmt-js';
 
+import { bytesToHex } from '../utils/beeJs/hex';
+import { retryAsync } from '../utils/common';
 import { CLUSTER_ID } from '../utils/constants';
 import { findHexInUint8Array } from '../utils/webm';
 
@@ -14,16 +17,10 @@ interface Options {
   video: boolean;
   audio: boolean;
   timeslice: number;
-  videoDetails?: {
-    width: number;
-    height: number;
-    frameRate: number;
-  };
+  videoBitsPerSecond: number;
 }
 
-const bee = new Bee('http://localhost:1633'); // Test address
-//const bee = new Bee("http://161.97.125.121:1933");
-
+const bee = new Bee('http://195.88.57.155:1633'); // Test address
 let feedWriter: FeedWriter;
 let mediaRecorder: MediaRecorder;
 let mediaStream: MediaStream;
@@ -31,36 +28,29 @@ let mediaStream: MediaStream;
 export async function startStream(signer: Signer, topic: string, stamp: BatchId, options: Options): Promise<void> {
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: options.video && {
-        width: {
-          ideal: options.videoDetails?.width,
-        },
-        height: {
-          ideal: options.videoDetails?.height,
-        },
-        frameRate: { ideal: options.videoDetails?.frameRate },
-      },
+      video: options.video,
       audio: options.audio,
     });
 
     mediaRecorder = new MediaRecorder(mediaStream, {
       mimeType: 'video/webm; codecs=vp9,opus',
+      videoBitsPerSecond: options.videoBitsPerSecond,
     });
 
     await initFeed(signer, topic, stamp);
-    const queue = new AsyncQueue({ indexed: true });
+    const queue = new AsyncQueue({ indexed: true, waitable: true });
 
-    let firstChunk = true;
+    let isFirstSegment = true;
     mediaRecorder.ondataavailable = async (event) => {
       if (event.data.size > 0) {
-        const byteChunk = new Uint8Array(await event.data.arrayBuffer());
+        const segment = new Uint8Array(await event.data.arrayBuffer());
 
-        if (firstChunk) {
-          queue.enqueue((index?: string) => uploadChunk(stamp, createInitData(byteChunk), index!));
-          firstChunk = false;
+        if (isFirstSegment) {
+          queue.enqueue((index?: string) => uploadSegment(stamp, createInitData(segment), index!));
+          isFirstSegment = false;
         }
 
-        queue.enqueue((index?: string) => uploadChunk(stamp, byteChunk, index!));
+        queue.enqueue((index?: string) => uploadSegment(stamp, segment, index!));
       }
     };
 
@@ -80,9 +70,14 @@ export function isStreamOngoing() {
   return mediaStream?.getTracks().some((track) => track.readyState === 'live');
 }
 
-async function uploadChunk(stamp: BatchId, chunk: Uint8Array, index: string) {
-  const chunkResult = await bee.uploadData(stamp, chunk);
-  await feedWriter.upload(stamp, chunkResult.reference, { index });
+async function uploadSegment(stamp: BatchId, segment: Uint8Array, index: string) {
+  retryAsync(() => bee.uploadData(stamp, segment));
+
+  // precalculate the reference
+  const chunkedFile = makeChunkedFile(segment);
+  const newChunkRef = bytesToHex(chunkedFile.address()) as Reference;
+
+  retryAsync(() => feedWriter.upload(stamp, newChunkRef, { index }));
 }
 
 async function initFeed(signer: Signer, rawTopic: string, stamp: BatchId) {

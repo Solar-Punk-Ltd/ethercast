@@ -7,10 +7,10 @@ import { Button, ButtonVariant } from '../../Button/Button';
 import './StartOverlay.scss';
 
 interface StartOverlayProps {
-  onStart: () => void;
+  handleStartClick: () => void;
 }
 
-export function StartOverlay({ onStart }: StartOverlayProps) {
+export function StartOverlay({ handleStartClick }: StartOverlayProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   const onMouseEnter = (_event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
@@ -22,9 +22,14 @@ export function StartOverlay({ onStart }: StartOverlayProps) {
   };
 
   return (
-    <div className="start-overlay" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-      <Button onClick={onStart} variant={ButtonVariant.icon}>
-        <img alt="play" src={isHovered ? playFillIcon : playIcon}></img>
+    <div className="start-overlay">
+      <Button onClick={handleStartClick} variant={ButtonVariant.icon}>
+        <img
+          alt="play"
+          src={isHovered ? playFillIcon : playIcon}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+        ></img>
       </Button>
     </div>
   );

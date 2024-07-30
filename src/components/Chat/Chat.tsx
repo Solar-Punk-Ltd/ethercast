@@ -1,210 +1,182 @@
-import { useEffect, useReducer, useState, createContext, useContext, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEthers } from '@usedapp/core';
+
+import { useModal } from '../../app/Modal/ModalProvider';
+import {
+  EVENTS,
+  getChatActions,
+  initUsers,
+  registerUser,
+} from '../../libs/chat/';
+import { ChatModal } from '../ChatModal/ChatModal';
+
 import { Controls } from './Controls/Controls';
 import { Message } from './Message/Message';
-import { TextInput } from '../TextInput/TextInput';
-import { EthAddress, MessageData, readSingleMessage, receiveMessage, registerUser } from '../../libs/chat';
-import { MainContext } from '../../routes.tsx';
-import EditIcon from '@mui/icons-material/Edit';
-import './Chat.scss';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import { chatUserSideReducer, initialStateForChatUserSide, readNextMessage } from '../../libs/chatUserSide.ts';
 
-export const LayoutContext = createContext({ chatBodyHeight: 'auto', setChatBodyHeight: (_: string) => {} });
+import './Chat.scss';
+import { 
+  MessageData, 
+  ParticipantDetails, 
+  UserWithIndex, 
+  startMessageFetchProcess, 
+  startUserFetchProcess, 
+  stopMessageFetchProcess, 
+  stopUserFetchProcess 
+} from '../../libs/chat/'
+import { retryAwaitableAsync } from '../../utils/common';
+
 
 interface ChatProps {
-  feedDataForm: Record<string, any>;
+  topic: string;
 }
 
-export function Chat({ feedDataForm }: ChatProps) {
-  const { nickNames, setNickNames, actualAccount, actualTopic } = useContext(MainContext);
-  const nickName = nickNames[actualAccount] ? nickNames[actualAccount][actualTopic] : '';
-  const [state, dispatch] = useReducer(chatUserSideReducer, initialStateForChatUserSide);
-  const [chatBodyHeight, setChatBodyHeight] = useState('auto');
-  const [nickname, setNickname] = useState(nickName);
-  const readInterval = 3000;
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [isNickNameSet, setIsNickNameSet] = useState(nickname ? true : false);
-  const [time, setTime] = useState(Date.now());
-  const chatBodyRef = useRef<HTMLDivElement | null>(null);
-  const programScrolling = useRef(false);
-  const [newUnseenMessages, setNewUnseenMessages] = useState(false);
+enum WriteMode {
+  NICK,
+  MESSAGE,
+}
 
+export function Chat({ topic }: ChatProps) {
+  const { account, isLoading } = useEthers();
+  const { openModal, closeModal } = useModal();
 
-  // --TEMPORARY--
-  const [otherParty, setOtherParty] = useState<EthAddress | null>(null);
-  // ----
+  const chatBodyRef = useRef<HTMLDivElement>(null);
 
-  const startMessageFetching = async () => {
-    if (!otherParty) return;
-    const index = 0;      // Later we could change this to fetch current position
-    readSingleMessage(index, feedDataForm.topic.value, otherParty, receiveMessage);
-  }
-
-  // Set a timer, to check for new messages
-  useEffect(() => {
-    if (true) {
-      const messageChecker = setInterval(async () => {
-        setTime(Date.now());
-      }, readInterval);
-      return () => clearInterval(messageChecker);
-    }
-  }, []);
+  const [user, setUser] = useState<UserWithIndex>();
+  const [writeMode, setWriteMode] = useState<WriteMode>(WriteMode.NICK);
+  const [nickName, setNickname] = useState('');
+  const [stamp, setStamp] = useState('');
+  const [key, setKey] = useState('');
+  const [messages, setMessages] = useState<MessageData[]>([]);
+  const [loadingUserInit, setLoadingUserInit] = useState(true);
 
   useEffect(() => {
-    if (isNickNameSet) {
-      const addr = window.prompt("Address of the other party");
-      setOtherParty(addr as EthAddress);
-    }
-  }, [isNickNameSet]);
+    const { on, off } = getChatActions();
 
-  useEffect(() => {
-    startMessageFetching();
-  }, [otherParty]);
+    const handleMessageLoad = (newMessages: MessageData[]) => {
+      setMessages((prevMessages) => {
+        const uniqueNewMessages = newMessages.filter(
+          (newMsg) => !prevMessages.some((prevMsg) => prevMsg.timestamp === newMsg.timestamp),
+        );
+        return [...prevMessages, ...uniqueNewMessages];
+      });
 
-  useEffect(() => {
-    readNextMessage(state, feedDataForm.topic.value, feedDataForm.address.value, dispatch);
-  }, [time]);
-  
-  const scrollToBottom = () => {
-    if (programScrolling.current && chatBodyRef.current) {
-      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
-    }
-  };
-  const handleScroll = () => {
-    if (chatBodyRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = chatBodyRef.current;
-
-      programScrolling.current = scrollTop + clientHeight + 1 >= scrollHeight;
-      if (programScrolling.current) setNewUnseenMessages(false);
-    }
-  };
-  useEffect(() => {
-    if (chatBodyRef.current) {
-      chatBodyRef.current.addEventListener('scroll', handleScroll);
-    }
-
-    return () => {
-      if (chatBodyRef.current) {
-        chatBodyRef.current.removeEventListener('scroll', handleScroll);
+      // Schedule a scroll after the state update if we're already at the bottom
+      if (isScrolledToBottom()) {
+        setTimeout(scrollToBottom, 0);
       }
     };
+
+    const handleInitLoad = (l: boolean) => setLoadingUserInit(l);
+
+    on(EVENTS.LOAD_MESSAGE, handleMessageLoad);
+    on(EVENTS.LOADING_INIT_USERS, handleInitLoad);
+
+    return () => {
+      off(EVENTS.LOAD_MESSAGE, handleMessageLoad);
+      off(EVENTS.LOADING_INIT_USERS, handleInitLoad);
+    };
   }, []);
 
   useEffect(() => {
-    if (chatBodyRef.current) {
-      programScrolling.current = true;
-      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
-    }
-  }, []);
-  useEffect(() => {
-    scrollToBottom();
-    if (!programScrolling.current) {
-      setNewUnseenMessages(true);
-    }
-  }, [state.messages]);
-
-  const handleClickOutside = (event: any) => {
-    if (event.target.className === 'layout') {
-      setIsEditMode(false);
-    }
-  };
-
-
-  
-  const nicknameChoosed = async () => {
-    if (nickname === '') {
+    if (isLoading) {
       return;
     }
-    setIsNickNameSet(true);
 
-    const result = await registerUser(feedDataForm.topic.value, feedDataForm.address.value, nickname, feedDataForm.stamp.value);
-    if (!result) throw "Error registering user!";
-
-    setNickNames((prevState: any) => ({
-      ...prevState,
-      [actualAccount]: { ...prevState[actualAccount], [actualTopic]: nickname },
-    }));
-  };
+    initUsers(topic).then((users) => {
+      if (users?.length && account) {
+        const user = users.find((u) => u.address.toLocaleLowerCase() === account.toLocaleLowerCase());
+        setUser(user);
+      }
+    });
+  }, [account, topic, isLoading]);
 
   useEffect(() => {
-    document.addEventListener('click', handleClickOutside);
-    console.log(nickNames);
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, [isEditMode, nickNames]);
+    if (!loadingUserInit) {
+      startMessageFetchProcess(topic);
+      startUserFetchProcess(topic);
 
+      return () => {
+        stopUserFetchProcess()
+        stopMessageFetchProcess();
+      };
+    }
+  }, [loadingUserInit, topic]);
+
+  const joinToChat = useCallback(
+    async (participantDetails: ParticipantDetails) => {
+      if (!participantDetails.nickName || !participantDetails.stamp || !participantDetails.participant) {
+        return;
+      }
+
+      if (!user) {
+        await retryAwaitableAsync(() => registerUser(topic, participantDetails));
+      }
+
+      setWriteMode(WriteMode.MESSAGE);
+      setStamp(participantDetails.stamp);
+      setNickname(participantDetails.nickName);
+      setKey(participantDetails.key);
+
+      closeModal();
+    },
+    [closeModal, topic, user],
+  );
+
+  const isScrolledToBottom = () => {
+    if (chatBodyRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = chatBodyRef.current;
+      return Math.abs(scrollHeight - clientHeight - scrollTop) < 1;
+    }
+    return false;
+  };
+
+  const scrollToBottom = () => {
+    if (chatBodyRef.current) {
+      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+    }
+  };
+
+  const handleOpenModal = useCallback(
+    () => openModal(<ChatModal user={user} onAction={joinToChat} />),
+    [user, openModal, joinToChat],
+  );
 
   return (
-    <LayoutContext.Provider value={{ chatBodyHeight, setChatBodyHeight }}>
-      <div className="chat">
-        <div>
-          {isNickNameSet ? (
-            <div className="actualNickName">
-              <span>Your Nickname: {nickname}</span>
-            </div>
-          ) : null}
-
-          <div className="body" ref={chatBodyRef}>
-            {state.messages.map((m: MessageData, i: number) => {
-              if (!m) return <Message key={i} name={'admin'} message={'loading'} own={false} />;
-              else return <Message key={i} name={m.username} message={m.message} own={nickname == m.username} />;
-            })}
+    <div className="chat">
+      <div>
+        {!!nickName && (
+          <div className="actual-nickname">
+            <span>Your Nickname: {nickName}</span>
           </div>
-        </div>
-
-        {newUnseenMessages ? (
-          <button
-            className="unseenMessages"
-            onClick={() => {
-              if (chatBodyRef.current) {
-                chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
-              }
-              setNewUnseenMessages(false);
-            }}
-          >
-            New messages <ArrowDownwardIcon style={{ fontSize: '15px', marginLeft: '10px' }} />
-          </button>
-        ) : null}
-        {!isNickNameSet ? (
-          <div className="header">
-            {!isEditMode && <span style={{ fontSize: '13px' }}>Enter a Nickname to use chat</span>}
-            {isEditMode && (
-              <TextInput
-                className="set-name"
-                value={nickname}
-                name={'nickname'}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNickname(e.target.value)}
-                placeholder="Choose a nickname"
-              />
-            )}
-            {!isEditMode ? (
-              <button className="nickNameEditButton" onClick={() => setIsEditMode(!isEditMode)}>
-                <EditIcon style={{ fontSize: 16 }} />
-              </button>
-            ) : (
-              <div className="editButtons">
-                <button onClick={() => nicknameChoosed()} className="okButton">
-                  OK
-                </button>
-                <button onClick={() => setIsEditMode(!isEditMode)} className="closeButton">
-                  X
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <Controls
-            topic={feedDataForm.topic.value}
-            nickname={nickname}
-            stamp={feedDataForm.stamp.value}
-            streamerAddress={feedDataForm.address.value}
-            state={state}
-            dispatch={dispatch}
-            newUnseenMessages={newUnseenMessages}
-          />
         )}
+
+        <div className="body" ref={chatBodyRef}>
+          {messages.map((m: MessageData, i: number) => (
+            <Message
+              key={i}
+              name={m.username || 'admin'}
+              message={m.message || 'loading'}
+              own={nickName == m.username}
+            />
+          ))}
+        </div>
       </div>
-    </LayoutContext.Provider>
+
+      {writeMode === WriteMode.NICK ? (
+        <div className="register-container">
+          <button onClick={handleOpenModal} disabled={loadingUserInit}>
+            Join to chat
+          </button>
+        </div>
+      ) : (
+        <Controls 
+          privateKey={key} 
+          topic={topic}
+          nickname={nickName}
+          stamp={stamp as any}
+          reJoin={joinToChat}
+        />
+      )}
+    </div>
   );
 }

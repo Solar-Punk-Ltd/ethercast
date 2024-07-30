@@ -1,57 +1,74 @@
 import { useState } from 'react';
-import { EthAddress, MessageData, writeToOwnFeed } from '../../../libs/chat';
 import { BatchId } from '@ethersphere/bee-js';
 import SendIcon from '@mui/icons-material/Send';
-import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
-import { ChatAction, ChatActions, State } from '../../../libs/chatUserSide';
-import { generateUniqId } from '../../../utils/chat';
-import { ChatInput } from './ChatInput/ChatInput';
 import CircularProgress from '@mui/material/CircularProgress';
+import { useEthers } from '@usedapp/core';
+import EmojiPicker, { Categories, EmojiClickData, Theme } from 'emoji-picker-react';
+
+import { ChatInput } from './ChatInput/ChatInput';
+
 import './Controls.scss';
+import { EthAddress, MessageData, sendMessage, ParticipantDetails, IDLE_TIME } from '../../../libs/chat';
+import { LinearProgress } from '@mui/material';
+import { retryAwaitableAsync } from '../../../utils/common';
 
 interface ControlsProps {
+  privateKey: string;
   topic: string;
-  streamerAddress: EthAddress;
   nickname: string;
   stamp: BatchId;
-  state: State;
-  dispatch: React.Dispatch<ChatAction>;
-  newUnseenMessages?: boolean;
+  reJoin: (participantDetails: ParticipantDetails) => Promise<void>;
 }
 
-export function Controls({ topic, streamerAddress, nickname, stamp, state, dispatch }: ControlsProps) {
+export function Controls({ topic, nickname, stamp, privateKey, reJoin }: ControlsProps) {
+  const { account } = useEthers();
+
   const [showIcons, setShowIcons] = useState(false);
-  const [sendActive, setSendActive] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [isRejoining, setIsRejoining] = useState(false);
   const [newMessage, setNewMessage] = useState('');
+  const [lastMessageSent, setLastMessageSent] = useState(0);                  // Timestamp of last message that we sent
+
   function handleSmileyClick() {
     setShowIcons(!showIcons);
   }
-    
-  async function handleSubmit() {
-    if (newMessage === '' || sendActive) return;
-    setSendActive(true);
-    setShowIcons(false);
-    const messageTimestamp = Date.now(); // It's important to put timestamp here, and not inside the send function because that way we couldn't filter out duplicate messages.
 
-    const userAddress: EthAddress | null = localStorage.getItem(generateUniqId(topic, streamerAddress)) as EthAddress;
-    if (!userAddress) throw "Could not get address from local storage!"                       // This suggests that the user haven't registered yet for this chat
-    
+  async function handleSubmit() {
+    const now = Date.now();
+
+    if ((lastMessageSent + IDLE_TIME - 30 * 1000) < now && lastMessageSent > 0) {
+      if (!account) throw 'Could not get Eth address';
+      const details: ParticipantDetails = {
+        nickName: nickname,
+        stamp: stamp,
+        participant: account,
+        key: privateKey
+      }
+      setIsRejoining(true);
+      console.info("Rejoining chat...");
+      await retryAwaitableAsync(() => reJoin(details));
+      console.info("Rejoined chat!");
+      setIsRejoining(false);
+    }
+    if (newMessage === '' || isSendingMessage || !account) return;
+    setIsSendingMessage(true);
+    setShowIcons(false);
+    setLastMessageSent(now);
+
     const messageObj: MessageData = {
+      address: account as EthAddress,
       message: newMessage,
       username: nickname,
-      address: userAddress,
-      timestamp: messageTimestamp,
+      timestamp: now,
     };
-    
-    const result = await writeToOwnFeed(topic, streamerAddress, state.ownFeedIndex, messageObj, stamp);
-    if (!result) throw 'Could not send message!';
-    dispatch({ type: ChatActions.UPDATE_OWN_FEED_INDEX, payload: { ownFeedIndex: state.ownFeedIndex + 1 } });
 
+    const result = await sendMessage(account as EthAddress, topic, messageObj, stamp, privateKey);
+    if (!result) throw 'Could not send message!';
 
     setNewMessage('');
-    setSendActive(false);
-  } 
+    setIsSendingMessage(false);
+  }
 
   function handleKeyPress(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter') {
@@ -67,16 +84,26 @@ export function Controls({ topic, streamerAddress, nickname, stamp, state, dispa
 
   return (
     <div className="controls">
-      <ChatInput
-        className="chat-input"
-        value={newMessage}
-        onKeyPressed={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyPress(e)}
-        setValue={setNewMessage}
-        name={nickname}
-        disabled={sendActive}
-        placeholder={'Type your message here'}
-        textareaClassName={sendActive}
-      />
+      {!isRejoining ? (
+        <ChatInput
+          className="chat-input"
+          value={newMessage}
+          onKeyPressed={(e: React.KeyboardEvent<HTMLTextAreaElement>) => handleKeyPress(e)}
+          setValue={setNewMessage}
+          name={nickname}
+          disabled={isSendingMessage}
+          placeholder={'Type your message here'}
+          textareaClassName={isSendingMessage}
+        />
+      ) : 
+      (
+        <LinearProgress sx={{
+          width: '100%',
+          maxHeight: '120px',
+          overflow: 'auto',}}
+        />
+      )
+      }
       {showIcons && (
         <div className="text-input-icons">
           <EmojiPicker
@@ -99,22 +126,22 @@ export function Controls({ topic, streamerAddress, nickname, stamp, state, dispa
         </div>
       )}
 
-      {!sendActive ? (
+      {!isSendingMessage && (
         <SentimentSatisfiedAltIcon
-          sx={{ cursor: sendActive ? 'not-allowed' : '' }}
+          sx={{ cursor: isSendingMessage ? 'not-allowed' : '' }}
           className="text-input-icon"
           onClick={handleSmileyClick}
         />
-      ) : null}
+      )}
 
-      <div className="controlButton">
+      <div className="send-wrapper">
         <button
           onClick={handleSubmit}
-          className="sendButton"
-          style={{ cursor: sendActive ? 'not-allowed' : '' }}
-          disabled={sendActive}
+          className="send-button"
+          style={{ cursor: isSendingMessage ? 'not-allowed' : '' }}
+          disabled={isSendingMessage}
         >
-          {sendActive ? <CircularProgress size={20} sx={{ color: '#ff7900' }} /> : <SendIcon />}
+          {isSendingMessage ? <CircularProgress size={20} sx={{ color: '#ff7900' }} /> : <SendIcon />}
         </button>
       </div>
     </div>
