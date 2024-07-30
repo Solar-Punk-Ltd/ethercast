@@ -82,7 +82,7 @@ export function Chat({ topic }: ChatProps) {
       return;
     }
 
-    initUsers(topic).then((users) => {
+    initUsers(topic, stamp).then((users) => {
       if (users?.length && account) {
         const user = users.find((u) => u.address.toLocaleLowerCase() === account.toLocaleLowerCase());
         setUser(user);

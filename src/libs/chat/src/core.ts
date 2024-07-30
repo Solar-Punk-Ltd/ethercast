@@ -98,7 +98,6 @@ export async function initChatRoom(topic: string, stamp: BatchId) {
     const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
     await bee.createFeedManifest(stamp, 'sequence', consensusHash, graffitiSigner.address);
 
-    startActivityAnalyzes(topic, stamp);
   } catch (error) {
     console.error(error);
     throw new Error('Could not create Users feed');
@@ -137,6 +136,7 @@ export function stopMessageFetchProcess() {
   }
 }
 
+// Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
 async function startActivityAnalyzes(topic: string, stamp: BatchId) {
   try {
     const { startFetchingForNewUsers, startLoadingNewMessages } = getChatActions();
@@ -147,9 +147,9 @@ async function startActivityAnalyzes(topic: string, stamp: BatchId) {
     removeIdleUsersInterval = setInterval(() => removeIdleUsers(topic, stamp), REMOVE_INACTIVE_USERS_INTERVAL);
     // cleanup needs to happen somewhere, possibly in stop(). But that's not part of this library
 
-    on(EVENTS.LOAD_MESSAGE, notifyStreamerAboutNewMessage);
-    on(EVENTS.LOADING_INIT_USERS, notifyStreamerAboutUserRegistration);   // this might not be needed
-    off(EVENTS.LOADING_USERS, notifyStreamerAboutUserRegistration);       // Rejoin
+    on(EVENTS.LOAD_MESSAGE, notifyAboutNewMessage);
+    on(EVENTS.LOADING_INIT_USERS, notifyAboutUserRegistration);   // this might not be needed
+    off(EVENTS.LOADING_USERS, notifyAboutUserRegistration);       // Rejoin
 
   } catch (error) {
     console.error(error);
@@ -157,7 +157,8 @@ async function startActivityAnalyzes(topic: string, stamp: BatchId) {
   }
 }
 
-async function notifyStreamerAboutUserRegistration() {
+// Used for Activity Analysis
+async function notifyAboutUserRegistration() {
   try {
     
     if (previousActiveUsers.length >= users.length) {
@@ -183,7 +184,8 @@ async function notifyStreamerAboutUserRegistration() {
   }
 }
 
-async function notifyStreamerAboutNewMessage(messages: MessageData[]) {
+// Used for Activity Analysis
+async function notifyAboutNewMessage(messages: MessageData[]) {
   try {
     console.log("ENTERED INTO MESSAGE NOTIFY")
     console.log("Last message: ", messages[messagesIndex])
@@ -275,7 +277,7 @@ async function removeIdleUsers(topic: string, stamp: BatchId) {
   }
 }
 
-export async function initUsers(topic: string): Promise<UserWithIndex[] | null> {
+export async function initUsers(topic: string, stamp: BatchId): Promise<UserWithIndex[] | null> {
   try {
     emitStateEvent(EVENTS.LOADING_INIT_USERS, true);
 
@@ -290,7 +292,7 @@ export async function initUsers(topic: string): Promise<UserWithIndex[] | null> 
       const data = await bee.downloadData(feedEntry.reference);
       const objectFromFeed = data.json() as unknown as UsersFeedCommit;
       const validUsers = objectFromFeed.users.filter((user) => validateUserObject(user));
-      if (objectFromFeed.overwrite) {                             // They will have index that was already written to the object by Streamer
+      if (objectFromFeed.overwrite) {                             // They will have index that was already written to the object by Activity Analysis writer
         const usersBatch: UserWithIndex[] = validUsers as unknown as UserWithIndex[];
         aggregatedList = [...aggregatedList, ...usersBatch];
       } else {                                                    // These do not have index, but we can initialize them to 0
@@ -305,6 +307,7 @@ export async function initUsers(topic: string): Promise<UserWithIndex[] | null> 
     }
 
     await setUsers(aggregatedList);
+    startActivityAnalyzes(topic, stamp);                          // Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
 
     return aggregatedList;
   } catch (error) {
