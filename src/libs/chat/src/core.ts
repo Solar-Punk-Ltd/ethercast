@@ -303,9 +303,8 @@ export async function initUsers(topic: string, ownAddress: EthAddress, stamp: Ba
 
 export async function registerUser(topic: string, { participant, key, stamp, nickName: username }: ParticipantDetails) {
   try {
-  console.warn("REGISTER before emit")  
     emitStateEvent(EVENTS.LOADING_REGISTRATION, true);
-  console.warn("REGISTER after emit")
+  
     const wallet = new ethers.Wallet(key);
     const address = wallet.address as EthAddress;
     
