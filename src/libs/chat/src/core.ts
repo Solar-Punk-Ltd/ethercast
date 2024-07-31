@@ -9,7 +9,6 @@ import {
   graffitiFeedReaderFromTopic, 
   graffitiFeedWriterFromTopic, 
   isNotFoundError, 
-  numberToFeedIndex, 
   removeDuplicateUsers, 
   retryAwaitableAsync, 
   RunningAverage, 
@@ -65,7 +64,6 @@ let mInterval: number = MESSAGE_FETCH_MIN * 3;                        // We init
 let messagesIndex = 0;
 let removeIdleIsRunning = false;                                      // Avoid race conditions
 let userActivityTable: UserActivity = {};                             // Used to remove inactive users
-let previousActiveUsers: EthAddress[] = [];                           //TODO possibly obsolate
 let newlyResigeredUsers: UserWithIndex[] = [];                        // keep track of fresh users
 
 // Diagnostics
@@ -145,16 +143,10 @@ async function startActivityAnalyzes(topic: string, ownAddress: EthAddress, stam
 async function updateUserActivityAtRegistration() {
   try {
     
-    if (previousActiveUsers.length >= users.length) {
-      console.info("previousActiveUsers list is bigger or equal to current users list. Exiting function.");
-      return;
-    } else {
-      const start = previousActiveUsers.length;
-      for (let i = start; i < users.length; i++) {
-        const address = users[i].address;
-        console.info(`New user registered. Inserting ${users[i].timestamp} to ${address}`);
-        userActivityTable[address].timestamp = users[i].timestamp;
-      }
+    for (let i = 0; i < newlyResigeredUsers.length; i++) {
+      const address = newlyResigeredUsers[i].address;
+      console.info(`New user registered. Inserting ${newlyResigeredUsers[i].timestamp} to ${address}`);
+      userActivityTable[address].timestamp = newlyResigeredUsers[i].timestamp;
     }
 
     console.log("User Activity Table: ", userActivityTable);
@@ -166,17 +158,16 @@ async function updateUserActivityAtRegistration() {
 }
 
 // Used for Activity Analysis
-async function updateUserActivityAtNewMessage(messages: MessageData[]) {
+async function updateUserActivityAtNewMessage(theNewMessage: MessageData) {
   try {
-    console.log("New message: ", messages[messagesIndex])
+    console.log("New message (updateUserActivityAtNewMessage): ", theNewMessage)
 
-    userActivityTable[messages[messagesIndex].address] = {
-      timestamp: messages[messagesIndex].timestamp,
+    userActivityTable[theNewMessage.address] = {
+      timestamp: theNewMessage.timestamp,
       readFails: 0
     }
 
     console.log("User Activity Table (new message received): ", userActivityTable);
-    messagesIndex = messages.length;
 
   } catch (error) {
     console.error(error);
@@ -200,8 +191,11 @@ async function removeIdleUsers(topic: string, ownAddress: EthAddress, stamp: Bat
     console.log("Users inside removeIdle: ", users)
     const activeUsers = users.filter((user) => {
       const userAddr = user.address;
-      if (!userActivityTable[userAddr]) { //TODO why we are doing this exactly?
-        userActivityTable[userAddr] = { timestamp: Date.now(), readFails: 0 }
+      if (!userActivityTable[userAddr]) {
+        userActivityTable[userAddr] = {
+          timestamp: user.timestamp,
+          readFails: 0
+        }
         return true;
       }
             
@@ -209,6 +203,7 @@ async function removeIdleUsers(topic: string, ownAddress: EthAddress, stamp: Bat
     });
     if (activeUsers.length === 0) {
       console.info("There are no active users, Activity Analysis will continue when a user registers.");
+      return;
     }
     const minUsersToSelect = 3;
     const numUsersToselect = Math.max(Math.ceil(activeUsers.length * 0.3), minUsersToSelect);     // Select top 30% of activeUsers, but minimum 1
@@ -240,8 +235,7 @@ async function removeIdleUsers(topic: string, ownAddress: EthAddress, stamp: Bat
       } catch (error) {
         console.log("UPLOAD ERROR (removeIdleUsers)");
       }
-      
-      previousActiveUsers = activeUsers.map((user) => user.address);
+    
       users = activeUsers;
     }
 
@@ -394,8 +388,6 @@ async function getNewUsers(topic: string) {
       newUsers = removeDuplicateUsers([...newlyResigeredUsers, ...validUsers as unknown as UserWithIndex[]]);
       newlyResigeredUsers = [];
     }
-
-
   
     await setUsers(removeDuplicateUsers(newUsers));
     usersFeedIndex++;                                                                       // We assume that download was successful. Next time we are checking next index.
@@ -449,9 +441,6 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
       const { latestIndex, nextIndex } = await getLatestFeedIndex(bee, topic, user.address);
       currIndex = latestIndex === -1 ? nextIndex : latestIndex;
     }
-
-    // Update userActivityTable
-    updateUserActivityAtNewMessage(messages);
   
     // Adjust max parallel request count, based on avg request time, which indicates, how much the node is overloaded
     if (reqTimeAvg.getAverage() > DECREASE_LIMIT) messagesQueue.decreaseMax();
@@ -494,11 +483,17 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
     await setUsers(newUsers);
   
     messages.push(messageData);
+    
+    // Update userActivityTable
+    updateUserActivityAtNewMessage(messageData);
+    
+    //TODO why not increment?
+    messagesIndex++;
   
     // TODO - discuss with the team
-    if (messages.length > 300) {
+    /*if (messages.length > 300) {
       messages.shift();
-    }
+    }*/
   
     emitter.emit(EVENTS.LOAD_MESSAGE, messages);
   } catch (error) {

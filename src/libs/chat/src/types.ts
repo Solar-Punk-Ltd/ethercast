@@ -9,7 +9,7 @@ export type EthAddress = HexString<typeof ETH_ADDRESS_LENGTH>;
 // Client-side user details, includes private key, and stamp
 export interface ParticipantDetails {
     nickName: string;
-    participant: string;
+    participant: EthAddress;
     key: string;
     stamp: string;
 }
