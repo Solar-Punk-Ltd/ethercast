@@ -181,6 +181,7 @@ async function updateUserActivityAtNewMessage(theNewMessage: MessageData) {
   }
 }
 
+// Every user is taking part in removeIdleUsers, but only some of them will be selected, for writting the Users feed (pseudo-random)
 async function removeIdleUsers(topic: string, ownAddress: EthAddress, stamp: BatchId) {
   try {
     console.log("UserActivity table inside removeIdleUsers: ", userActivityTable);
