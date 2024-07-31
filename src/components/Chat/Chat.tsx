@@ -110,9 +110,7 @@ export function Chat({ topic }: ChatProps) {
         return;
       }
 
-      if (!user) {
-        await retryAwaitableAsync(() => registerUser(topic, participantDetails));
-      }
+      await retryAwaitableAsync(() => registerUser(topic, participantDetails));
 
       setWriteMode(WriteMode.MESSAGE);
       setStamp(participantDetails.stamp);

@@ -184,7 +184,7 @@ async function updateUserActivityAtNewMessage(theNewMessage: MessageData) {
 // Every user is taking part in removeIdleUsers, but only some of them will be selected, for writting the Users feed (pseudo-random)
 async function removeIdleUsers(topic: string, ownAddress: EthAddress, stamp: BatchId) {
   try {
-    console.log("UserActivity table inside removeIdleUsers: ", userActivityTable);
+    console.log(`UserActivity table inside removeIdleUsers: `, userActivityTable);
     if (removeIdleIsRunning) return;
     removeIdleIsRunning = true;
     const idleMs: IdleMs = {};
@@ -274,14 +274,19 @@ export async function initUsers(topic: string, ownAddress: EthAddress, stamp: Ba
       if (objectFromFeed.overwrite) {                             // They will have index that was already written to the object by Activity Analysis writer
         const usersBatch: UserWithIndex[] = validUsers as unknown as UserWithIndex[];
         aggregatedList = [...aggregatedList, ...usersBatch];
+        //TODO either quit, or check just the previous message
+        // because that might be a registration, that was not recorded yet, in overwrite commit message
+        break;
       } else {                                                    // These do not have index, but we can initialize them to 0
-        const usersBatch = validUsers.map((user) => {
-          return { 
-            ...user, 
-            index: 0
-          };
-        });
-        aggregatedList = [...aggregatedList, ...usersBatch];
+        const userTopicString = generateUserOwnedFeedId(topic, validUsers[0].address);
+        const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), validUsers[0].address);
+
+        const newUser =  { 
+          ...validUsers[0], 
+          index: res.latestIndex
+        };
+        
+        aggregatedList = [...aggregatedList, newUser];
       }
     }
 
@@ -298,19 +303,23 @@ export async function initUsers(topic: string, ownAddress: EthAddress, stamp: Ba
 
 export async function registerUser(topic: string, { participant, key, stamp, nickName: username }: ParticipantDetails) {
   try {
+  console.warn("REGISTER before emit")  
     emitStateEvent(EVENTS.LOADING_REGISTRATION, true);
+  console.warn("REGISTER after emit")
+    const wallet = new ethers.Wallet(key);
+    const address = wallet.address as EthAddress;
+    
+    if (address.toLowerCase() !== participant.toLowerCase()) {
+      throw new Error('The provided address does not match the address derived from the private key');
+    }
+
+    startActivityAnalyzes(topic, address, stamp as BatchId);                  // Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
 
     const alreadyRegistered = users.find((user) => user.address === participant);
 
     if (alreadyRegistered) {
       console.log('User already registered');
       return;
-    }
-
-    const wallet = new ethers.Wallet(key);
-    const address = wallet.address as EthAddress;
-    if (address.toLowerCase() !== participant.toLowerCase()) {
-      throw new Error('The provided address does not match the address derived from the private key');
     }
 
     const timestamp = Date.now();
@@ -343,11 +352,13 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
 
     try {
       await feedWriter.upload(stamp, userRef.reference);
-      startActivityAnalyzes(topic, address, stamp as BatchId);                    // Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
+      //TODO remove
+      //startActivityAnalyzes(topic, address, stamp as BatchId);                    // Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
     } catch (error) {
       if (isNotFoundError(error)) {
         await feedWriter.upload(stamp, userRef.reference, { index: 0 });
-        startActivityAnalyzes(topic, address, stamp as BatchId);                  // Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
+        //TODO remove
+        //startActivityAnalyzes(topic, address, stamp as BatchId);                  // Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
       }
     }
   } catch (error) {
@@ -432,7 +443,7 @@ export function startLoadingNewMessages(topic: string) {
     for (const user of users) {
       reqCount++;
       //TODO remove
-      //console.info(`Request enqueued. Total request count: ${reqCount}`);
+      console.info(`Request enqueued. Total request count: ${reqCount}`);
       messagesQueue.enqueue(() => readMessage(user, topic));
     }
   };
