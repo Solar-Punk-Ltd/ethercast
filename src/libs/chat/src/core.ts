@@ -146,14 +146,20 @@ async function updateUserActivityAtRegistration() {
     for (let i = 0; i < newlyResigeredUsers.length; i++) {
       const address = newlyResigeredUsers[i].address;
       console.info(`New user registered. Inserting ${newlyResigeredUsers[i].timestamp} to ${address}`);
-      userActivityTable[address].timestamp = newlyResigeredUsers[i].timestamp;
+      if (userActivityTable[address])                                         // Update entry
+        userActivityTable[address].timestamp = newlyResigeredUsers[i].timestamp;
+      else                                                                    // Create new entry
+        userActivityTable[address] = {
+          timestamp: newlyResigeredUsers[i].timestamp,
+          readFails: 0
+        }
     }
 
     console.log("User Activity Table: ", userActivityTable);
 
   } catch (error) {
     console.error(error);
-    throw new Error('There was an error while processing new user registration on streamer side');
+    throw new Error('There was an error while processing new user registration in updateUserActivityAtRegistration');
   }
 }
 
@@ -424,7 +430,8 @@ export function startLoadingNewMessages(topic: string) {
 
     for (const user of users) {
       reqCount++;
-      console.info(`Request enqueued. Total request count: ${reqCount}`);
+      //TODO remove
+      //console.info(`Request enqueued. Total request count: ${reqCount}`);
       messagesQueue.enqueue(() => readMessage(user, topic));
     }
   };
