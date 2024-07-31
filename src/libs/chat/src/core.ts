@@ -359,8 +359,7 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
 
 export function startFetchingForNewUsers(topic: string) {
   if (!usersQueue) {
-    //TODO we have to think about how index is exactly working here, and if it is connected to the Graffiti feed's index itself.
-    usersQueue = new AsyncQueue({ indexed: false/*, index: numberToFeedIndex(usersFeedIndex!)*/, waitable: true, max: 1 });
+    usersQueue = new AsyncQueue({ indexed: false, waitable: true, max: 1 });
   }
   return () => usersQueue.enqueue((index) => getNewUsers(topic));
 }
