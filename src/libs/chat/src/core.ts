@@ -184,8 +184,13 @@ async function updateUserActivityAtNewMessage(theNewMessage: MessageData) {
 // Every user is taking part in removeIdleUsers, but only some of them will be selected, for writting the Users feed (pseudo-random)
 async function removeIdleUsers(topic: string, ownAddress: EthAddress, stamp: BatchId) {
   try {
+  console.time("TOTAL_removeIdle_TIME");
     console.log(`UserActivity table inside removeIdleUsers: `, userActivityTable);
-    if (removeIdleIsRunning) return;
+    if (removeIdleIsRunning) {
+      console.warn("Previous removeIdleUsers is still running");
+      //TODO debug this
+      return;
+    }
     removeIdleIsRunning = true;
     const idleMs: IdleMs = {};
     const now = Date.now();
@@ -226,7 +231,7 @@ async function removeIdleUsers(topic: string, ownAddress: EthAddress, stamp: Bat
     const selectedUser = mostActiveUsers[randomIndex].address;
 
     if (selectedUser === ownAddress) {
-      console.info("The user was selected for submitting the UsersFeedCommit!");
+      console.info("The user was selected for submitting the UsersFeedCommit! (removeIdleUsers)");
       const uploadObject: UsersFeedCommit = {
         users: activeUsers as UserWithIndex[],
         overwrite: true
@@ -234,7 +239,7 @@ async function removeIdleUsers(topic: string, ownAddress: EthAddress, stamp: Bat
       const userRef = await uploadObjectToBee(bee, uploadObject, stamp as any);
       if (!userRef) throw new Error('Could not upload user list to bee');
   
-      const feedWriter = graffitiFeedWriterFromTopic(bee, topic);
+      const feedWriter = graffitiFeedWriterFromTopic(bee, topic, { timeout: 8000 });
   
       try {
         await feedWriter.upload(stamp, userRef.reference);
@@ -245,7 +250,7 @@ async function removeIdleUsers(topic: string, ownAddress: EthAddress, stamp: Bat
     
       users = activeUsers;
     }
-
+  console.timeEnd("TOTAL_removeIdle_TIME");
     removeIdleIsRunning = false;
 
   } catch (error) {
@@ -351,13 +356,9 @@ export async function registerUser(topic: string, { participant, key, stamp, nic
 
     try {
       await feedWriter.upload(stamp, userRef.reference);
-      //TODO remove
-      //startActivityAnalyzes(topic, address, stamp as BatchId);                    // Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
     } catch (error) {
       if (isNotFoundError(error)) {
         await feedWriter.upload(stamp, userRef.reference, { index: 0 });
-        //TODO remove
-        //startActivityAnalyzes(topic, address, stamp as BatchId);                  // Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
       }
     }
   } catch (error) {
