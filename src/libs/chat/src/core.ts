@@ -501,13 +501,13 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
     if (newUsers[uIndex]) newUsers[uIndex].index = currIndex + 1;         // If this User was dropped, we won't increment it's index, but Streamer will
     await setUsers(newUsers);
   
-    messages.push(messageData);
-    
-    // Update userActivityTable
-    updateUserActivityAtNewMessage(messageData);
-    
-    //TODO why not increment?
-    messagesIndex++;
+    // If the message is relatively new, we insert it to messages array, otherwise, we drop it
+    if (messageData.timestamp + IDLE_TIME*2 > Date.now()) {
+      messages.push(messageData);
+      // Update userActivityTable
+      updateUserActivityAtNewMessage(messageData);
+      messagesIndex++;
+    }
   
     // TODO - discuss with the team
     /*if (messages.length > 300) {
