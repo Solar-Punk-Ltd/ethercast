@@ -145,7 +145,7 @@ async function startActivityAnalyzes(topic: string, ownAddress: EthAddress, stam
   }
 }
 
-// Used for Activity Analysis
+// Used for Activity Analysis, creates or updates entry in the activity table
 async function updateUserActivityAtRegistration() {
   try {
     
@@ -169,7 +169,7 @@ async function updateUserActivityAtRegistration() {
   }
 }
 
-// Used for Activity Analysis
+// Used for Activity Analysis, saves last message timestamp into activity table
 async function updateUserActivityAtNewMessage(theNewMessage: MessageData) {
   try {
     console.log("New message (updateUserActivityAtNewMessage): ", theNewMessage)
@@ -187,82 +187,109 @@ async function updateUserActivityAtNewMessage(theNewMessage: MessageData) {
   }
 }
 
-// Every user is taking part in removeIdleUsers, but only some of them will be selected, for writting the Users feed (pseudo-random)
+// Every user is taking part in removeIdleUsers (Activity Analysis), but only one of them will be selected, for writting the Users feed 
+// This selection is pseudo-random, and it should select the same user in every app instance
 async function removeIdleUsers(topic: string, ownAddress: EthAddress, stamp: BatchId) {
   try {
-  console.time("TOTAL_removeIdle_TIME");
     console.log(`UserActivity table inside removeIdleUsers: `, userActivityTable);
     if (removeIdleIsRunning) {
       console.warn("Previous removeIdleUsers is still running");
       //TODO debug this
+      // we could do some statistics about how slow is this node, so it will select it with less chance
       return;
     }
     removeIdleIsRunning = true;
-    const idleMs: IdleMs = {};
-    const now = Date.now();
+    
+    const activeUsers = getActiveUsers();
 
-    for (const rawKey in userActivityTable) {
-      const key = rawKey as unknown as EthAddress;
-      idleMs[key] = now - userActivityTable[key].timestamp;
-    }
-
-    console.log("Users inside removeIdle: ", users)
-    const activeUsers = users.filter((user) => {
-      const userAddr = user.address;
-      if (!userActivityTable[userAddr]) {
-        userActivityTable[userAddr] = {
-          timestamp: user.timestamp,
-          readFails: 0
-        }
-        return true;
-      }
-            
-      return idleMs[userAddr] < IDLE_TIME;
-    });
     if (activeUsers.length === 0) {
       console.info("There are no active users, Activity Analysis will continue when a user registers.");
+      await writeUsersFeedCommit(topic, stamp, activeUsers);
+      removeIdleIsRunning = false;
       return;
     }
-    const minUsersToSelect = 3;
-    const numUsersToselect = Math.max(Math.ceil(activeUsers.length * 0.3), minUsersToSelect);     // Select top 30% of activeUsers, but minimum 1
-    const sortedActiveUsers = activeUsers.sort((a, b) => b.timestamp - a.timestamp);              // Sort activeUsers by timestamp
-    const mostActiveUsers = sortedActiveUsers.slice(0, numUsersToselect);                         // Top 30% but minimum 1 
 
-    // Lottery about UsersFeedCommit
-    console.log("Most active users: ", mostActiveUsers);
-    const sortedMostActiveAddresses = mostActiveUsers.map((user) => user.address).sort();
-    const seedString = sortedMostActiveAddresses.join(',');
-    const hash = crypto.createHash('sha256').update(seedString).digest('hex');
-    const randomIndex = parseInt(hash, 16) % mostActiveUsers.length;
-    const selectedUser = mostActiveUsers[randomIndex].address;
+    const selectedUser = selectUsersFeedCommitWriter(activeUsers);
 
     if (selectedUser === ownAddress) {
-      console.info("The user was selected for submitting the UsersFeedCommit! (removeIdleUsers)");
-      const uploadObject: UsersFeedCommit = {
-        users: activeUsers as UserWithIndex[],
-        overwrite: true
-      }
-      const userRef = await uploadObjectToBee(bee, uploadObject, stamp as any);
-      if (!userRef) throw new Error('Could not upload user list to bee');
-  
-      const feedWriter = graffitiFeedWriterFromTopic(bee, topic, { timeout: 8000 });
-  
-      try {
-        await feedWriter.upload(stamp, userRef.reference);
-        console.log("Upload was successful!")
-      } catch (error) {
-        console.log("UPLOAD ERROR (removeIdleUsers)");
-      }
-    
-      users = activeUsers;
+      await writeUsersFeedCommit(topic, stamp, activeUsers);
     }
-  console.timeEnd("TOTAL_removeIdle_TIME");
+    
     removeIdleIsRunning = false;
 
   } catch (error) {
     removeIdleIsRunning = false;
     console.error(error);
     throw new Error('There was an error while removing idle users from the Users feed');
+  }
+}
+
+//TODO this is an utils function
+function selectUsersFeedCommitWriter(activeUsers: UserWithIndex[]): EthAddress {
+  const minUsersToSelect = 3;
+  const numUsersToselect = Math.max(Math.ceil(activeUsers.length * 0.3), minUsersToSelect);     // Select top 30% of activeUsers, but minimum 1
+  const sortedActiveUsers = activeUsers.sort((a, b) => b.timestamp - a.timestamp);              // Sort activeUsers by timestamp
+  const mostActiveUsers = sortedActiveUsers.slice(0, numUsersToselect);                         // Top 30% but minimum 3 (minUsersToSelect)
+
+  // Lottery about UsersFeedCommit
+  console.log("Most active users: ", mostActiveUsers);
+  const sortedMostActiveAddresses = mostActiveUsers.map((user) => user.address).sort();
+  const seedString = sortedMostActiveAddresses.join(',');                                       // All running instances should have the same string at this time
+  const hash = crypto.createHash('sha256').update(seedString).digest('hex');                    // Hash should be same in all computers that are in this chat
+  const randomIndex = parseInt(hash, 16) % mostActiveUsers.length;                              // They should have the same number, thus, selecting the same user
+  
+  return mostActiveUsers[randomIndex].address;
+}
+
+//TODO this is an utils function
+function getActiveUsers(): UserWithIndex[] {
+  const idleMs: IdleMs = {};
+  const now = Date.now();
+
+  for (const rawKey in userActivityTable) {
+    const key = rawKey as unknown as EthAddress;
+    idleMs[key] = now - userActivityTable[key].timestamp;
+  }
+
+  console.log("Users inside removeIdle: ", users)
+  const activeUsers = users.filter((user) => {
+    const userAddr = user.address;
+    if (!userActivityTable[userAddr]) {
+      userActivityTable[userAddr] = {
+        timestamp: user.timestamp,
+        readFails: 0
+      }
+      return true;
+    }
+          
+    return idleMs[userAddr] < IDLE_TIME;
+  });
+
+  return activeUsers;
+}
+
+
+// Write a UsersFeedCommit to the Users feed, which might remove some inactive users from the readMessagesForAll loop
+async function writeUsersFeedCommit(topic: string, stamp: BatchId, activeUsers: UserWithIndex[]) {
+  try {
+    console.info("The user was selected for submitting the UsersFeedCommit! (removeIdleUsers)");
+    const uploadObject: UsersFeedCommit = {
+      users: activeUsers as UserWithIndex[],
+      overwrite: true
+    }
+    const userRef = await uploadObjectToBee(bee, uploadObject, stamp as any);
+    if (!userRef) throw new Error('Could not upload user list to bee');
+
+    const feedWriter = graffitiFeedWriterFromTopic(bee, topic, { timeout: 8000 });
+
+    await feedWriter.upload(stamp, userRef.reference);
+    console.log("Upload was successful!")    
+
+    //TODO remove, this will happen anyway, just like for the other users
+    //users = activeUsers;
+  } catch (error) {
+    console.error(error);
+    throw new Error('There was an error while writing UsersFeedCommit to the Users feed');
   }
 }
 
