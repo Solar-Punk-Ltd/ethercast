@@ -84,6 +84,7 @@ export function getChatActions() {
   };
 }
 
+// Creates the Users feed, which is necesarry for user registration, and to handle idle users
 export async function initChatRoom(topic: string, stamp: BatchId) {
   try {
     const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
