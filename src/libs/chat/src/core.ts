@@ -78,13 +78,14 @@ const eventStates: Record<string, boolean> = {
 export function getChatActions() {
   return {
     startFetchingForNewUsers,
-    startLoadingNewMessages,
+    startLoadingNewMessages: readMessagesForAll,
     on: emitter.on,
     off: emitter.off,
   };
 }
 
 // Creates the Users feed, which is necesarry for user registration, and to handle idle users
+// Should be called from outside the library, for example React
 export async function initChatRoom(topic: string, stamp: BatchId) {
   try {
     const { consensusHash, graffitiSigner } = generateGraffitiFeedMetadata(topic);
@@ -96,7 +97,8 @@ export async function initChatRoom(topic: string, stamp: BatchId) {
   }
 }
 
-// Should be called from outside the library, for example React, will start the user fetch process
+// startUserFetchProcess will periodically read the Users feed
+// Should be called from outside the library, for example React
 export function startUserFetchProcess(topic: string) {
   if (userFetchInterval) {
     clearInterval(userFetchInterval);
@@ -104,7 +106,8 @@ export function startUserFetchProcess(topic: string) {
   userFetchInterval = setInterval(startFetchingForNewUsers(topic), USER_UPDATE_INTERVAL);
 }
 
-// Should be called from outside the library, for example React, will stop the user fetch process
+// stopUserFetchProcess clears the interval, that periodically reads the Users feed
+// Should be called from outside the library, for example React
 export function stopUserFetchProcess() {
   if (userFetchInterval) {
     clearInterval(userFetchInterval);
@@ -112,15 +115,17 @@ export function stopUserFetchProcess() {
   }
 }
 
-// Should be called from outside the library, for example React, will start message fetch process
+// startMessageFetchProcess will periodically read next message, for all active users
+// Should be called from outside the library, for example React
 export function startMessageFetchProcess(topic: string) {
   if (messageFetchInterval) {
     clearInterval(messageFetchInterval);
   }
-  messageFetchInterval = setInterval(startLoadingNewMessages(topic), mInterval);
+  messageFetchInterval = setInterval(readMessagesForAll(topic), mInterval);
 }
 
-// Should be called from outside the library, for example React, will stop the message fetch process
+// clears the interval, that periodically reads messages for all active users
+// Should be called from outside the library, for example React
 export function stopMessageFetchProcess() {
   if (messageFetchInterval) {
     clearInterval(messageFetchInterval);
@@ -430,7 +435,7 @@ async function getNewUsers(topic: string) {
   }
 }
 
-export function startLoadingNewMessages(topic: string) {
+export function readMessagesForAll(topic: string) {
   if (!messagesQueue) {
     messagesQueue = new AsyncQueue({ indexed: false, waitable: true, max: 4 });
   }
@@ -471,7 +476,7 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
       if (mInterval + F_STEP <= MESSAGE_FETCH_MAX) {
         mInterval = mInterval + F_STEP;
         if (messageFetchInterval) clearInterval(messageFetchInterval);
-        messageFetchInterval = setInterval(startLoadingNewMessages(rawTopic), mInterval);
+        messageFetchInterval = setInterval(readMessagesForAll(rawTopic), mInterval);
         console.info(`Increased message fetch interval to ${mInterval} ms`);
       }
     }
@@ -479,7 +484,7 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
       if (mInterval - F_STEP > MESSAGE_FETCH_MIN) {
         mInterval = mInterval - F_STEP;
         if (messageFetchInterval) clearInterval(messageFetchInterval);
-        messageFetchInterval = setInterval(startLoadingNewMessages(rawTopic), mInterval);
+        messageFetchInterval = setInterval(readMessagesForAll(rawTopic), mInterval);
         console.info(`Decreased message fetch interval to ${mInterval-F_STEP} ms`);
       }
     }
