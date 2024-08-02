@@ -1,7 +1,8 @@
 import { ethers, BytesLike, utils, Wallet } from 'ethers';
+import * as crypto from 'crypto';
 import { BatchId, Bee, BeeRequestOptions, Signer, UploadResult, Utils } from '@ethersphere/bee-js';
-import { EthAddress, MessageData, Sha3Message, UserWithIndex } from './types';
-import { CONSENSUS_ID, F_STEP, HEX_RADIX, MAX_TIMEOUT, MESSAGE_FETCH_MAX, MESSAGE_FETCH_MIN } from './constants';
+import { EthAddress, IdleMs, MessageData, Sha3Message, UserActivity, UserWithIndex } from './types';
+import { CONSENSUS_ID, F_STEP, HEX_RADIX, IDLE_TIME, MAX_TIMEOUT, MESSAGE_FETCH_MAX, MESSAGE_FETCH_MIN } from './constants';
 
 // Generate an ID for the feed, that will be connected to the stream, as Users list
 export function generateUsersFeedId(topic: string) {
@@ -255,4 +256,48 @@ export class RunningAverage {
     }
     return this.sum / this.values.length;
   }
+}
+
+// selectUsersFeedCommitWriter will select a user who will write a UsersFeedCommit object to the feed
+export function selectUsersFeedCommitWriter(activeUsers: UserWithIndex[]): EthAddress {
+  const minUsersToSelect = 3;
+  const numUsersToselect = Math.max(Math.ceil(activeUsers.length * 0.3), minUsersToSelect);     // Select top 30% of activeUsers, but minimum 1
+  const sortedActiveUsers = activeUsers.sort((a, b) => b.timestamp - a.timestamp);              // Sort activeUsers by timestamp
+  const mostActiveUsers = sortedActiveUsers.slice(0, numUsersToselect);                         // Top 30% but minimum 3 (minUsersToSelect)
+
+  // Lottery about UsersFeedCommit
+  console.log("Most active users: ", mostActiveUsers);
+  const sortedMostActiveAddresses = mostActiveUsers.map((user) => user.address).sort();
+  const seedString = sortedMostActiveAddresses.join(',');                                       // All running instances should have the same string at this time
+  const hash = crypto.createHash('sha256').update(seedString).digest('hex');                    // Hash should be same in all computers that are in this chat
+  const randomIndex = parseInt(hash, 16) % mostActiveUsers.length;                              // They should have the same number, thus, selecting the same user
+  
+  return mostActiveUsers[randomIndex].address;
+}
+
+//TODO this is an utils function
+export function getActiveUsers(users: UserWithIndex[], userActivityTable: UserActivity): UserWithIndex[] {
+  const idleMs: IdleMs = {};
+  const now = Date.now();
+
+  for (const rawKey in userActivityTable) {
+    const key = rawKey as unknown as EthAddress;
+    idleMs[key] = now - userActivityTable[key].timestamp;
+  }
+
+  console.log("Users inside removeIdle: ", users)
+  const activeUsers = users.filter((user) => {
+    const userAddr = user.address;
+    if (!userActivityTable[userAddr]) {
+      userActivityTable[userAddr] = {
+        timestamp: user.timestamp,
+        readFails: 0
+      }
+      return true;
+    }
+          
+    return idleMs[userAddr] < IDLE_TIME;
+  });
+
+  return activeUsers;
 }
