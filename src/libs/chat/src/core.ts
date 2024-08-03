@@ -450,27 +450,7 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
       currIndex = latestIndex === -1 ? nextIndex : latestIndex;
     }
   
-    // Adjust max parallel request count, based on avg request time, which indicates, how much the node is overloaded
-    if (reqTimeAvg.getAverage() > DECREASE_LIMIT) messagesQueue.decreaseMax();
-    if (reqTimeAvg.getAverage() < INCREASE_LIMIT) messagesQueue.increaseMax(users.length * 4);  // *4 is just for simulation purposes, it should be exactly users.length
-
-    // Adjust message fetch interval
-    if (reqTimeAvg.getAverage() > FETCH_INTERVAL_INCREASE_LIMIT) {
-      if (mInterval + F_STEP <= MESSAGE_FETCH_MAX) {
-        mInterval = mInterval + F_STEP;
-        if (messageFetchInterval) clearInterval(messageFetchInterval);
-        messageFetchInterval = setInterval(readMessagesForAll(rawTopic), mInterval);
-        console.info(`Increased message fetch interval to ${mInterval} ms`);
-      }
-    }
-    if (reqTimeAvg.getAverage() < FETCH_INTERVAL_DECREASE_LIMIT) {
-      if (mInterval - F_STEP > MESSAGE_FETCH_MIN) {
-        mInterval = mInterval - F_STEP;
-        if (messageFetchInterval) clearInterval(messageFetchInterval);
-        messageFetchInterval = setInterval(readMessagesForAll(rawTopic), mInterval);
-        console.info(`Decreased message fetch interval to ${mInterval-F_STEP} ms`);
-      }
-    }
+    adjustParamerets(rawTopic)
 
     // We measure the request time with the first Bee API request, with the second request, we do not do this, because it is very similar
     const feedReader = bee.makeFeedReader('sequence', topic, user.address, { timeout: MAX_TIMEOUT });
@@ -508,7 +488,8 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
     if (error instanceof Error) {
       if (error.message.includes("timeout")) {
         console.info(`Timeout of ${MAX_TIMEOUT} exceeded for readMessage.`);
-        reqTimeAvg.addValue(MAX_TIMEOUT);
+        //TODO remove avg modification here, because it messes up avg
+        //reqTimeAvg.addValue(MAX_TIMEOUT);
       } else {
         if (!isNotFoundError(error)) {
           if (userActivityTable[user.address]) userActivityTable[user.address].readFails++;                  // We increment read fail count
@@ -516,6 +497,32 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
           throw new Error('There was an error in the readMessage function');
         }
       }
+    }
+  }
+}
+
+// Adjusts maxParallel and message fetch interval
+//TODO this might be an utils function, but we need to pass a lot of paramerers, and in the other direction as well (return)
+function adjustParamerets(topic: string) {
+  // Adjust max parallel request count, based on avg request time, which indicates, how much the node is overloaded
+  if (reqTimeAvg.getAverage() > DECREASE_LIMIT) messagesQueue.decreaseMax();
+  if (reqTimeAvg.getAverage() < INCREASE_LIMIT) messagesQueue.increaseMax(users.length * 4);  // *4 is just for simulation purposes, it should be exactly users.length
+
+  // Adjust message fetch interval
+  if (reqTimeAvg.getAverage() > FETCH_INTERVAL_INCREASE_LIMIT) {
+    if (mInterval + F_STEP <= MESSAGE_FETCH_MAX) {
+      mInterval = mInterval + F_STEP;
+      if (messageFetchInterval) clearInterval(messageFetchInterval);
+      messageFetchInterval = setInterval(readMessagesForAll(topic), mInterval);
+      console.info(`Increased message fetch interval to ${mInterval} ms`);
+    }
+  }
+  if (reqTimeAvg.getAverage() < FETCH_INTERVAL_DECREASE_LIMIT) {
+    if (mInterval - F_STEP > MESSAGE_FETCH_MIN) {
+      mInterval = mInterval - F_STEP;
+      if (messageFetchInterval) clearInterval(messageFetchInterval);
+      messageFetchInterval = setInterval(readMessagesForAll(topic), mInterval);
+      console.info(`Decreased message fetch interval to ${mInterval-F_STEP} ms`);
     }
   }
 }
