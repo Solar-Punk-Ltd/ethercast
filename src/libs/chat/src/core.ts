@@ -77,7 +77,7 @@ const eventStates: Record<string, boolean> = {
 
 export function getChatActions() {
   return {
-    startFetchingForNewUsers,
+    startFetchingForNewUsers: enqueueUserFetch,
     startLoadingNewMessages: readMessagesForAll,
     on: emitter.on,
     off: emitter.off,
@@ -103,7 +103,7 @@ export function startUserFetchProcess(topic: string) {
   if (userFetchInterval) {
     clearInterval(userFetchInterval);
   }
-  userFetchInterval = setInterval(startFetchingForNewUsers(topic), USER_UPDATE_INTERVAL);
+  userFetchInterval = setInterval(enqueueUserFetch(topic), USER_UPDATE_INTERVAL);
 }
 
 // stopUserFetchProcess clears the interval, that periodically reads the Users feed
@@ -130,6 +130,119 @@ export function stopMessageFetchProcess() {
   if (messageFetchInterval) {
     clearInterval(messageFetchInterval);
     messageFetchInterval = null;
+  }
+}
+
+// Initializes the users object, when starting the application
+// Should be called from outside the library, for example React
+export async function initUsers(topic: string, ownAddress: EthAddress, stamp: BatchId) {
+  try {
+    emitStateEvent(EVENTS.LOADING_INIT_USERS, true);
+
+    const feedReader = graffitiFeedReaderFromTopic(bee, topic);
+    let aggregatedList: UserWithIndex[] = [];
+
+    const feedEntry = await feedReader.download();
+    usersFeedIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
+
+    // Go back, until we find an overwrite commit
+    for (let i = usersFeedIndex-1; i >= 0 ; i--) {
+      const feedEntry = await feedReader.download({ index: i});
+      const data = await bee.downloadData(feedEntry.reference);
+      const objectFromFeed = data.json() as unknown as UsersFeedCommit;
+      const validUsers = objectFromFeed.users.filter((user) => validateUserObject(user));
+      if (objectFromFeed.overwrite) {                             // They will have index that was already written to the object by Activity Analysis writer
+        const usersBatch: UserWithIndex[] = validUsers as unknown as UserWithIndex[];
+        aggregatedList = [...aggregatedList, ...usersBatch];
+        //TODO either quit, or check just the previous message
+        // because that might be a registration, that was not recorded yet, in overwrite commit message
+        // We could go back until we find a timestamp, that has lower timestamp than now-IDLE
+        break;
+      } else {                                                    // These do not have index, but we can initialize them to 0
+        const userTopicString = generateUserOwnedFeedId(topic, validUsers[0].address);
+        const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), validUsers[0].address);
+
+        const newUser =  { 
+          ...validUsers[0], 
+          index: res.latestIndex
+        };
+        
+        aggregatedList = [...aggregatedList, newUser];
+      }
+    }
+
+    await setUsers(aggregatedList);
+
+  } catch (error) {
+    console.error('Init users error: ', error);
+    throw error;
+  } finally {
+    emitStateEvent(EVENTS.LOADING_INIT_USERS, false);
+  }
+}
+
+// Registers the user for chat, will create a UsersFeedCommit object, and will write it to the Users feed
+// Should be called from outside the library, for example React
+export async function registerUser(topic: string, { participant, key, stamp, nickName: username }: ParticipantDetails) {
+  try {
+    emitStateEvent(EVENTS.LOADING_REGISTRATION, true);
+  
+    const wallet = new ethers.Wallet(key);
+    const address = wallet.address as EthAddress;
+    
+    if (address.toLowerCase() !== participant.toLowerCase()) {
+      throw new Error('The provided address does not match the address derived from the private key');
+    }
+
+    startActivityAnalyzes(topic, address, stamp as BatchId);                  // Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
+
+    const alreadyRegistered = users.find((user) => user.address === participant);
+
+    if (alreadyRegistered) {
+      console.log('User already registered');
+      return;
+    }
+
+    const timestamp = Date.now();
+    const signature = (await wallet.signMessage(
+      JSON.stringify({ username, address, timestamp }),
+    )) as unknown as Signature;
+
+    const newUser: User = {
+      address,
+      username,
+      timestamp,
+      signature,
+    };
+
+    if (!validateUserObject(newUser)) {
+      throw new Error('User object validation failed');
+    }
+
+    await setUsers([...users, { ...newUser, index: -1 }]);
+
+    const uploadObject: UsersFeedCommit = {
+      users: [newUser],
+      overwrite: false
+    }
+
+    const userRef = await uploadObjectToBee(bee, uploadObject, stamp as any);
+    if (!userRef) throw new Error('Could not upload user to bee');
+
+    const feedWriter = graffitiFeedWriterFromTopic(bee, topic);
+
+    try {
+      await feedWriter.upload(stamp, userRef.reference);
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        await feedWriter.upload(stamp, userRef.reference, { index: 0 });
+      }
+    }
+  } catch (error) {
+    console.error(error);
+    throw new Error(`There was an error while trying to register user (chatroom): ${error}`);
+  } finally {
+    emitStateEvent(EVENTS.LOADING_REGISTRATION, false);
   }
 }
 
@@ -249,122 +362,15 @@ async function writeUsersFeedCommit(topic: string, stamp: BatchId, activeUsers: 
   }
 }
 
-export async function initUsers(topic: string, ownAddress: EthAddress, stamp: BatchId): Promise<UserWithIndex[] | null> {
-  try {
-    emitStateEvent(EVENTS.LOADING_INIT_USERS, true);
-
-    const feedReader = graffitiFeedReaderFromTopic(bee, topic);
-    let aggregatedList: UserWithIndex[] = [];
-
-    const feedEntry = await feedReader.download();
-    usersFeedIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
-
-    // was changed with minus one
-    for (let i = usersFeedIndex-1; i >= 0 ; i--) {
-      const feedEntry = await feedReader.download({ index: i});
-      const data = await bee.downloadData(feedEntry.reference);
-      const objectFromFeed = data.json() as unknown as UsersFeedCommit;
-      const validUsers = objectFromFeed.users.filter((user) => validateUserObject(user));
-      if (objectFromFeed.overwrite) {                             // They will have index that was already written to the object by Activity Analysis writer
-        const usersBatch: UserWithIndex[] = validUsers as unknown as UserWithIndex[];
-        aggregatedList = [...aggregatedList, ...usersBatch];
-        //TODO either quit, or check just the previous message
-        // because that might be a registration, that was not recorded yet, in overwrite commit message
-        break;
-      } else {                                                    // These do not have index, but we can initialize them to 0
-        const userTopicString = generateUserOwnedFeedId(topic, validUsers[0].address);
-        const res = await getLatestFeedIndex(bee, bee.makeFeedTopic(userTopicString), validUsers[0].address);
-
-        const newUser =  { 
-          ...validUsers[0], 
-          index: res.latestIndex
-        };
-        
-        aggregatedList = [...aggregatedList, newUser];
-      }
-    }
-
-    await setUsers(aggregatedList);
-
-    return aggregatedList;
-  } catch (error) {
-    console.error('Init users error: ', error);
-    throw error;
-  } finally {
-    emitStateEvent(EVENTS.LOADING_INIT_USERS, false);
-  }
-}
-
-export async function registerUser(topic: string, { participant, key, stamp, nickName: username }: ParticipantDetails) {
-  try {
-    emitStateEvent(EVENTS.LOADING_REGISTRATION, true);
-  
-    const wallet = new ethers.Wallet(key);
-    const address = wallet.address as EthAddress;
-    
-    if (address.toLowerCase() !== participant.toLowerCase()) {
-      throw new Error('The provided address does not match the address derived from the private key');
-    }
-
-    startActivityAnalyzes(topic, address, stamp as BatchId);                  // Every User is doing Activity Analysis, and one of them is selected to write the UsersFeed
-
-    const alreadyRegistered = users.find((user) => user.address === participant);
-
-    if (alreadyRegistered) {
-      console.log('User already registered');
-      return;
-    }
-
-    const timestamp = Date.now();
-    const signature = (await wallet.signMessage(
-      JSON.stringify({ username, address, timestamp }),
-    )) as unknown as Signature;
-
-    const newUser: User = {
-      address,
-      username,
-      timestamp,
-      signature,
-    };
-
-    if (!validateUserObject(newUser)) {
-      throw new Error('User object validation failed');
-    }
-
-    await setUsers([...users, { ...newUser, index: -1 }]);
-
-    const uploadObject: UsersFeedCommit = {
-      users: [newUser],
-      overwrite: false
-    }
-
-    const userRef = await uploadObjectToBee(bee, uploadObject, stamp as any);
-    if (!userRef) throw new Error('Could not upload user to bee');
-
-    const feedWriter = graffitiFeedWriterFromTopic(bee, topic);
-
-    try {
-      await feedWriter.upload(stamp, userRef.reference);
-    } catch (error) {
-      if (isNotFoundError(error)) {
-        await feedWriter.upload(stamp, userRef.reference, { index: 0 });
-      }
-    }
-  } catch (error) {
-    console.error(error);
-    throw new Error(`There was an error while trying to register user (chatroom): ${error}`);
-  } finally {
-    emitStateEvent(EVENTS.LOADING_REGISTRATION, false);
-  }
-}
-
-export function startFetchingForNewUsers(topic: string) {
+// Adds a getNewUsers to the usersQueue, which will fetch new users
+export function enqueueUserFetch(topic: string) {
   if (!usersQueue) {
     usersQueue = new AsyncQueue({ indexed: false, waitable: true, max: 1 });
   }
   return () => usersQueue.enqueue((index) => getNewUsers(topic));
 }
 
+// Reads the Users feed, and changes the users object, accordingly
 async function getNewUsers(topic: string) {
   try {
     emitStateEvent(EVENTS.LOADING_USERS, true);
@@ -418,6 +424,7 @@ async function getNewUsers(topic: string) {
   }
 }
 
+// Goes through the users object, and enqueues a readMessage for each assumably active user
 export function readMessagesForAll(topic: string) {
   if (!messagesQueue) {
     messagesQueue = new AsyncQueue({ indexed: false, waitable: true, max: 4 });
