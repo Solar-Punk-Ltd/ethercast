@@ -46,23 +46,9 @@ export function validateUserObject(user: any): boolean {
   }
 }
 
-// Returns timesstamp ordered messages (currently not used)
+// Returns timesstamp ordered messages
 export function orderMessages(messages: MessageData[]) {
   return messages.sort((a, b) => a.timestamp - b.timestamp);
-}
-
-// Removes duplicates, also pays attention to same-timestamp unique messages (currently not used)
-export function removeDuplicate(messages: MessageData[]): MessageData[] {
-  const uniqueMessages: { [key: string]: MessageData } = {};
-
-  messages.forEach((message) => {
-    const key = `${message.timestamp}_${message.message}`;
-    uniqueMessages[key] = message;
-  });
-
-  const uniqueMessagesArray = Object.values(uniqueMessages);
-
-  return uniqueMessagesArray;
 }
 
 // Remove duplicated elements from users object

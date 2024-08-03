@@ -5,7 +5,7 @@ import { ETH_ADDRESS_LENGTH } from "./constants";
 // This is a hex string of specific length (42)
 export type EthAddress = HexString<typeof ETH_ADDRESS_LENGTH>;
 
-// TODO: participant should be EthAddress, most likely
+// TODO: should be renamed, probably to UserDetails or UserWithKey. Or, it should be merged with other objects
 // Client-side user details, includes private key, and stamp
 export interface ParticipantDetails {
     nickName: string;

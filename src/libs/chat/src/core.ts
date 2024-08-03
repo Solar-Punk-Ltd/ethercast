@@ -364,8 +364,6 @@ async function writeUsersFeedCommit(topic: string, stamp: BatchId, activeUsers: 
     await feedWriter.upload(stamp, userRef.reference);
     console.log("Upload was successful!")    
 
-    //TODO remove, this will happen anyway, just like for the other users
-    //users = activeUsers;
   } catch (error) {
     console.error(error);
     throw new Error('There was an error while writing UsersFeedCommit to the Users feed');
@@ -506,8 +504,6 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
     if (error instanceof Error) {
       if (error.message.includes("timeout")) {
         console.info(`Timeout of ${MAX_TIMEOUT} exceeded for readMessage.`);
-        //TODO remove avg modification here, because it messes up avg
-        //reqTimeAvg.addValue(MAX_TIMEOUT);
       } else {
         if (!isNotFoundError(error)) {
           if (userActivityTable[user.address]) userActivityTable[user.address].readFails++;                  // We increment read fail count
