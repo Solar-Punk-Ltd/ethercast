@@ -186,11 +186,9 @@ export function generateGraffitiFeedMetadata(topic: string) {
 // getLatestFeedIndex will give back latestIndex and nextIndex, if download succeeds, if not, latestIndex will be -1, and nextIndex is 0
 export async function getLatestFeedIndex(bee: Bee, topic: string, address: EthAddress) {
   try {
-  console.log("topic: ", topic)
     const feedReader = bee.makeFeedReader('sequence', topic, address);
-  console.log("feedReader: ", feedReader)
     const feedEntry = await feedReader.download();
-  console.log("feedEntry: ", feedEntry)
+  console.log("feedEntry (getLatestFeedIndex): ", feedEntry)
     const latestIndex = parseInt(feedEntry.feedIndex.toString(), HEX_RADIX);
     const nextIndex = parseInt(feedEntry.feedIndexNext, HEX_RADIX);
 
@@ -261,7 +259,7 @@ export function selectUsersFeedCommitWriter(activeUsers: UserWithIndex[]): EthAd
   return mostActiveUsers[randomIndex].address;
 }
 
-//TODO this is an utils function
+// Gives back the currently active users, based on idle time calculation
 export function getActiveUsers(users: UserWithIndex[], userActivityTable: UserActivity): UserWithIndex[] {
   const idleMs: IdleMs = {};
   const now = Date.now();
