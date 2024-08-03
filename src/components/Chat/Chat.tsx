@@ -54,7 +54,7 @@ export function Chat({ topic }: ChatProps) {
   useEffect(() => {
     const { on, off } = getChatActions();
 
-    const handleMessageLoad = (newMessages: MessageData[]) => {
+    const handleMessageReceive = (newMessages: MessageData[]) => {
       setMessages((prevMessages) => {
         const uniqueNewMessages = newMessages.filter(
           (newMsg) => !prevMessages.some((prevMsg) => prevMsg.timestamp === newMsg.timestamp),
@@ -70,11 +70,11 @@ export function Chat({ topic }: ChatProps) {
 
     const handleInitLoad = (l: boolean) => setLoadingUserInit(l);
 
-    on(EVENTS.LOAD_MESSAGE, handleMessageLoad);
+    on(EVENTS.RECEIVE_MESSAGE, handleMessageReceive);
     on(EVENTS.LOADING_INIT_USERS, handleInitLoad);
 
     return () => {
-      off(EVENTS.LOAD_MESSAGE, handleMessageLoad);
+      off(EVENTS.RECEIVE_MESSAGE, handleMessageReceive);
       off(EVENTS.LOADING_INIT_USERS, handleInitLoad);
     };
   }, []);
@@ -85,8 +85,9 @@ export function Chat({ topic }: ChatProps) {
     }
 
     initUsers(topic, account, stamp as BatchId).then((users) => {
-      if (users?.length && account) {
-        const user = users.find((u) => u.address.toLocaleLowerCase() === account.toLocaleLowerCase());
+      const typeCheckedUsers = users as unknown as UserWithIndex[]
+      if (typeCheckedUsers?.length && account) {
+        const user = typeCheckedUsers.find((u) => u.address.toLocaleLowerCase() === account.toLocaleLowerCase());
         setUser(user);
       }
     });

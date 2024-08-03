@@ -8,7 +8,7 @@ export const EVENTS = {
     LOADING_INIT_USERS: 'loadingInitUsers',
     LOADING_USERS: 'loadingUsers',
     LOADING_REGISTRATION: 'loadingRegistration',
-    LOAD_MESSAGE: 'loadMessage',
+    RECEIVE_MESSAGE: 'receiveMessage',
 };
 
 export const SECOND = 1000;

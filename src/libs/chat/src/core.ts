@@ -69,6 +69,7 @@ let newlyResigeredUsers: UserWithIndex[] = [];                        // keep tr
 // Diagnostics
 let reqCount = 0;
 
+// Which operation is in progress, if any
 const eventStates: Record<string, boolean> = {
   loadingInitUsers: false,
   loadingUsers: false,
@@ -179,6 +180,15 @@ export async function initUsers(topic: string, ownAddress: EthAddress, stamp: Ba
   } finally {
     emitStateEvent(EVENTS.LOADING_INIT_USERS, false);
   }
+}
+
+// Checks if a given Ethereum address is registered or not
+// Should be called from outside the library, for example React
+export function isRegistered(userAddress: EthAddress): boolean {
+  const findResult = users.findIndex((user) => user.address === userAddress);
+
+  if (findResult === -1) return false;
+  else return true;
 }
 
 // Registers the user for chat, will create a UsersFeedCommit object, and will write it to the Users feed
@@ -445,6 +455,7 @@ export function readMessagesForAll(topic: string) {
   };
 }
 
+// Reads one message, from a user's own feed
 async function readMessage(user: UserWithIndex, rawTopic: string) {
   try {
     const chatID = generateUserOwnedFeedId(rawTopic, user.address);
@@ -490,7 +501,7 @@ async function readMessage(user: UserWithIndex, rawTopic: string) {
       messages.shift();
     }*/
   
-    emitter.emit(EVENTS.LOAD_MESSAGE, messages);
+    emitter.emit(EVENTS.RECEIVE_MESSAGE, messages);
   } catch (error) {
     if (error instanceof Error) {
       if (error.message.includes("timeout")) {
@@ -534,6 +545,7 @@ function adjustParamerets(topic: string) {
   }
 }
 
+// Sends a message to the user's own feed
 export async function sendMessage(
   address: EthAddress,
   topic: string,
@@ -569,6 +581,7 @@ export async function sendMessage(
   }
 }
 
+// Writes the users object, will avoid collision with other write operation
 async function setUsers(newUsers: UserWithIndex[]) {
   return retryAwaitableAsync(async () => {
     if (usersLoading) {
@@ -580,16 +593,10 @@ async function setUsers(newUsers: UserWithIndex[]) {
   });
 }
 
+// Emit event about state change
 function emitStateEvent(event: string, value: any) {
   if (eventStates[event] !== value) {
     eventStates[event] = value;
     emitter.emit(event, value);
   }
-}
-
-export function isRegistered(userAddress: EthAddress): boolean {
-  const findResult = users.findIndex((user) => user.address === userAddress);
-
-  if (findResult === -1) return false;
-  else return true;
 }
