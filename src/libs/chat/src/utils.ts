@@ -249,8 +249,7 @@ export function selectUsersFeedCommitWriter(activeUsers: UserWithIndex[]): EthAd
   const sortedActiveUsers = activeUsers.sort((a, b) => b.timestamp - a.timestamp);              // Sort activeUsers by timestamp
   const mostActiveUsers = sortedActiveUsers.slice(0, numUsersToselect);                         // Top 30% but minimum 3 (minUsersToSelect)
 
-  // Lottery about UsersFeedCommit
-  console.log("Most active users: ", mostActiveUsers);
+console.log("Most active users: ", mostActiveUsers);
   const sortedMostActiveAddresses = mostActiveUsers.map((user) => user.address).sort();
   const seedString = sortedMostActiveAddresses.join(',');                                       // All running instances should have the same string at this time
   const hash = crypto.createHash('sha256').update(seedString).digest('hex');                    // Hash should be same in all computers that are in this chat
@@ -269,7 +268,7 @@ export function getActiveUsers(users: UserWithIndex[], userActivityTable: UserAc
     idleMs[key] = now - userActivityTable[key].timestamp;
   }
 
-  console.log("Users inside removeIdle: ", users)
+console.log("Users inside removeIdle: ", users)
   const activeUsers = users.filter((user) => {
     const userAddr = user.address;
     if (!userActivityTable[userAddr]) {

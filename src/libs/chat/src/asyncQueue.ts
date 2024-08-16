@@ -1,6 +1,7 @@
 import { FIRST_SEGMENT_INDEX } from "./constants";
 import { incrementHexString, sleep } from "./utils";
 
+// A promise queue, that will keep a specified max parallel request count
 export class AsyncQueue {
   private indexed;
   private waitable;
@@ -20,6 +21,7 @@ export class AsyncQueue {
     this.maxParallel = settings.max || 5;
   }
 
+  // Executes promises from the AsyncQueue, will execute maxParallel count parallel requests
   private async processQueue() {
     if (this.inProgressCount >= this.maxParallel) return;
     this.isProcessing = true;
@@ -55,11 +57,13 @@ export class AsyncQueue {
     this.isProcessing = false;
   }
 
+  // Enqueue a promise into the AsyncQueue
   enqueue(promiseFunction: (index?: string) => Promise<any>) {
     this.queue.push(promiseFunction);
     this.processQueue();
   }
 
+  // Increase the number of maximum parallel requests
   increaseMax(limit: number) {
     if (this.maxParallel+1 <= limit) {
       this.maxParallel++;
@@ -67,6 +71,7 @@ export class AsyncQueue {
     console.log("Max parallel request set to ", this.maxParallel);
   }
 
+  // Decrease the number of maximum parallel requests
   decreaseMax() {
     if (this.maxParallel > 1) {
       this.maxParallel--;
@@ -74,6 +79,7 @@ export class AsyncQueue {
     }
   }
 
+  // Waits for in-progress promises, then clears the queue
   async clearQueue() {
     this.queue = [];
     while (this.isProcessing || this.inProgressCount > 0) {
@@ -81,6 +87,7 @@ export class AsyncQueue {
     }
   }
 
+  //TODO need to understand this part
   async waitForProcessing() {
     if (this.isWaiting) return true;
 

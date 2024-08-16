@@ -7,7 +7,7 @@ export {
 } from './constants';
 
 // Types
-export { 
+export type { 
     MessageData, 
     ParticipantDetails, 
     UserWithIndex, 
