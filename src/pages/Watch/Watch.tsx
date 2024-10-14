@@ -1,11 +1,10 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { VideoPlayer } from 'swarm-stream-react-js';
 
-import { Chat } from '../../components/Chat/Chat';
 import { PlayerContainer } from '../../components/Containers/PlayerContainer';
 import { JoinButton } from '../../components/JoinButton/JoinButton';
 import { VideoList } from '../../components/VideoList/VideoList';
-import { VideoPlayer } from '../../components/VideoPlayer/VideoPlayer';
 import { ROUTES } from '../../routes';
 
 import './Watch.scss';
@@ -29,7 +28,6 @@ export function Watch() {
         <JoinButton onClick={() => ({})} />
         <VideoList items={items} />
       </PlayerContainer>
-      <Chat topic={searchParams.get('t')!} />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { BatchId } from '@ethersphere/bee-js';
 import { useEthers } from '@usedapp/core';
+import { isStreamOngoing, startStream, stopStream, streamBee } from 'swarm-stream-react-js';
 
 import { assertAtLeastFourChars, assertBatchId, assertPositiveInteger } from '../..//utils/formValidation';
 import { Button } from '../../components/Button/Button';
@@ -10,8 +11,6 @@ import { FormContainer } from '../../components/FormContainer/FormContainer';
 import { LiveIndicator } from '../../components/LiveIndicator/LiveIndicator';
 import { ControllerTextInput } from '../../components/TextInput/ControllerTextInput';
 import { WithAsyncErrorBoundary, WithErrorBoundary } from '../../hooks/WithErrorBoundary';
-import { initChatRoom } from '../../libs/chat';
-import { isStreamOngoing, startStream, stopStream } from '../../libs/stream';
 
 import './Stream.scss';
 
@@ -57,6 +56,8 @@ const formFields = [
   },
 ];
 
+streamBee.setBee('http://localhost:1633');
+
 export function Stream() {
   const { account, library } = useEthers();
   const { control, handleSubmit, getValues } = useForm<FormData>();
@@ -81,7 +82,6 @@ export function Stream() {
       videoBitsPerSecond: +data.videoBitsPerSecond,
     });
 
-    await initChatRoom(data.streamTopic, data.stamp as BatchId);
     setIsLive(true);
   });
 

@@ -62,6 +62,9 @@ importers:
       react-router-dom:
         specifier: ^6.21.1
         version: 6.23.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      swarm-stream-react-js:
+        specifier: file:../swarm-stream-react-js
+        version: file:../swarm-stream-react-js(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     devDependencies:
       '@types/react':
         specifier: ^18.2.43
@@ -427,6 +430,10 @@ packages:
 
   '@ethersphere/bee-js@7.0.3':
     resolution: {integrity: sha512-1Z19V6AJey6BScvIg7/kb464B9oPS6/nIrvEODWEJTXsaC/DBXAdQhR76ypvhrW3ldbwT5NVDA0HEfc9QekVEw==}
+
+  '@ethersphere/bee-js@8.1.0':
+    resolution: {integrity: sha512-26IFcA6dOmKrr6Cok0PDOEmF00V6ij1R8cLpUAhGyRkcVoRhZRj5tuk9H+Zj7pOoBR9ytzbMHpvEkC66sn2Y9Q==}
+    engines: {bee: 2.2.0-06a0aca7, beeApiVersion: 7.1.0}
 
   '@ethersphere/swarm-cid@0.1.0':
     resolution: {integrity: sha512-n+n+w5RJBPm7CiPf8TIgNFIRMo4bLh5bYpZxHObgCaxFW8WNZ4UGfqg+qjS/jEr+A3Mmp0lugKDvd8GnfFy7JQ==}
@@ -2458,6 +2465,12 @@ packages:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
 
+  swarm-stream-react-js@file:../swarm-stream-react-js:
+    resolution: {directory: ../swarm-stream-react-js, type: directory}
+    peerDependencies:
+      react: ^18.0.0
+      react-dom: ^18.0.0
+
   tar-js@0.3.0:
     resolution: {integrity: sha512-9uqP2hJUZNKRkwPDe5nXxXdzo6w+BFBPq9x/tyi5/U/DneuSesO/HMb0y5TeWpfcv49YDJTs7SrrZeeu8ZHWDA==}
 
@@ -2963,6 +2976,21 @@ snapshots:
   '@eslint/js@8.57.0': {}
 
   '@ethersphere/bee-js@7.0.3':
+    dependencies:
+      '@ethersphere/swarm-cid': 0.1.0
+      axios: 0.28.1
+      cafe-utility: 21.5.0
+      elliptic: 6.5.5
+      isomorphic-ws: 4.0.1(ws@8.17.0)
+      js-sha3: 0.8.0
+      semver: 7.6.2
+      ws: 8.17.0
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - utf-8-validate
+
+  '@ethersphere/bee-js@8.1.0':
     dependencies:
       '@ethersphere/swarm-cid': 0.1.0
       axios: 0.28.1
@@ -5499,6 +5527,20 @@ snapshots:
       has-flag: 4.0.0
 
   supports-preserve-symlinks-flag@1.0.0: {}
+
+  swarm-stream-react-js@file:../swarm-stream-react-js(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      '@ethersphere/bee-js': 8.1.0
+      clsx: 2.1.1
+      ethers: 5.7.2
+      mantaray-js: 1.0.3
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      react-loader-spinner: 6.1.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - utf-8-validate
 
   tar-js@0.3.0: {}
 
