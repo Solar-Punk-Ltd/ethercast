@@ -45,7 +45,7 @@ const formFields = [
   {
     name: 'timeslice',
     label: 'Set the timeslice',
-    defaultValue: '1000',
+    defaultValue: '2000',
     rules: { required: 'Timeslice is required', validate: assertPositiveInteger },
   },
   {
