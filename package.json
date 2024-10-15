@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@ethersphere/bee-js": "^8.1.0",
+    "@solarpunkltd/swarm-stream-react-js": "^0.0.2",
     "@usedapp/core": "^1.2.13",
     "clsx": "^2.1.0",
     "ethers": "^5.7.2",
